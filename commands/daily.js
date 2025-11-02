@@ -39,12 +39,32 @@ module.exports = {
                 const hoursLeft = Math.floor(timeUntilReset / (1000 * 60 * 60));
                 const minutesLeft = Math.floor((timeUntilReset % (1000 * 60 * 60)) / (1000 * 60));
                 
+                // Create YAML cooldown message
+                let yamlCooldown = '```yaml\n';
+                yamlCooldown += '#════════════════════════════════\n';
+                yamlCooldown += '# ⏰ DAILY REWARD COOLDOWN\n';
+                yamlCooldown += '#════════════════════════════════\n\n';
+                yamlCooldown += `👤 USER: ${interaction.user.displayName}\n`;
+                yamlCooldown += `📅 LAST CLAIM: ${userData.last_daily_claim}\n\n`;
+                yamlCooldown += '⏳ TIME REMAINING:\n';
+                yamlCooldown += `   Hours: ${hoursLeft}h\n`;
+                yamlCooldown += `   Minutes: ${minutesLeft}m\n\n`;
+                yamlCooldown += '💡 TIP:\n';
+                yamlCooldown += '   Daily rewards reset at midnight!\n';
+                yamlCooldown += '   Come back tomorrow for more rewards!\n\n';
+                yamlCooldown += '#════════════════════════════════\n';
+                yamlCooldown += '```';
+
                 return interaction.reply({
                     embeds: [new EmbedBuilder()
                         .setColor('#FF6B6B')
                         .setTitle('⏰ Daily Reward Already Claimed')
-                        .setDescription(`You've already claimed your daily rewards today!\n\n⏳ **Next claim available in:** ${hoursLeft}h ${minutesLeft}m`)
-                        .setFooter({ text: 'Daily rewards reset at midnight!' })
+                        .setDescription(yamlCooldown)
+                        .setTimestamp()
+                        .setFooter({ 
+                            text: 'Daily rewards reset at midnight!',
+                            iconURL: interaction.user.displayAvatarURL({ dynamic: true })
+                        })
                     ],
                     flags: 64 // ephemeral flag
                 });
@@ -129,56 +149,47 @@ module.exports = {
                 WHERE id = ?
             `, [streakCount, userId]);
 
-            // Create reward embed
-            const rewardEmbed = new EmbedBuilder()
-                .setColor('#4CAF50')
-                .setTitle('🎁 Daily Rewards Claimed!')
-                .setDescription(`Welcome back, ${interaction.user.displayName}! Here are your daily rewards:`)
-                .addFields(
-                    {
-                        name: '📈 Experience Points',
-                        value: `+${xpReward} XP`,
-                        inline: true
-                    },
-                    {
-                        name: '🪙 Bonus Coins',
-                        value: `+${coinReward} coins`,
-                        inline: true
-                    },
-                    {
-                        name: '🎯 Random Item',
-                        value: `${getItemEmoji(itemReward)} ${itemReward}`,
-                        inline: true
-                    },
-                    {
-                        name: '✨ Daily Charm',
-                        value: '🍀 Daily Charm (+1)',
-                        inline: true
-                    },
-                    {
-                        name: '🔥 Daily Streak',
-                        value: `${streakCount} day${streakCount > 1 ? 's' : ''}`,
-                        inline: true
-                    },
-                    {
-                        name: '💎 Current Stats',
-                        value: `Level ${newLevel} • ${newCoins} coins`,
-                        inline: true
-                    }
-                )
-                .setFooter({ 
-                    text: `Next daily reward available tomorrow! | Streak bonus at 7 days` 
-                })
-                .setTimestamp();
-
-            // Add level up notification if applicable
-            if (leveledUp) {
-                rewardEmbed.addFields({
-                    name: '🎉 Level Up!',
-                    value: `Congratulations! You've reached **Level ${newLevel}**!`,
-                    inline: false
-                });
+            // Create professional YAML reward display
+            let yamlRewards = '```yaml\n';
+            yamlRewards += '#════════════════════════════════\n';
+            yamlRewards += '# 🎁 DAILY REWARDS CLAIMED\n';
+            yamlRewards += '#════════════════════════════════\n\n';
+            
+            yamlRewards += `👋 WELCOME BACK: ${interaction.user.displayName}\n`;
+            yamlRewards += `📅 DATE: ${new Date().toLocaleDateString()}\n\n`;
+            
+            yamlRewards += '🎁 REWARDS EARNED:\n';
+            yamlRewards += `   📈 Experience: +${xpReward} XP\n`;
+            yamlRewards += `   🪙 Bonus Coins: +${coinReward} coins\n`;
+            yamlRewards += `   🎯 Random Item: ${getItemEmoji(itemReward)} ${itemReward}\n`;
+            yamlRewards += `   ✨ Daily Charm: 🍀 Daily Charm (+1)\n\n`;
+            
+            yamlRewards += '📊 PROGRESS UPDATE:\n';
+            yamlRewards += `   🏆 Level: ${newLevel}${leveledUp ? ' (LEVEL UP! 🎉)' : ''}\n`;
+            yamlRewards += `   💰 Total Coins: ${newCoins.toLocaleString()}\n`;
+            yamlRewards += `   🔥 Daily Streak: ${streakCount} day${streakCount > 1 ? 's' : ''}\n\n`;
+            
+            if (streakCount === 7) {
+                yamlRewards += '🏆 STREAK BONUS:\n';
+                yamlRewards += '   ✨ Shiny Boost earned for 7-day streak!\n\n';
             }
+            
+            yamlRewards += '💡 NEXT STEPS:\n';
+            yamlRewards += '   /inventory - View your items\n';
+            yamlRewards += '   /profile - Check your progress\n';
+            yamlRewards += '   /shop - Browse the shop\n\n';
+            yamlRewards += '#════════════════════════════════\n';
+            yamlRewards += '```';
+
+            const rewardEmbed = new EmbedBuilder()
+                .setTitle('🎁 Daily Rewards Claimed!')
+                .setDescription(yamlRewards)
+                .setColor('#4CAF50')
+                .setTimestamp()
+                .setFooter({ 
+                    text: `Next daily reward available tomorrow! • Streak bonus at 7 days`,
+                    iconURL: interaction.user.displayAvatarURL({ dynamic: true })
+                });
 
             // Add streak bonus rewards for milestones
             if (streakCount === 7) {
@@ -187,11 +198,6 @@ module.exports = {
                     VALUES (?, ?, COALESCE((SELECT quantity FROM user_items WHERE user_id = ? AND item_id = ?), 0) + 1)
                 `, [userId, 'Shiny Boost', userId, 'Shiny Boost']);
 
-                rewardEmbed.addFields({
-                    name: '🏆 Weekly Streak Bonus!',
-                    value: '✨ **Shiny Boost** - Complete 7 days in a row!',
-                    inline: false
-                });
             }
 
             await interaction.reply({ embeds: [rewardEmbed] });
