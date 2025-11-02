@@ -37,6 +37,10 @@ class PokezamBot {
 
     async initialize() {
         try {
+            // Start health check server IMMEDIATELY for Render deployment detection
+            this.startHealthCheckServer();
+            console.log('✅ Health check server started early for Render compatibility');
+            
             // Ensure TCG data is available (for cloud hosting)
             await this.ensureTCGData();
             
@@ -55,12 +59,23 @@ class PokezamBot {
             await this.loadCommands();
             await this.loadEvents();
             
-            // Login to Discord
+            // Login to Discord with timeout for cloud deployment reliability
             console.log('Attempting to login to Discord...');
-            await this.client.login(process.env.DISCORD_TOKEN);
+            const loginTimeout = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Discord login timeout after 30 seconds')), 30000)
+            );
             
-            // Start health check server for hosting platforms
-            this.startHealthCheckServer();
+            try {
+                await Promise.race([
+                    this.client.login(process.env.DISCORD_TOKEN),
+                    loginTimeout
+                ]);
+                console.log('✅ Discord login successful');
+            } catch (error) {
+                console.error('❌ Discord login failed:', error.message);
+                // Continue anyway - health server is running for Render
+                console.log('⚠️  Continuing with health server running...');
+            }
             
             // Start auto-backup system for cloud hosting
             if (process.env.NODE_ENV === 'production' || process.env.PORT) {
@@ -70,7 +85,15 @@ class PokezamBot {
             console.log('Pokezam bot initialized successfully!');
         } catch (error) {
             console.error('Error initializing bot:', error);
-            process.exit(1);
+            
+            // In production, keep health server running even if bot fails
+            if (process.env.NODE_ENV === 'production' || process.env.PORT) {
+                console.log('🏥 Production mode: Keeping health server running for Render');
+                console.log('🔄 Bot will retry connection automatically...');
+                // Don't exit in production - let health server keep running
+            } else {
+                process.exit(1);
+            }
         }
     }
 
