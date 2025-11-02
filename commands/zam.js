@@ -205,8 +205,7 @@ experience awaiting    : "Cards, quests, and adventure!"
                 }
             }
             
-            yamlDescription += `   Odds               : "${rarityInfo.odds}"\n\n`;
-            yamlDescription += '💰 REWARDS EARNED:\n';
+            yamlDescription += '\n💰 REWARDS EARNED:\n';
             yamlDescription += `   Experience         : ${xpReward} XP${variantInfo.xpBonus > 0 ? ` (${baseXpReward} base +${variantInfo.xpBonus} variant)` : ` (${baseXpReward} rarity bonus)`}\n`;
             
             // Build gold reward display with bonuses
@@ -369,7 +368,6 @@ experience awaiting    : "Cards, quests, and adventure!"
                 emoji: '🌟✨',
                 description: '**LEGENDARY SECRET RARE!** An incredibly rare find!',
                 color: '#FF5722', // Orange
-                odds: '1 in 7,000',
                 goldRange: [5000, 10000]
             };
         } else if (rarityLower.includes('ultra')) {
@@ -377,7 +375,6 @@ experience awaiting    : "Cards, quests, and adventure!"
                 emoji: '💎',
                 description: '**ULTRA RARE!** A magnificent discovery!',
                 color: '#E91E63', // Pink
-                odds: '1 in 2,500',
                 goldRange: [2000, 5000]
             };
         } else if (rarityLower.includes('holo')) {
@@ -385,7 +382,6 @@ experience awaiting    : "Cards, quests, and adventure!"
                 emoji: '✨',
                 description: '**HOLOGRAPHIC RARE!** Shimmering with power!',
                 color: '#9B59B6', // Purple
-                odds: '1 in 500',
                 goldRange: [1000, 2000]
             };
         } else if (rarityLower.includes('rare')) {
@@ -393,7 +389,6 @@ experience awaiting    : "Cards, quests, and adventure!"
                 emoji: '⭐',
                 description: '**RARE CARD!** A valuable addition!',
                 color: '#3498DB', // Blue
-                odds: '1 in 20',
                 goldRange: [400, 1000]
             };
         } else if (rarityLower.includes('uncommon')) {
@@ -401,7 +396,6 @@ experience awaiting    : "Cards, quests, and adventure!"
                 emoji: '🎴',
                 description: '**Uncommon card** - Nice find!',
                 color: '#2ECC71', // Green
-                odds: '1 in 4',
                 goldRange: [250, 400]
             };
         } else {
@@ -409,7 +403,6 @@ experience awaiting    : "Cards, quests, and adventure!"
                 emoji: '📄',
                 description: 'A **common card** for your collection.',
                 color: '#FFFFFF', // White
-                odds: '~70% chance',
                 goldRange: [100, 250]
             };
         }
