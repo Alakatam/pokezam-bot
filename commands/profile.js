@@ -67,12 +67,7 @@ module.exports = {
             description += `📚 COLLECTION:\n`;
             description += `   total draws    : ${user.total_draws.toLocaleString()}\n`;
             description += `   unique cards   : ${collectionStats.unique_cards.toLocaleString()}\n`;
-            description += `   star cards     : ${(collectionStats.star_cards || 0).toLocaleString()}\n`;
-            
-            // Calculate collection completion percentage
-            const completionRate = collectionStats.unique_cards > 0 ? 
-                Math.round((collectionStats.unique_cards / 151) * 100) : 0; // Assuming 151 total cards for now
-            description += `   completion     : ${completionRate}%\n\n`;
+            description += `   star cards     : ${(collectionStats.star_cards || 0).toLocaleString()}\n\n`;
             
             // Unlocked generations with cleaner format
             description += `🌟 UNLOCKED GENERATIONS:\n`;
@@ -114,7 +109,6 @@ module.exports = {
                 .setTitle(`🎮 Trainer Profile`)
                 .setDescription(description)
                 .setColor('#ffd700')
-                .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
                 .setTimestamp()
                 .setFooter({ 
                     text: `Profile viewed by ${interaction.user.username}`,

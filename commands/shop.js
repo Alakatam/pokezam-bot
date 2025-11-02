@@ -396,8 +396,7 @@ next step              : "Type '/start' to unlock shop!"
         yamlDescription += '#══════════════════════════════════════\n\n';
         
         yamlDescription += '💰 WALLET:\n';
-        yamlDescription += `   Balance: ${user.gold.toLocaleString()}g\n`;
-        yamlDescription += `   Status: ${user.gold >= 1000 ? 'Premium' : 'Standard'}\n\n`;
+        yamlDescription += `   Balance: ${user.gold.toLocaleString()}g\n\n`;
 
         yamlDescription += `📂 CATEGORY: ${category.name}\n`;
         yamlDescription += `   ${category.description}\n`;
