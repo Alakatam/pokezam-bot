@@ -312,7 +312,7 @@ benefits               : "Quests + Cards + Shop + More!"
         const timeDiff = nextReset.getTime() - easternTime.getTime();
         const timeUntilReset = this.formatTimeDifference(timeDiff);
         
-        // Format the next reset time
+        // Format the next reset time (use consistent ET timezone display)
         const resetTimeOptions = {
             timeZone: "America/New_York",
             weekday: 'long',
@@ -320,11 +320,10 @@ benefits               : "Quests + Cards + Shop + More!"
             month: 'long',
             day: 'numeric',
             hour: '2-digit',
-            minute: '2-digit',
-            timeZoneName: 'short'
+            minute: '2-digit'
         };
         
-        const nextResetTime = nextReset.toLocaleString('en-US', resetTimeOptions);
+        const nextResetTime = nextReset.toLocaleString('en-US', resetTimeOptions) + ' ET';
         
         return {
             nextResetTime,
