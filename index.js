@@ -935,27 +935,34 @@ class PokezamBot {
                 console.log('✅ Commands registered to test guild (instant access)');
             }
 
-            // Skip global registration in development to prevent duplication
-            if (!TEST_GUILD_ID || isProduction) {
+            // TEMPORARY: Use guild commands for debugging (faster sync)
+            if (TEST_GUILD_ID) {
+                console.log('🔧 DEBUG MODE: Using guild commands for instant sync...');
+                await rest.put(
+                    Routes.applicationGuildCommands(process.env.CLIENT_ID, TEST_GUILD_ID),
+                    { body: commands }
+                );
+                console.log(`✅ Guild commands registered (debug command available immediately)`);
+                
+                // Clear global commands to prevent duplication
+                await rest.put(
+                    Routes.applicationCommands(process.env.CLIENT_ID),
+                    { body: [] }
+                );
+                console.log('🧹 Global commands cleared during debug mode');
+            } else {
+                // Fallback to global if no test guild
                 console.log('🌐 Registering global commands...');
                 const data = await rest.put(
                     Routes.applicationCommands(process.env.CLIENT_ID),
                     { body: commands }
                 );
                 console.log(`✅ Successfully registered ${data.length} global commands`);
-            } else {
-                // Clear global commands in development to prevent duplication
-                console.log('🧹 Development mode: Clearing global commands to prevent duplication...');
-                await rest.put(
-                    Routes.applicationCommands(process.env.CLIENT_ID),
-                    { body: [] }
-                );
-                console.log('✅ Global commands cleared');
             }
             
-            if (TEST_GUILD_ID && !isProduction) {
-                console.log('💡 Development: Use commands immediately in your test server!');
-                console.log('ℹ️  No command duplication - using guild commands only');
+            if (TEST_GUILD_ID) {
+                console.log('💡 DEBUG MODE: Commands available immediately in test server!');
+                console.log('🔍 /debug command ready for production troubleshooting');
             } else {
                 console.log('ℹ️  Global commands may take up to 1 hour to sync across Discord');
             }
