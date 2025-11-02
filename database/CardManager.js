@@ -164,14 +164,14 @@ class CardManager {
     }
 
     selectCardWithRarityOdds(cards, guildLuckBonus = 0) {
-        // Define rarity percentages (cumulative from 0 to 100)
+        // Define rarity percentages (cumulative from 0 to 100) - increased rare odds by 10%
         const rarityThresholds = [
-            { rarity: 'Secret Rare', threshold: 0.014 + (guildLuckBonus * 0.01) },
-            { rarity: 'Ultra Rare', threshold: 0.054 + (guildLuckBonus * 0.02) },  // 0.014 + 0.04
-            { rarity: 'Holo Rare', threshold: 0.254 + (guildLuckBonus * 0.05) },   // 0.054 + 0.2
-            { rarity: 'Rare', threshold: 5.254 + (guildLuckBonus * 0.5) },         // 0.254 + 5
-            { rarity: 'Uncommon', threshold: 25.254 + (guildLuckBonus * 1.0) },    // 5.254 + 20
-            { rarity: 'Common', threshold: 100 }                                   // Everything else
+            { rarity: 'Secret Rare', threshold: 0.0154 + (guildLuckBonus * 0.01) }, // 0.014 * 1.1 = 0.0154
+            { rarity: 'Ultra Rare', threshold: 0.0594 + (guildLuckBonus * 0.02) },  // 0.0154 + (0.04 * 1.1)
+            { rarity: 'Holo Rare', threshold: 0.2794 + (guildLuckBonus * 0.05) },   // 0.0594 + (0.2 * 1.1)
+            { rarity: 'Rare', threshold: 5.2794 + (guildLuckBonus * 0.5) },         // 0.2794 + 5
+            { rarity: 'Uncommon', threshold: 25.2794 + (guildLuckBonus * 1.0) },    // 5.2794 + 20
+            { rarity: 'Common', threshold: 100 }                                    // Everything else
         ];
 
         // Generate random number from 0 to 100
