@@ -24,8 +24,8 @@ class Database {
                 // Note: This will still reset on deployment but persist during runtime
                 this.dbPath = '/tmp/pokezam.db';
             } else {
-                // Local development
-                this.dbPath = process.env.DATABASE_PATH || path.join(__dirname, 'pokezam.db');
+                // Local development - use root directory for consistency
+                this.dbPath = process.env.DATABASE_PATH || './pokezam.db';
             }
             
             // Ensure directory exists for persistent storage
