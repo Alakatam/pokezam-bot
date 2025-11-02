@@ -83,10 +83,10 @@ module.exports = {
             const coinReward = Math.floor(Math.random() * 50) + 25; // 25-75 coins bonus
             const itemReward = selectedItem.name;
 
-            // Update user data
+            // Update user data  
             const newXP = userData.xp + xpReward;
             const newCoins = (userData.coins || 0) + coinReward;
-            const newLevel = Math.floor(newXP / 1000) + 1;
+            const newLevel = userManager.calculateLevel(newXP);
             const leveledUp = newLevel > userData.level;
 
             // Update database
