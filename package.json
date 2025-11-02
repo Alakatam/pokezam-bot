@@ -1,0 +1,38 @@
+{
+  "name": "pokezam-tcg-bot",
+  "version": "1.0.0",
+  "description": "A Discord TCG Pokemon collection bot focused on card collecting, trading, and community interaction",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "set NODE_ENV=development && nodemon index.js",
+    "dev:clean": "set NODE_ENV=development && node index.js",
+    "prod": "set NODE_ENV=production && node index.js",
+    "verify": "node verify-setup.js",
+    "setup": "node scripts/setup.js",
+    "db:init": "node scripts/initDatabase.js",
+    "db:seed": "node scripts/seedCards.js",
+    "cards:add": "node scripts/addStarterCards.js",
+    "commands:clear": "node scripts/clearCommands.js"
+  },
+  "keywords": [
+    "discord",
+    "bot",
+    "pokemon",
+    "tcg",
+    "collection"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.2",
+    "cron": "^3.1.6",
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.3.1",
+        "pokemontcgsdk": "^2.0.0",
+    "sqlite3": "^5.1.6"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}

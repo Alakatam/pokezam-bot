@@ -1,0 +1,33 @@
+node_modules/
+.env
+*.log
+.DS_Store
+database/*.db
+database/*.db-journal
+*.tmp
+.vscode/
+.idea/
+
+# TCG Data - too large for GitHub, will download on startup
+tcg-data/
+
+# Database files - will be created fresh on hosting platform
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Build artifacts and dependencies
+node_modules/
+*.tar.gz
+*.node
+package-lock.json
+
+# Additional exclusions for hosting
+*.pid
+*.seed
+coverage/
+.nyc_output
+.cache/
+dist/
+build/
