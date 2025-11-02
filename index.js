@@ -842,6 +842,12 @@ class PokezamBot {
             } catch (error) {
                 console.error('Error executing command:', error);
                 
+                // Skip interaction response for "Unknown interaction" errors (timeout)
+                if (error.code === 10062) {
+                    console.log('⚠️ Command timed out - interaction expired');
+                    return;
+                }
+                
                 const reply = {
                     content: 'There was an error while executing this command!',
                     flags: 64 // ephemeral flag
@@ -854,7 +860,10 @@ class PokezamBot {
                         await interaction.reply(reply);
                     }
                 } catch (followUpError) {
-                    console.error('Failed to send error message:', followUpError.message);
+                    // Don't log "Unknown interaction" errors for followup attempts
+                    if (followUpError.code !== 10062) {
+                        console.error('Failed to send error message:', followUpError.message);
+                    }
                 }
             }
         });

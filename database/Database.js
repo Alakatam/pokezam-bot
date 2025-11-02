@@ -145,7 +145,8 @@ class Database {
             const dailyColumns = [
                 { name: 'last_daily_claim', type: 'TEXT' },
                 { name: 'daily_streak', type: 'INTEGER DEFAULT 0' },
-                { name: 'coins', type: 'INTEGER DEFAULT 0' }
+                { name: 'coins', type: 'INTEGER DEFAULT 0' },
+                { name: 'cooldown_bypass', type: 'BOOLEAN DEFAULT 0' }
             ];
             
             for (const column of dailyColumns) {
