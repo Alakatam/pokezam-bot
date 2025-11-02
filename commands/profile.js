@@ -13,10 +13,11 @@ module.exports = {
     
     async execute(interaction, { database, userManager, cardManager, questManager }) {
         try {
-            await interaction.deferReply();
-            
             const targetUser = interaction.options.getUser('user') || interaction.user;
             const userId = targetUser.id;
+            
+            // Defer reply immediately to avoid timeout
+            await interaction.deferReply();
             
             let user = await userManager.getUser(userId);
             
@@ -137,21 +138,33 @@ module.exports = {
 
         } catch (error) {
             console.error('Error in profile command:', error);
-            if (!interaction.replied && !interaction.deferred) {
-                await interaction.reply({
-                    embeds: [EmbedUtils.createErrorEmbed(
-                        'Profile Error',
-                        'An error occurred while loading the profile. Please try again!'
-                    )],
-                    flags: 64
-                });
-            } else {
-                await interaction.editReply({
-                    embeds: [EmbedUtils.createErrorEmbed(
-                        'Profile Error',
-                        'An error occurred while loading the profile. Please try again!'
-                    )]
-                });
+            
+            // Check if it's a Discord interaction timeout
+            if (error.code === 10062) {
+                console.log('⚠️ Profile command timed out - interaction expired');
+                return; // Don't try to respond to expired interaction
+            }
+            
+            // Try to respond if interaction is still valid
+            try {
+                if (!interaction.replied && !interaction.deferred) {
+                    await interaction.reply({
+                        embeds: [EmbedUtils.createErrorEmbed(
+                            'Profile Error',
+                            'An error occurred while loading the profile. Please try again!'
+                        )],
+                        flags: 64
+                    });
+                } else {
+                    await interaction.editReply({
+                        embeds: [EmbedUtils.createErrorEmbed(
+                            'Profile Error',
+                            'An error occurred while loading the profile. Please try again!'
+                        )]
+                    });
+                }
+            } catch (replyError) {
+                console.log('⚠️ Could not reply to interaction:', replyError.message);
             }
         }
     }
