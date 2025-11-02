@@ -290,6 +290,9 @@ experience awaiting    : "Cards, quests, and adventure!"
             const reply = await interaction.fetchReply();
             await reply.react('⭐');
 
+            // Post to Global showcase channel for rare cards (Holo Rare or above)
+            await this.checkAndPostToGlobalShowcase(interaction, detailedCard, variant, variantInfo, rarityInfo);
+
             // Notify about completed quests
             if (completedQuests.length > 0) {
                 // Get user's daily quests to find the correct quest positions
@@ -469,5 +472,91 @@ experience awaiting    : "Cards, quests, and adventure!"
         const milestones = [10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000];
         const nextMilestone = milestones.find(m => m > totalDraws);
         return nextMilestone ? `${nextMilestone} draws` : 'Max milestone reached!';
+    },
+
+    async checkAndPostToGlobalShowcase(interaction, detailedCard, variant, variantInfo, rarityInfo) {
+        try {
+            // Global showcase channel ID
+            const GLOBAL_SHOWCASE_CHANNEL_ID = '1434216182017167480';
+            
+            // Check if this card qualifies for global showcase (Holo Rare or above)
+            const rarity = detailedCard.rarity.toLowerCase();
+            const isShowcaseWorthy = rarity.includes('holo') || 
+                                   rarity.includes('ultra') || 
+                                   rarity.includes('secret') ||
+                                   rarity.includes('legendary') ||
+                                   variant !== 'normal'; // Special variants also qualify
+            
+            if (!isShowcaseWorthy) {
+                return; // Not rare enough for showcase
+            }
+
+            // Get the global showcase channel
+            const showcaseChannel = await interaction.client.channels.fetch(GLOBAL_SHOWCASE_CHANNEL_ID).catch(() => null);
+            if (!showcaseChannel) {
+                console.log('Global showcase channel not found or not accessible');
+                return;
+            }
+
+            // Create a special showcase embed (more compact than the main one)
+            const isSpecialVariant = variant !== 'normal';
+            const showcaseEmbed = new EmbedBuilder()
+                .setTitle(`${isSpecialVariant ? variantInfo.emoji : rarityInfo.emoji} ${detailedCard.rarity} Pulled!`)
+                .setColor(isSpecialVariant ? variantInfo.color : rarityInfo.color)
+                .setTimestamp();
+
+            // Add card image if available
+            const imageUrl = detailedCard.image_large || detailedCard.image_small;
+            if (imageUrl) {
+                showcaseEmbed.setThumbnail(imageUrl);
+            }
+
+            // Compact YAML-style description for showcase
+            let showcaseDescription = '```yaml\n';
+            showcaseDescription += '#══════════════════════════════════════\n';
+            showcaseDescription += `# 🎯 RARE CARD SHOWCASE\n`;
+            showcaseDescription += '#══════════════════════════════════════\n\n';
+            showcaseDescription += `Card Name          : "${detailedCard.name}"\n`;
+            showcaseDescription += `Set                : "${detailedCard.set_name || 'Unknown'}"\n`;
+            showcaseDescription += `Rarity             : "${detailedCard.rarity}"\n`;
+            
+            if (isSpecialVariant) {
+                showcaseDescription += `Variant            : "${variantInfo.displayName}" ${variantInfo.emoji}\n`;
+            }
+            
+            showcaseDescription += `Pulled By          : "${interaction.user.username}"\n`;
+            showcaseDescription += `Server             : "${interaction.guild?.name || 'Unknown Server'}"\n`;
+            
+            // Add rarity status
+            if (rarity.includes('secret')) {
+                showcaseDescription += `Status             : "🌟 LEGENDARY PULL! 🌟"\n`;
+            } else if (rarity.includes('ultra')) {
+                showcaseDescription += `Status             : "💎 ULTRA RARE FIND! 💎"\n`;
+            } else if (rarity.includes('holo')) {
+                showcaseDescription += `Status             : "✨ HOLO SHINE! ✨"\n`;
+            } else if (isSpecialVariant) {
+                showcaseDescription += `Status             : "${variantInfo.emoji} SPECIAL VARIANT! ${variantInfo.emoji}"\n`;
+            }
+            
+            showcaseDescription += '\n#══════════════════════════════════════\n';
+            showcaseDescription += '```';
+
+            showcaseEmbed.setDescription(showcaseDescription);
+            
+            // Set footer with trainer info
+            showcaseEmbed.setFooter({
+                text: `Congratulations ${interaction.user.username}! • Pokézam Global Showcase`,
+                iconURL: interaction.user.displayAvatarURL({ dynamic: true })
+            });
+
+            // Send to global showcase channel
+            await showcaseChannel.send({ embeds: [showcaseEmbed] });
+            
+            console.log(`✨ Showcased ${detailedCard.rarity} "${detailedCard.name}" pulled by ${interaction.user.username} in Global channel`);
+            
+        } catch (error) {
+            console.error('Error posting to global showcase:', error);
+            // Don't throw error - just log it so it doesn't break the main command
+        }
     }
 };
