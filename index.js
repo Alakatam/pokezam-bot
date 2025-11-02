@@ -48,10 +48,15 @@ class PokezamBot {
             // Connect to database
             await this.database.connect();
             
-            // Try to restore from backup first (for cloud hosting)
+            // Only restore from backup if database is empty/missing (not on every restart!)
             if (process.env.NODE_ENV === 'production' || process.env.PORT) {
-                console.log('🔄 Checking for database backup...');
-                await this.backupManager.restoreBackup();
+                const shouldRestore = await this.checkIfDatabaseNeedsRestore();
+                if (shouldRestore) {
+                    console.log('🔄 Database empty/missing, restoring from backup...');
+                    await this.backupManager.restoreBackup();
+                } else {
+                    console.log('✅ Database exists with data, skipping backup restore to preserve progress');
+                }
             }
             
             await this.database.initialize();
@@ -103,6 +108,36 @@ class PokezamBot {
             } else {
                 process.exit(1);
             }
+        }
+    }
+
+    // Check if database needs restoration (only if empty/missing)
+    async checkIfDatabaseNeedsRestore() {
+        try {
+            // Check if database file exists (for SQLite)
+            const fs = require('fs');
+            const dbPath = this.database.dbPath;
+            
+            if (!dbPath || !fs.existsSync(dbPath)) {
+                console.log('📋 Database file missing, restoration needed');
+                return true;
+            }
+            
+            // Check if database has user data (quick test)
+            const userCount = await this.database.get('SELECT COUNT(*) as count FROM users WHERE 1 LIMIT 1');
+            
+            if (!userCount || userCount.count === 0) {
+                console.log('📋 Database empty (no users), restoration needed');
+                return true;
+            }
+            
+            console.log(`📋 Database has ${userCount.count} users, restoration not needed`);
+            return false;
+            
+        } catch (error) {
+            // If we can't check (tables don't exist, etc), assume restoration is needed
+            console.log('📋 Cannot check database status, assuming restoration needed:', error.message);
+            return true;
         }
     }
 
