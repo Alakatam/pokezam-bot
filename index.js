@@ -55,8 +55,8 @@ class PokezamBot {
             
             await this.database.initialize();
             
-            // Load commands and events
-            await this.loadCommands();
+            // Load commands and events (but don't register commands yet)
+            await this.loadCommandsOnly();
             await this.loadEvents();
             
             // Login to Discord with timeout for cloud deployment reliability
@@ -71,6 +71,10 @@ class PokezamBot {
                     loginTimeout
                 ]);
                 console.log('✅ Discord login successful');
+                
+                // Register commands after successful Discord login
+                this.registerCommandsAsync();
+                
             } catch (error) {
                 console.error('❌ Discord login failed:', error.message);
                 // Continue anyway - health server is running for Render
@@ -874,6 +878,23 @@ class PokezamBot {
         });
     }
 
+    async loadCommandsOnly() {
+        const commandsPath = path.join(__dirname, 'commands');
+        const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
+
+        for (const file of commandFiles) {
+            const filePath = path.join(commandsPath, file);
+            const command = require(filePath);
+
+            if ('data' in command && 'execute' in command) {
+                this.commands.set(command.data.name, command);
+                console.log(`Loaded command: ${command.data.name}`);
+            } else {
+                console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
+            }
+        }
+    }
+
     async loadCommands() {
         const commandsPath = path.join(__dirname, 'commands');
         const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
@@ -895,6 +916,16 @@ class PokezamBot {
 
         // Register slash commands
         await this.registerCommands(commands);
+    }
+
+    async registerCommandsAsync() {
+        console.log('🚀 Starting command registration in background...');
+        const commands = Array.from(this.commands.values()).map(cmd => cmd.data.toJSON());
+        
+        // Don't await - let this run in background
+        this.registerCommands(commands).catch(error => {
+            console.error('❌ Background command registration failed:', error.message);
+        });
     }
 
     async loadEvents() {
