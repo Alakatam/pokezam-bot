@@ -935,14 +935,47 @@ class PokezamBot {
                 console.log('✅ Commands registered to test guild (instant access)');
             }
 
-            // Register global commands - bot has permission for these
-            console.log('🌐 Registering global commands (available after ~1 hour)...');
-            const data = await rest.put(
-                Routes.applicationCommands(process.env.CLIENT_ID),
-                { body: commands }
-            );
-            console.log(`✅ Successfully registered ${data.length} global commands`);
-            console.log('⏳ Commands will be available globally in ~1 hour');
+            // Try guild commands first (immediate access), fallback to global
+            const GUILD_ID = TEST_GUILD_ID || '1302814212922765432';
+            let guildSuccess = false;
+            
+            // First attempt: Guild commands for immediate access
+            if (GUILD_ID) {
+                try {
+                    console.log('🎯 Attempting guild command registration for immediate access...');
+                    console.log('🔍 Guild ID:', GUILD_ID);
+                    await rest.put(
+                        Routes.applicationGuildCommands(process.env.CLIENT_ID, GUILD_ID),
+                        { body: commands }
+                    );
+                    console.log('✅ Guild commands registered successfully (immediate access)');
+                    guildSuccess = true;
+                    
+                    // Clear any existing global commands to prevent duplication
+                    await rest.put(
+                        Routes.applicationCommands(process.env.CLIENT_ID),
+                        { body: [] }
+                    );
+                    console.log('🧹 Cleared global commands to prevent duplication');
+                    
+                } catch (guildError) {
+                    console.log('⚠️ Guild command registration failed:', guildError.message);
+                    if (guildError.code === 50001) {
+                        console.log('🔒 Missing guild access - bot may need re-invitation with proper permissions');
+                    }
+                }
+            }
+            
+            // Fallback: Global commands if guild registration failed
+            if (!guildSuccess) {
+                console.log('🌐 Falling back to global commands...');
+                const data = await rest.put(
+                    Routes.applicationCommands(process.env.CLIENT_ID),
+                    { body: commands }
+                );
+                console.log(`✅ Successfully registered ${data.length} global commands`);
+                console.log('⏳ Commands will be available globally in ~1 hour');
+            }
             
         } catch (error) {
             console.error('❌ Error registering commands:', error);
