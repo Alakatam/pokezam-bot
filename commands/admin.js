@@ -100,6 +100,16 @@ module.exports = {
                 .setName('system-monitor')
                 .setDescription('Real-time system resource monitoring')
         )
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('backup-database')
+                .setDescription('Create a manual backup of user data')
+        )
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('restore-database')
+                .setDescription('Restore user data from backup')
+        )
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     
     async execute(interaction, { database, userManager, cardManager, questManager }) {
@@ -148,6 +158,12 @@ module.exports = {
                     break;
                 case 'system-monitor':
                     await this.handleSystemMonitor(interaction);
+                    break;
+                case 'backup-database':
+                    await this.handleBackupDatabase(interaction);
+                    break;
+                case 'restore-database':
+                    await this.handleRestoreDatabase(interaction);
                     break;
             }
 
@@ -993,6 +1009,102 @@ module.exports = {
                 embeds: [EmbedUtils.createErrorEmbed(
                     'Monitor Failed',
                     `Failed to retrieve system information.\n\n**Error**: ${error.message}`
+                )]
+            });
+        }
+    },
+
+    async handleBackupDatabase(interaction) {
+        await interaction.deferReply({ ephemeral: true });
+
+        try {
+            const DatabaseBackupManager = require('../database/DatabaseBackupManager');
+            const backupManager = new DatabaseBackupManager();
+            
+            const backup = await backupManager.createBackup();
+            
+            let yamlBackup = '```yaml\n';
+            yamlBackup += '#════════════════════════════════\n';
+            yamlBackup += '# 💾 DATABASE BACKUP COMPLETE\n';
+            yamlBackup += '#════════════════════════════════\n\n';
+            yamlBackup += `📅 TIMESTAMP: ${backup.timestamp}\n`;
+            yamlBackup += `📊 VERSION: ${backup.version}\n\n`;
+            yamlBackup += '📋 BACKUP CONTENTS:\n';
+            yamlBackup += `   👥 Users: ${backup.data.users.length}\n`;
+            yamlBackup += `   🎒 Items: ${backup.data.userItems.length}\n`;
+            yamlBackup += `   ✨ Effects: ${backup.data.activeEffects.length}\n\n`;
+            yamlBackup += '💡 NOTES:\n';
+            yamlBackup += '   • Backup saved to /tmp/pokezam_backup.json\n';
+            yamlBackup += '   • Auto-backups run every hour\n';
+            yamlBackup += '   • Use /admin restore-database to restore\n\n';
+            yamlBackup += '#════════════════════════════════\n';
+            yamlBackup += '```';
+
+            const backupEmbed = new EmbedBuilder()
+                .setTitle('💾 Database Backup Created')
+                .setDescription(yamlBackup)
+                .setColor('#00FF00')
+                .setTimestamp();
+
+            await interaction.editReply({ embeds: [backupEmbed] });
+
+        } catch (error) {
+            console.error('Error creating backup:', error);
+            await interaction.editReply({
+                embeds: [EmbedUtils.createErrorEmbed(
+                    'Backup Failed',
+                    `Failed to create database backup.\n\n**Error**: ${error.message}`
+                )]
+            });
+        }
+    },
+
+    async handleRestoreDatabase(interaction) {
+        await interaction.deferReply({ ephemeral: true });
+
+        try {
+            const DatabaseBackupManager = require('../database/DatabaseBackupManager');
+            const backupManager = new DatabaseBackupManager();
+            
+            const restored = await backupManager.restoreBackup();
+            
+            if (restored) {
+                let yamlRestore = '```yaml\n';
+                yamlRestore += '#════════════════════════════════\n';
+                yamlRestore += '# 🔄 DATABASE RESTORE COMPLETE\n';
+                yamlRestore += '#════════════════════════════════\n\n';
+                yamlRestore += `📅 RESTORED: ${new Date().toISOString()}\n`;
+                yamlRestore += `📂 SOURCE: /tmp/pokezam_backup.json\n\n`;
+                yamlRestore += '✅ STATUS: Success\n';
+                yamlRestore += '💡 All user data has been restored\n\n';
+                yamlRestore += '⚠️ WARNING:\n';
+                yamlRestore += '   Bot restart may be required\n';
+                yamlRestore += '   for all changes to take effect\n\n';
+                yamlRestore += '#════════════════════════════════\n';
+                yamlRestore += '```';
+
+                const restoreEmbed = new EmbedBuilder()
+                    .setTitle('🔄 Database Restored')
+                    .setDescription(yamlRestore)
+                    .setColor('#00FF00')
+                    .setTimestamp();
+
+                await interaction.editReply({ embeds: [restoreEmbed] });
+            } else {
+                await interaction.editReply({
+                    embeds: [EmbedUtils.createErrorEmbed(
+                        'Restore Failed',
+                        'No backup file found or backup format is invalid.'
+                    )]
+                });
+            }
+
+        } catch (error) {
+            console.error('Error restoring backup:', error);
+            await interaction.editReply({
+                embeds: [EmbedUtils.createErrorEmbed(
+                    'Restore Failed',
+                    `Failed to restore database backup.\n\n**Error**: ${error.message}`
                 )]
             });
         }

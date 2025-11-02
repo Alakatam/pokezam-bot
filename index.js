@@ -7,6 +7,7 @@ const Database = require('./database/Database');
 const UserManager = require('./database/UserManager');
 const CardManager = require('./database/CardManager');
 const QuestManager = require('./database/QuestManager');
+const DatabaseBackupManager = require('./database/DatabaseBackupManager');
 
 class PokezamBot {
     constructor() {
@@ -29,6 +30,7 @@ class PokezamBot {
         this.userManager = new UserManager(this.database);
         this.cardManager = new CardManager(this.database);
         this.questManager = new QuestManager(this.database);
+        this.backupManager = new DatabaseBackupManager();
         
         this.setupEventHandlers();
     }
@@ -40,6 +42,13 @@ class PokezamBot {
             
             // Connect to database
             await this.database.connect();
+            
+            // Try to restore from backup first (for cloud hosting)
+            if (process.env.NODE_ENV === 'production' || process.env.PORT) {
+                console.log('🔄 Checking for database backup...');
+                await this.backupManager.restoreBackup();
+            }
+            
             await this.database.initialize();
             
             // Load commands and events
@@ -52,6 +61,11 @@ class PokezamBot {
             
             // Start health check server for hosting platforms
             this.startHealthCheckServer();
+            
+            // Start auto-backup system for cloud hosting
+            if (process.env.NODE_ENV === 'production' || process.env.PORT) {
+                this.backupManager.startAutoBackup();
+            }
             
             console.log('Pokezam bot initialized successfully!');
         } catch (error) {

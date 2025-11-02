@@ -1,24 +1,82 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+let pg;
 
 class Database {
     constructor() {
-        this.dbPath = path.join(__dirname, 'pokezam.db');
+        // Determine database type based on environment
+        this.dbType = process.env.DATABASE_URL ? 'postgresql' : 'sqlite';
+        
+        if (this.dbType === 'postgresql') {
+            try {
+                pg = require('pg');
+            } catch (error) {
+                console.warn('PostgreSQL module not found, falling back to SQLite');
+                this.dbType = 'sqlite';
+            }
+        }
+        
+        // Configure database path/connection
+        if (this.dbType === 'sqlite') {
+            // For cloud hosting, try to use a persistent path
+            if (process.env.NODE_ENV === 'production' || process.env.PORT) {
+                // Use /tmp for now (Render's temporary storage)
+                // Note: This will still reset on deployment but persist during runtime
+                this.dbPath = '/tmp/pokezam.db';
+            } else {
+                // Local development
+                this.dbPath = process.env.DATABASE_PATH || path.join(__dirname, 'pokezam.db');
+            }
+            
+            // Ensure directory exists for persistent storage
+            const dbDir = path.dirname(this.dbPath);
+            const fs = require('fs');
+            if (!fs.existsSync(dbDir)) {
+                fs.mkdirSync(dbDir, { recursive: true });
+            }
+        } else {
+            this.connectionString = process.env.DATABASE_URL;
+        }
+        
         this.db = null;
+        
+        console.log(`🗃️ Database type: ${this.dbType.toUpperCase()}`);
+        if (this.dbType === 'sqlite') {
+            console.log(`📁 Database path: ${this.dbPath}`);
+        }
     }
 
     async connect() {
-        return new Promise((resolve, reject) => {
-            this.db = new sqlite3.Database(this.dbPath, (err) => {
-                if (err) {
-                    console.error('Error opening database:', err);
-                    reject(err);
-                } else {
-                    console.log('Connected to SQLite database');
-                    resolve();
-                }
+        if (this.dbType === 'postgresql') {
+            return new Promise((resolve, reject) => {
+                this.db = new pg.Client({
+                    connectionString: this.connectionString,
+                    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+                });
+                
+                this.db.connect((err) => {
+                    if (err) {
+                        console.error('Error connecting to PostgreSQL:', err);
+                        reject(err);
+                    } else {
+                        console.log('✅ Connected to PostgreSQL database');
+                        resolve();
+                    }
+                });
             });
-        });
+        } else {
+            return new Promise((resolve, reject) => {
+                this.db = new sqlite3.Database(this.dbPath, (err) => {
+                    if (err) {
+                        console.error('Error opening SQLite database:', err);
+                        reject(err);
+                    } else {
+                        console.log('✅ Connected to SQLite database');
+                        resolve();
+                    }
+                });
+            });
+        }
     }
 
     async checkAndMigrateSchema() {
@@ -357,39 +415,71 @@ class Database {
     }
 
     async run(query, params = []) {
-        return new Promise((resolve, reject) => {
-            this.db.run(query, params, function(err) {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve({ id: this.lastID, changes: this.changes });
-                }
+        if (this.dbType === 'postgresql') {
+            // Convert SQLite syntax to PostgreSQL where needed
+            const pgQuery = this.convertSqliteToPostgres(query);
+            const result = await this.db.query(pgQuery, params);
+            return { 
+                id: result.rows[0]?.id || null, 
+                changes: result.rowCount || 0 
+            };
+        } else {
+            return new Promise((resolve, reject) => {
+                this.db.run(query, params, function(err) {
+                    if (err) {
+                        reject(err);
+                    } else {
+                        resolve({ id: this.lastID, changes: this.changes });
+                    }
+                });
             });
-        });
+        }
     }
 
     async get(query, params = []) {
-        return new Promise((resolve, reject) => {
-            this.db.get(query, params, (err, row) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve(row);
-                }
+        if (this.dbType === 'postgresql') {
+            const pgQuery = this.convertSqliteToPostgres(query);
+            const result = await this.db.query(pgQuery, params);
+            return result.rows[0] || null;
+        } else {
+            return new Promise((resolve, reject) => {
+                this.db.get(query, params, (err, row) => {
+                    if (err) {
+                        reject(err);
+                    } else {
+                        resolve(row);
+                    }
+                });
             });
-        });
+        }
     }
 
     async all(query, params = []) {
-        return new Promise((resolve, reject) => {
-            this.db.all(query, params, (err, rows) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve(rows);
-                }
+        if (this.dbType === 'postgresql') {
+            const pgQuery = this.convertSqliteToPostgres(query);
+            const result = await this.db.query(pgQuery, params);
+            return result.rows;
+        } else {
+            return new Promise((resolve, reject) => {
+                this.db.all(query, params, (err, rows) => {
+                    if (err) {
+                        reject(err);
+                    } else {
+                        resolve(rows);
+                    }
+                });
             });
-        });
+        }
+    }
+
+    // Convert SQLite-specific syntax to PostgreSQL
+    convertSqliteToPostgres(query) {
+        return query
+            .replace(/INTEGER PRIMARY KEY AUTOINCREMENT/gi, 'SERIAL PRIMARY KEY')
+            .replace(/AUTOINCREMENT/gi, '')
+            .replace(/strftime\('%s', 'now'\)/gi, 'EXTRACT(EPOCH FROM NOW())')
+            .replace(/INSERT OR REPLACE/gi, 'INSERT')
+            .replace(/COALESCE/gi, 'COALESCE');
     }
 
     // Item management
