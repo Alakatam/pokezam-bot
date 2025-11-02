@@ -293,6 +293,9 @@ experience awaiting    : "Cards, quests, and adventure!"
             // Post to Global showcase channel for rare cards (Holo Rare or above)
             await this.checkAndPostToGlobalShowcase(interaction, detailedCard, variant, variantInfo, rarityInfo);
 
+            // Check for achievements (if available)
+            await this.checkCardDrawAchievements(userId, drawnCard, updatedUser, { database, userManager, cardManager, questManager });
+
             // Notify about completed quests
             if (completedQuests.length > 0) {
                 // Get user's daily quests to find the correct quest positions
@@ -552,11 +555,93 @@ experience awaiting    : "Cards, quests, and adventure!"
             // Send to global showcase channel
             await showcaseChannel.send({ embeds: [showcaseEmbed] });
             
+            // Update showcase count for achievement tracking
+            try {
+                await interaction.client.database.run(`
+                    UPDATE users SET showcase_count = COALESCE(showcase_count, 0) + 1 WHERE id = ?
+                `, [interaction.user.id]);
+            } catch (error) {
+                console.error('Error updating showcase count:', error);
+            }
+            
             console.log(`✨ Showcased ${detailedCard.rarity} "${detailedCard.name}" pulled by ${interaction.user.username} in Global channel`);
             
         } catch (error) {
-            console.error('Error posting to global showcase:', error);
+            console.log('Error posting to global showcase:', error);
             // Don't throw error - just log it so it doesn't break the main command
+        }
+    },
+
+    async checkCardDrawAchievements(userId, drawnCard, userData, managers) {
+        try {
+            // Only check if AchievementManager is available
+            const AchievementManager = require('../database/AchievementManager');
+            const achievementManager = new AchievementManager(managers.database);
+            
+            // Check various achievement conditions
+            const achievements = [];
+            
+            // Total draws achievement
+            achievements.push(...await achievementManager.checkAndUpdateAchievement(userId, 'total_draws', userData.total_draws));
+            
+            // Level achievements  
+            achievements.push(...await achievementManager.checkAndUpdateAchievement(userId, 'level', userData.level));
+            
+            // Gold achievements
+            achievements.push(...await achievementManager.checkAndUpdateAchievement(userId, 'gold', userData.gold));
+            
+            // Rarity-based achievements
+            const rarity = drawnCard.rarity.toLowerCase();
+            if (rarity.includes('rare')) {
+                // Get current rare card count
+                const rareCount = await managers.database.get(`
+                    SELECT COUNT(DISTINCT card_id) as count FROM user_cards uc
+                    JOIN cards c ON uc.card_id = c.id 
+                    WHERE uc.user_id = ? AND (c.rarity LIKE '%rare%' OR c.rarity LIKE '%ultra%' OR c.rarity LIKE '%secret%')
+                `, [userId]);
+                
+                achievements.push(...await achievementManager.checkAndUpdateAchievement(userId, 'rare_cards', rareCount?.count || 0));
+            }
+            
+            if (rarity.includes('holo')) {
+                const holoCount = await managers.database.get(`
+                    SELECT COUNT(DISTINCT card_id) as count FROM user_cards uc
+                    JOIN cards c ON uc.card_id = c.id 
+                    WHERE uc.user_id = ? AND c.rarity LIKE '%holo%'
+                `, [userId]);
+                
+                achievements.push(...await achievementManager.checkAndUpdateAchievement(userId, 'holo_cards', holoCount?.count || 0));
+            }
+            
+            if (rarity.includes('ultra')) {
+                const ultraCount = await managers.database.get(`
+                    SELECT COUNT(DISTINCT card_id) as count FROM user_cards uc
+                    JOIN cards c ON uc.card_id = c.id 
+                    WHERE uc.user_id = ? AND c.rarity LIKE '%ultra%'
+                `, [userId]);
+                
+                achievements.push(...await achievementManager.checkAndUpdateAchievement(userId, 'ultra_cards', ultraCount?.count || 0));
+            }
+            
+            if (rarity.includes('secret')) {
+                const secretCount = await managers.database.get(`
+                    SELECT COUNT(DISTINCT card_id) as count FROM user_cards uc
+                    JOIN cards c ON uc.card_id = c.id 
+                    WHERE uc.user_id = ? AND c.rarity LIKE '%secret%'
+                `, [userId]);
+                
+                achievements.push(...await achievementManager.checkAndUpdateAchievement(userId, 'secret_cards', secretCount?.count || 0));
+            }
+            
+            // If any achievements were earned, we could notify here
+            // For now, just log them
+            if (achievements.length > 0) {
+                console.log(`🏆 ${achievements.length} achievement(s) earned by user ${userId}`);
+            }
+            
+        } catch (error) {
+            // Don't break the main command if achievements fail
+            console.error('Error checking achievements:', error);
         }
     }
 };

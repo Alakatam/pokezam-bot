@@ -30,6 +30,7 @@ class PokezamBot {
         this.userManager = new UserManager(this.database);
         this.cardManager = new CardManager(this.database);
         this.questManager = new QuestManager(this.database);
+        this.achievementManager = null; // Will be initialized after database connection
         this.backupManager = new DatabaseBackupManager();
         
         this.setupEventHandlers();
@@ -54,6 +55,10 @@ class PokezamBot {
             }
             
             await this.database.initialize();
+            
+            // Initialize achievement manager after database is ready
+            const AchievementManager = require('./database/AchievementManager');
+            this.achievementManager = new AchievementManager(this.database);
             
             // Load commands and events (but don't register commands yet)
             await this.loadCommandsOnly();
