@@ -26,16 +26,33 @@ module.exports = {
                 userData.coins = 0;
             }
 
-            // Check if user already claimed daily reward today
+            // Check if user already claimed daily reward (resets at 22:00 ET daily)
             const now = new Date();
-            const today = now.toDateString(); // Gets date in format like "Sat Nov 02 2025"
+            const easternTime = new Date(now.toLocaleString("en-US", {timeZone: "America/New_York"}));
             
-            if (userData.last_daily_claim === today) {
-                const tomorrow = new Date(now);
-                tomorrow.setDate(tomorrow.getDate() + 1);
-                tomorrow.setHours(0, 0, 0, 0);
+            // Calculate the last 22:00 ET reset time
+            const lastResetTime = new Date(easternTime);
+            lastResetTime.setHours(22, 0, 0, 0);
+            
+            // If it's before 22:00 ET today, the reset was yesterday at 22:00 ET
+            if (easternTime.getHours() < 22) {
+                lastResetTime.setDate(lastResetTime.getDate() - 1);
+            }
+            
+            const resetTimestamp = Math.floor(lastResetTime.getTime() / 1000);
+            const lastClaimTimestamp = userData.last_daily_claim ? new Date(userData.last_daily_claim).getTime() / 1000 : 0;
+            
+            if (lastClaimTimestamp > resetTimestamp) {
+                // Calculate next reset time (22:00 ET)
+                const nextReset = new Date(easternTime);
+                nextReset.setHours(22, 0, 0, 0);
                 
-                const timeUntilReset = tomorrow.getTime() - now.getTime();
+                // If it's already past 22:00 ET today, next reset is tomorrow
+                if (easternTime.getHours() >= 22) {
+                    nextReset.setDate(nextReset.getDate() + 1);
+                }
+                
+                const timeUntilReset = nextReset.getTime() - easternTime.getTime();
                 const hoursLeft = Math.floor(timeUntilReset / (1000 * 60 * 60));
                 const minutesLeft = Math.floor((timeUntilReset % (1000 * 60 * 60)) / (1000 * 60));
                 
@@ -45,12 +62,12 @@ module.exports = {
                 yamlCooldown += '# ⏰ DAILY REWARD COOLDOWN\n';
                 yamlCooldown += '#════════════════════════════════\n\n';
                 yamlCooldown += `👤 USER: ${interaction.user.displayName}\n`;
-                yamlCooldown += `📅 LAST CLAIM: ${userData.last_daily_claim}\n\n`;
+                yamlCooldown += `📅 LAST CLAIM: ${new Date(userData.last_daily_claim).toLocaleString("en-US", {timeZone: "America/New_York", dateStyle: "short", timeStyle: "short"})}\n\n`;
                 yamlCooldown += '⏳ TIME REMAINING:\n';
                 yamlCooldown += `   Hours: ${hoursLeft}h\n`;
                 yamlCooldown += `   Minutes: ${minutesLeft}m\n\n`;
                 yamlCooldown += '💡 TIP:\n';
-                yamlCooldown += '   Daily rewards reset at midnight!\n';
+                yamlCooldown += '   Daily rewards reset at 22:00 ET!\n';
                 yamlCooldown += '   Come back tomorrow for more rewards!\n\n';
                 yamlCooldown += '#════════════════════════════════\n';
                 yamlCooldown += '```';
@@ -62,7 +79,7 @@ module.exports = {
                         .setDescription(yamlCooldown)
                         .setTimestamp()
                         .setFooter({ 
-                            text: 'Daily rewards reset at midnight!',
+                            text: 'Daily rewards reset at 22:00 ET!',
                             iconURL: interaction.user.displayAvatarURL({ dynamic: true })
                         })
                     ],
@@ -109,12 +126,13 @@ module.exports = {
             const newLevel = userManager.calculateLevel(newXP);
             const leveledUp = newLevel > userData.level;
 
-            // Update database
+            // Update database with current timestamp
+            const claimTimestamp = now.toISOString();
             await database.run(`
                 UPDATE users 
                 SET xp = ?, coins = ?, level = ?, last_daily_claim = ?
                 WHERE id = ?
-            `, [newXP, newCoins, newLevel, today, userId]);
+            `, [newXP, newCoins, newLevel, claimTimestamp, userId]);
 
             // Add the item to user's inventory
             await database.run(`
@@ -128,18 +146,33 @@ module.exports = {
                 VALUES (?, ?, COALESCE((SELECT quantity FROM user_items WHERE user_id = ? AND item_id = ?), 0) + 1)
             `, [userId, 'Daily Charm', userId, 'Daily Charm']);
 
-            // Create streak tracking
+            // Create streak tracking (based on 22:00 ET resets)
             let streakCount = 1;
-            const yesterday = new Date(now);
-            yesterday.setDate(yesterday.getDate() - 1);
-            const yesterdayString = yesterday.toDateString();
             
-            if (userData.last_daily_claim === yesterdayString) {
-                // User claimed yesterday, increment streak
-                streakCount = (userData.daily_streak || 0) + 1;
-            } else if (userData.last_daily_claim && userData.last_daily_claim !== today) {
-                // User missed days, reset streak
-                streakCount = 1;
+            if (userData.last_daily_claim) {
+                const lastClaimTime = new Date(userData.last_daily_claim);
+                const lastClaimEastern = new Date(lastClaimTime.toLocaleString("en-US", {timeZone: "America/New_York"}));
+                
+                // Calculate expected previous reset time (yesterday at 22:00 ET)
+                const expectedPrevReset = new Date(easternTime);
+                expectedPrevReset.setHours(22, 0, 0, 0);
+                expectedPrevReset.setDate(expectedPrevReset.getDate() - 1);
+                
+                // If current time is before today's 22:00 ET, subtract one more day
+                if (easternTime.getHours() < 22) {
+                    expectedPrevReset.setDate(expectedPrevReset.getDate() - 1);
+                }
+                
+                // Check if last claim was within the previous reset period (streak continues)
+                const timeDiffHours = Math.abs(lastClaimEastern.getTime() - expectedPrevReset.getTime()) / (1000 * 60 * 60);
+                
+                if (timeDiffHours <= 24) {
+                    // User claimed within the last reset period, increment streak
+                    streakCount = (userData.daily_streak || 0) + 1;
+                } else {
+                    // User missed days, reset streak
+                    streakCount = 1;
+                }
             }
 
             // Update streak
@@ -187,7 +220,7 @@ module.exports = {
                 .setColor('#4CAF50')
                 .setTimestamp()
                 .setFooter({ 
-                    text: `Next daily reward available tomorrow! • Streak bonus at 7 days`,
+                    text: `Next daily reward at 22:00 ET • Streak bonus at 7 days`,
                     iconURL: interaction.user.displayAvatarURL({ dynamic: true })
                 });
 
