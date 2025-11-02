@@ -37,7 +37,7 @@ The ultimate Discord bot for Pokemon Trading Card Game enthusiasts! Collect auth
 - **Collection Completion**: Track progress across all card sets and generations
 
 ### 🎮 User Experience
-- **Slash Commands**: 21 easy-to-use Discord slash commands
+- **Slash Commands**: 23 easy-to-use Discord slash commands
 - **Interactive Interface**: Buttons, dropdowns, and smooth navigation
 - **Beautiful Displays**: Rich embeds with emojis and organized layouts
 - **Achievement Celebrations**: Auto reactions for special moments
@@ -57,7 +57,7 @@ The ultimate Discord bot for Pokemon Trading Card Game enthusiasts! Collect auth
 - `/profile` - View your collection statistics
 - `/shop` - Browse items to boost your collection
 
-## 📝 Commands (21 Total)
+## 📝 Commands (23 Total)
 
 ### 🎴 Card Collection
 | Command | Description |
@@ -75,6 +75,8 @@ The ultimate Discord bot for Pokemon Trading Card Game enthusiasts! Collect auth
 | `/carddex-reg` | View regular card collection progress |
 | `/carddex-master` | View Master Set collection progress |
 | `/master-collection [user]` | Specialized Master Set variant tracking |
+| `/card-info <name>` | Detailed card lookup with stats, rarity, and ownership data |
+| `/leaderboard` | View community rankings across multiple categories |
 
 ### 🎯 Quests & Economy
 | Command | Description |
