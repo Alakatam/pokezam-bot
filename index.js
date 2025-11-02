@@ -900,8 +900,10 @@ class PokezamBot {
             // For development: Register commands to a specific guild for instant sync
             // This allows immediate testing without waiting for global command sync
             const TEST_GUILD_ID = process.env.GUILD_ID || process.env.TEST_GUILD_ID;
+            const isProduction = process.env.NODE_ENV === 'production' || process.env.PORT;
             
-            if (TEST_GUILD_ID) {
+            if (TEST_GUILD_ID && !isProduction) {
+                // Development: Only register to test guild to prevent duplication
                 console.log('� Registering to test guild for instant access...');
                 await rest.put(
                     Routes.applicationGuildCommands(process.env.CLIENT_ID, TEST_GUILD_ID),
@@ -910,31 +912,29 @@ class PokezamBot {
                 console.log('✅ Commands registered to test guild (instant access)');
             }
 
-            // Always register global commands for production
-            // Only clear if we're in development mode to avoid production issues
-            let shouldClear = process.env.NODE_ENV !== 'production';
-            
-            if (shouldClear) {
-                console.log('🧹 Development mode: Clearing existing global commands...');
+            // Skip global registration in development to prevent duplication
+            if (!TEST_GUILD_ID || isProduction) {
+                console.log('🌐 Registering global commands...');
+                const data = await rest.put(
+                    Routes.applicationCommands(process.env.CLIENT_ID),
+                    { body: commands }
+                );
+                console.log(`✅ Successfully registered ${data.length} global commands`);
+            } else {
+                // Clear global commands in development to prevent duplication
+                console.log('🧹 Development mode: Clearing global commands to prevent duplication...');
                 await rest.put(
                     Routes.applicationCommands(process.env.CLIENT_ID),
                     { body: [] }
                 );
-                console.log('✅ Cleared existing global commands');
-                await new Promise(resolve => setTimeout(resolve, 1000));
+                console.log('✅ Global commands cleared');
             }
             
-            // Register global commands
-            const data = await rest.put(
-                Routes.applicationCommands(process.env.CLIENT_ID),
-                { body: commands }
-            );
-            
-            console.log(`✅ Successfully registered ${data.length} global commands`);
-            console.log('ℹ️  Global commands may take up to 1 hour to sync across Discord');
-            
-            if (TEST_GUILD_ID) {
-                console.log('💡 Use commands immediately in your test server!');
+            if (TEST_GUILD_ID && !isProduction) {
+                console.log('💡 Development: Use commands immediately in your test server!');
+                console.log('ℹ️  No command duplication - using guild commands only');
+            } else {
+                console.log('ℹ️  Global commands may take up to 1 hour to sync across Discord');
             }
             
         } catch (error) {
