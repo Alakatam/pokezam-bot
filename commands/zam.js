@@ -296,6 +296,9 @@ experience awaiting    : "Cards, quests, and adventure!"
             // Check for achievements (if available)
             await this.checkCardDrawAchievements(userId, drawnCard, updatedUser, { database, userManager, cardManager, questManager });
 
+            // Update set completion progress and check for new completions
+            await this.checkSetCompletion(userId, detailedCard, interaction);
+
             // Notify about completed quests
             if (completedQuests.length > 0) {
                 // Get user's daily quests to find the correct quest positions
@@ -642,6 +645,58 @@ experience awaiting    : "Cards, quests, and adventure!"
         } catch (error) {
             // Don't break the main command if achievements fail
             console.error('Error checking achievements:', error);
+        }
+    },
+
+    // Check for set completion and award rewards
+    async checkSetCompletion(userId, card, interaction) {
+        try {
+            const setCompletionManager = interaction.client.setCompletionManager;
+            if (!setCompletionManager) return;
+
+            // Update set completion for the card's set
+            const completion = await setCompletionManager.updateSingleSetCompletion(userId, card.set_id, card.set_name);
+            
+            if (completion && completion.isCompleted) {
+                // Check if this is a new completion (check if reward was just awarded)
+                const setRecord = await interaction.client.database.get(`
+                    SELECT * FROM set_completion 
+                    WHERE user_id = ? AND set_id = ? AND is_completed = TRUE AND reward_claimed = TRUE
+                `, [userId, card.set_id]);
+
+                if (setRecord) {
+                    // Get the reward that was given
+                    const reward = await setCompletionManager.checkAndAwardSetReward(userId, card.set_id, card.set_name);
+                    
+                    if (reward) {
+                        // Send set completion notification
+                        const completionEmbed = new EmbedBuilder()
+                            .setColor('#ffd700')
+                            .setTitle('🎉 SET COMPLETED!')
+                            .setDescription(`**Congratulations!** You have completed the **${card.set_name}** set!`)
+                            .addFields({
+                                name: '🎁 **Reward Earned**',
+                                value: reward.description || `${reward.value} ${reward.type}`,
+                                inline: false
+                            })
+                            .setFooter({ text: 'Use /sets progress to view all your set completion progress' })
+                            .setTimestamp();
+
+                        // Send completion notification after a short delay
+                        setTimeout(async () => {
+                            try {
+                                await interaction.followUp({ embeds: [completionEmbed] });
+                            } catch (error) {
+                                console.error('Error sending set completion notification:', error);
+                            }
+                        }, 2000);
+                    }
+                }
+            }
+
+        } catch (error) {
+            // Don't break the main command if set completion fails
+            console.error('Error checking set completion:', error);
         }
     }
 };

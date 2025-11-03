@@ -385,6 +385,49 @@ class Database {
                 created_at INTEGER DEFAULT (strftime('%s', 'now'))
             )`,
 
+            // Set completion tracking tables
+            `CREATE TABLE IF NOT EXISTS set_completion (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT NOT NULL,
+                set_id TEXT NOT NULL,
+                set_name TEXT NOT NULL,
+                total_cards INTEGER NOT NULL,
+                owned_cards INTEGER DEFAULT 0,
+                completion_percentage REAL DEFAULT 0.0,
+                is_completed BOOLEAN DEFAULT FALSE,
+                completed_at INTEGER DEFAULT NULL,
+                reward_claimed BOOLEAN DEFAULT FALSE,
+                created_at INTEGER DEFAULT (strftime('%s', 'now')),
+                updated_at INTEGER DEFAULT (strftime('%s', 'now')),
+                FOREIGN KEY (user_id) REFERENCES users(id),
+                UNIQUE(user_id, set_id)
+            )`,
+
+            // Set completion rewards configuration
+            `CREATE TABLE IF NOT EXISTS set_rewards (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                set_id TEXT UNIQUE NOT NULL,
+                set_name TEXT NOT NULL,
+                reward_type TEXT NOT NULL, -- 'gold', 'item', 'title', 'badge'
+                reward_value TEXT NOT NULL, -- amount for gold, item_id for items, title text, etc.
+                reward_description TEXT,
+                bonus_multiplier REAL DEFAULT 1.0,
+                is_active BOOLEAN DEFAULT TRUE,
+                created_at INTEGER DEFAULT (strftime('%s', 'now'))
+            )`,
+
+            // User titles and badges from set completion
+            `CREATE TABLE IF NOT EXISTS user_titles (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT NOT NULL,
+                title TEXT NOT NULL,
+                title_type TEXT DEFAULT 'set_completion', -- 'set_completion', 'achievement', 'special'
+                source_id TEXT, -- set_id or achievement_id
+                earned_at INTEGER DEFAULT (strftime('%s', 'now')),
+                is_active BOOLEAN DEFAULT FALSE,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )`,
+
             // Create indexes for better performance
             `CREATE INDEX IF NOT EXISTS idx_users_guild ON users(guild_id)`,
             `CREATE INDEX IF NOT EXISTS idx_user_cards_user ON user_cards(user_id)`,
@@ -399,7 +442,12 @@ class Database {
             `CREATE INDEX IF NOT EXISTS idx_user_items_user ON user_items(user_id)`,
             `CREATE INDEX IF NOT EXISTS idx_active_effects_user ON active_effects(user_id)`,
             `CREATE INDEX IF NOT EXISTS idx_active_effects_expires ON active_effects(expires_at)`,
-            `CREATE INDEX IF NOT EXISTS idx_shop_items_available ON shop_items(is_available)`
+            `CREATE INDEX IF NOT EXISTS idx_shop_items_available ON shop_items(is_available)`,
+            `CREATE INDEX IF NOT EXISTS idx_set_completion_user ON set_completion(user_id)`,
+            `CREATE INDEX IF NOT EXISTS idx_set_completion_set ON set_completion(set_id)`,
+            `CREATE INDEX IF NOT EXISTS idx_set_completion_completed ON set_completion(is_completed)`,
+            `CREATE INDEX IF NOT EXISTS idx_user_titles_user ON user_titles(user_id)`,
+            `CREATE INDEX IF NOT EXISTS idx_user_titles_active ON user_titles(is_active)`
         ];
 
         for (const query of queries) {

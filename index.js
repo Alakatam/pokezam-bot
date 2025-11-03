@@ -65,6 +65,13 @@ class PokezamBot {
             const AchievementManager = require('./database/AchievementManager');
             this.achievementManager = new AchievementManager(this.database);
             
+            // Initialize set completion manager
+            const SetCompletionManager = require('./database/SetCompletionManager');
+            this.setCompletionManager = new SetCompletionManager(this.database);
+            
+            // Initialize default set rewards
+            await this.setCompletionManager.initializeDefaultSetRewards();
+            
             // Load commands and events (but don't register commands yet)
             await this.loadCommandsOnly();
             await this.loadEvents();
