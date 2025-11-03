@@ -163,6 +163,49 @@ class Database {
         } catch (error) {
             console.log('Users table migration check failed, will be handled in initialization');
         }
+
+        // Check and migrate quest system for enhanced quests
+        try {
+            const questTableInfo = await this.all("PRAGMA table_info(quests)");
+            const questColumnNames = questTableInfo.map(col => col.name);
+            
+            // Add target_type column if it doesn't exist
+            if (!questColumnNames.includes('target_type')) {
+                try {
+                    await this.run('ALTER TABLE quests ADD COLUMN target_type TEXT DEFAULT "card_draws"');
+                    console.log('✅ Added target_type column to quests table for enhanced quest system');
+                } catch (err) {
+                    console.log('target_type column may already exist');
+                }
+            }
+
+            // Add rare pull statistics columns to users table
+            const userTableInfo = await this.all("PRAGMA table_info(users)");
+            const userColumnNames = userTableInfo.map(col => col.name);
+            
+            const rarePullColumns = [
+                { name: 'legendary_pulls', type: 'INTEGER DEFAULT 0' },
+                { name: 'ultra_pulls', type: 'INTEGER DEFAULT 0' },
+                { name: 'special_pulls', type: 'INTEGER DEFAULT 0' },
+                { name: 'holo_pulls', type: 'INTEGER DEFAULT 0' },
+                { name: 'rare_pulls', type: 'INTEGER DEFAULT 0' },
+                { name: 'total_rare_pulls', type: 'INTEGER DEFAULT 0' }
+            ];
+            
+            for (const column of rarePullColumns) {
+                if (!userColumnNames.includes(column.name)) {
+                    try {
+                        await this.run(`ALTER TABLE users ADD COLUMN ${column.name} ${column.type}`);
+                        console.log(`✅ Added rare pull statistics column: ${column.name}`);
+                    } catch (err) {
+                        console.log(`Column ${column.name} may already exist`);
+                    }
+                }
+            }
+            
+        } catch (error) {
+            console.log('Quest system migration check failed, will be handled during quest initialization');
+        }
     }
 
     async initialize() {

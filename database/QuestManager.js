@@ -11,6 +11,9 @@ class QuestManager {
     }
 
     async autoAssignQuests(userId) {
+        // Check if enhanced quest system needs initialization
+        await this.ensureEnhancedQuestsInitialized();
+        
         // Use enhanced quest assignment with daily rotation
         return await this.enhancedManager.autoAssignDiverseQuests(userId);
     }
@@ -18,6 +21,31 @@ class QuestManager {
     // Initialize enhanced quest system
     async initializeEnhancedQuests() {
         return await this.enhancedManager.initializeEnhancedQuests();
+    }
+    
+    // Ensure enhanced quest system is initialized
+    async ensureEnhancedQuestsInitialized() {
+        try {
+            // Check if we have enhanced quests (with target_type)
+            const enhancedQuests = await this.db.all(
+                'SELECT COUNT(*) as count FROM quests WHERE target_type IS NOT NULL'
+            );
+            
+            if (enhancedQuests[0].count === 0) {
+                console.log('🚀 Initializing enhanced quest system...');
+                await this.enhancedManager.initializeEnhancedQuests();
+                console.log('✅ Enhanced quest system initialized');
+            }
+        } catch (error) {
+            console.log('Error checking enhanced quest initialization:', error.message);
+            // Try to initialize anyway
+            try {
+                await this.enhancedManager.initializeEnhancedQuests();
+                console.log('✅ Enhanced quest system initialized after error');
+            } catch (initError) {
+                console.error('Failed to initialize enhanced quest system:', initError.message);
+            }
+        }
     }
 
     async initializeUserQuests(userId) {
