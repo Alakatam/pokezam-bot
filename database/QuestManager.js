@@ -1,45 +1,23 @@
 class QuestManager {
     constructor(database) {
         this.db = database;
+        // Initialize enhanced quest manager
+        const EnhancedQuestManager = require('./EnhancedQuestManager');
+        this.enhancedManager = new EnhancedQuestManager(database);
     }
 
     async getUserQuests(userId) {
-        return await this.db.all(`
-            SELECT uq.*, q.name, q.description, q.quest_type, q.target_value, q.reward_gold, q.reward_xp, q.reset_interval
-            FROM user_quests uq
-            JOIN quests q ON uq.quest_id = q.id
-            WHERE uq.user_id = ?
-            ORDER BY q.quest_type, q.name
-        `, [userId]);
+        return await this.enhancedManager.getUserQuests(userId);
     }
 
     async autoAssignQuests(userId) {
-        // Automatically assign Daily, Weekly, and Monthly quests
-        const questTypes = ['daily', 'weekly', 'monthly'];
-        
-        for (const type of questTypes) {
-            // Get available quests for this type
-            const availableQuests = await this.db.all(
-                'SELECT * FROM quests WHERE quest_type = ?',
-                [type]
-            );
-            
-            for (const quest of availableQuests) {
-                // Check if user already has this quest
-                const existing = await this.db.get(
-                    'SELECT * FROM user_quests WHERE user_id = ? AND quest_id = ?',
-                    [userId, quest.id]
-                );
-
-                if (!existing) {
-                    // Create new quest for user
-                    await this.db.run(`
-                        INSERT INTO user_quests (user_id, quest_id, progress, completed, last_reset)
-                        VALUES (?, ?, 0, FALSE, strftime('%s', 'now'))
-                    `, [userId, quest.id]);
-                }
-            }
-        }
+        // Use enhanced quest assignment with daily rotation
+        return await this.enhancedManager.autoAssignDiverseQuests(userId);
+    }
+    
+    // Initialize enhanced quest system
+    async initializeEnhancedQuests() {
+        return await this.enhancedManager.initializeEnhancedQuests();
     }
 
     async initializeUserQuests(userId) {
@@ -47,68 +25,14 @@ class QuestManager {
         await this.autoAssignQuests(userId);
     }
 
-    async updateQuestProgress(userId, questType, amount = 1) {
-        // Get user quests that match the type and aren't completed
-        const userQuests = await this.db.all(`
-            SELECT uq.*, q.name, q.target_value, q.reward_gold, q.reward_xp, q.description
-            FROM user_quests uq
-            JOIN quests q ON uq.quest_id = q.id
-            WHERE uq.user_id = ? AND q.name = ? AND uq.completed = FALSE
-        `, [userId, questType]);
-
-        const completedQuests = [];
-
-        for (const quest of userQuests) {
-            const newProgress = quest.progress + amount;
-            
-            if (newProgress >= quest.target_value && !quest.completed) {
-                // Quest completed!
-                await this.db.run(`
-                    UPDATE user_quests 
-                    SET progress = ?, completed = TRUE, completed_at = strftime('%s', 'now')
-                    WHERE id = ?
-                `, [quest.target_value, quest.id]);
-
-                // Add gold reward to user
-                if (quest.reward_gold > 0) {
-                    await this.db.run(
-                        'UPDATE users SET gold = gold + ? WHERE id = ?',
-                        [quest.reward_gold, userId]
-                    );
-                }
-
-                const questCompletion = {
-                    name: quest.name,
-                    reward_gold: quest.reward_gold,
-                    reward_xp: quest.reward_xp || 0
-                };
-
-                // Add XP reward to user (this will automatically update level)
-                if (quest.reward_xp && quest.reward_xp > 0) {
-                    const UserManager = require('./UserManager');
-                    const tempUserManager = new UserManager(this.db);
-                    const levelResult = await tempUserManager.addXP(userId, quest.reward_xp);
-                    
-                    // Store level up information
-                    if (levelResult && levelResult.leveledUp) {
-                        questCompletion.levelUp = {
-                            oldLevel: levelResult.oldLevel,
-                            newLevel: levelResult.newLevel
-                        };
-                    }
-                }
-
-                completedQuests.push(questCompletion);
-            } else {
-                // Update progress
-                await this.db.run(
-                    'UPDATE user_quests SET progress = ? WHERE id = ?',
-                    [Math.min(newProgress, quest.target_value), quest.id]
-                );
-            }
-        }
-
-        return completedQuests;
+    async updateQuestProgress(userId, questType, amount = 1, cardData = null) {
+        // Use enhanced quest progress system
+        return await this.enhancedManager.updateEnhancedQuestProgress(userId, questType, amount, cardData);
+    }
+    
+    // Direct access method for enhanced quest progress 
+    async updateEnhancedQuestProgress(userId, targetType, amount = 1, cardData = null) {
+        return await this.enhancedManager.updateEnhancedQuestProgress(userId, targetType, amount, cardData);
     }
 
     async resetExpiredQuestsEasternTime() {

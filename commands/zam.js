@@ -267,28 +267,86 @@ experience awaiting    : "Cards, quests, and adventure!"
                 embed.setColor('#ffd700'); // Gold for level up
             }
 
-            // Update quest progress for all applicable quests
-            await questManager.initializeUserQuests(userId);
-            const questResults = await Promise.all([
-                questManager.updateQuestProgress(userId, 'Daily Card Hunter', 1),
-                questManager.updateQuestProgress(userId, 'Daily Collection Builder', 1), 
-                questManager.updateQuestProgress(userId, 'Daily Dedication', 1),
-                questManager.updateQuestProgress(userId, 'Weekly Collector', 1),
-                questManager.updateQuestProgress(userId, 'Weekly Explorer', 1),
-                questManager.updateQuestProgress(userId, 'Weekly Master', 1),
-                questManager.updateQuestProgress(userId, 'Monthly Champion', 1),
-                questManager.updateQuestProgress(userId, 'Monthly Legend', 1),
-                questManager.updateQuestProgress(userId, 'Monthly Pokemon Master', 1)
-            ]);
+            // Update quest progress for all applicable quests using enhanced system
+            await questManager.autoAssignQuests(userId);
+            
+            const questResults = [];
+            
+            // Card drawing quests
+            questResults.push(
+                ...await questManager.updateEnhancedQuestProgress(userId, 'card_draws', 1, detailedCard)
+            );
+            
+            // Type-specific quests  
+            if (detailedCard.types) {
+                const cardTypes = typeof detailedCard.types === 'string' ? 
+                    JSON.parse(detailedCard.types) : detailedCard.types;
+                
+                for (const type of cardTypes) {
+                    const targetType = `type_${type.toLowerCase()}`;
+                    questResults.push(
+                        ...await questManager.updateEnhancedQuestProgress(userId, targetType, 1, detailedCard)
+                    );
+                }
+            }
+            
+            // Rarity-specific quests
+            const rarity = detailedCard.rarity?.toLowerCase() || '';
+            if (rarity.includes('rare') || rarity.includes('ultra') || rarity.includes('secret')) {
+                questResults.push(
+                    ...await questManager.updateEnhancedQuestProgress(userId, 'rarity_rare_plus', 1, detailedCard)
+                );
+            }
+            if (rarity.includes('holo')) {
+                questResults.push(
+                    ...await questManager.updateEnhancedQuestProgress(userId, 'rarity_holo', 1, detailedCard)
+                );
+            }
+            if (rarity.includes('ultra')) {
+                questResults.push(
+                    ...await questManager.updateEnhancedQuestProgress(userId, 'rarity_ultra', 1, detailedCard)
+                );
+            }
+            
+            // Gold accumulation quests (add gold value from draw)
+            const goldValue = rarityInfo ? rarityInfo.gold_value || 0 : 0;
+            if (goldValue > 0) {
+                questResults.push(
+                    ...await questManager.updateEnhancedQuestProgress(userId, 'gold_from_zam', goldValue, detailedCard)
+                );
+            }
+            
+            // Generation-specific quests
+            const cardSetId = detailedCard.set_id;
+            if (cardSetId) {
+                // Gen 1 sets
+                if (['base1', 'base2', 'base3', 'gym1', 'gym2'].includes(cardSetId)) {
+                    questResults.push(
+                        ...await questManager.updateEnhancedQuestProgress(userId, 'generation_1', 1, detailedCard)
+                    );
+                }
+                // Modern sets (example)
+                else if (['swsh9', 'swsh10', 'swsh11', 'swsh12'].includes(cardSetId)) {
+                    questResults.push(
+                        ...await questManager.updateEnhancedQuestProgress(userId, 'generation_modern', 1, detailedCard)
+                    );
+                }
+            }
             
             // Combine all completed quests
             const completedQuests = questResults.flat();
             
-            // Add reaction for showcase (for quest tracking)
+            // Send initial card draw response
             await interaction.editReply({ embeds: [embed] });
             
-            const reply = await interaction.fetchReply();
-            await reply.react('⭐');
+            // Initialize smart notification system
+            const SmartNotificationManager = require('../utils/SmartNotificationManager');
+            const notificationManager = new SmartNotificationManager();
+            
+            // Send enhanced rare card notifications (for Holo Rare+)
+            await notificationManager.sendRareCardNotification(
+                interaction, detailedCard, variant, variantInfo, rarityInfo
+            );
 
             // Post to Global showcase channel for rare cards (Holo Rare or above)
             await this.checkAndPostToGlobalShowcase(interaction, detailedCard, variant, variantInfo, rarityInfo);
