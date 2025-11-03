@@ -25,20 +25,34 @@ class DatabaseBackupManager {
             const userItems = await database.all('SELECT * FROM user_items');
             const activeEffects = await database.all('SELECT * FROM active_effects');
             
+            // Get new feature data (achievements, set completion, titles)
+            const achievements = await database.all('SELECT * FROM achievements');
+            const userAchievements = await database.all('SELECT * FROM user_achievements');
+            const setCompletion = await database.all('SELECT * FROM set_completion');
+            const setRewards = await database.all('SELECT * FROM set_rewards');
+            const userTitles = await database.all('SELECT * FROM user_titles');
+            
             const backup = {
                 timestamp: new Date().toISOString(),
-                version: '1.0',
+                version: '2.0', // Updated version for new tables
                 data: {
                     users,
                     userItems,
-                    activeEffects
+                    activeEffects,
+                    achievements,
+                    userAchievements,
+                    setCompletion,
+                    setRewards,
+                    userTitles
                 }
             };
             
             // Save to local file
             fs.writeFileSync(this.localBackupPath, JSON.stringify(backup, null, 2));
             
-            console.log(`✅ Backup created: ${users.length} users, ${userItems.length} items`);
+            console.log(`✅ Backup created: ${users.length} users, ${userItems.length} items, ${activeEffects.length} effects`);
+            console.log(`🏆 Backup includes: ${achievements.length} achievements, ${userAchievements.length} user achievements`);
+            console.log(`📊 Backup includes: ${setCompletion.length} set completion records, ${setRewards.length} rewards, ${userTitles.length} titles`);
             console.log(`📁 Backup saved to: ${this.localBackupPath}`);
             
             return backup;
@@ -116,7 +130,91 @@ class DatabaseBackupManager {
                 ]);
             }
             
+            // Restore new feature data (version 2.0+)
+            const { achievements, userAchievements, setCompletion, setRewards, userTitles } = backupData.data;
+            
+            // Restore achievements (system defaults)
+            if (achievements && achievements.length > 0) {
+                for (const achievement of achievements) {
+                    await database.run(`
+                        INSERT OR REPLACE INTO achievements 
+                        (id, name, description, category, target_value, reward_gold, reward_xp, icon, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    `, [
+                        achievement.id, achievement.name, achievement.description, achievement.category,
+                        achievement.target_value, achievement.reward_gold, achievement.reward_xp, 
+                        achievement.icon, achievement.created_at
+                    ]);
+                }
+            }
+            
+            // Restore user achievements
+            if (userAchievements && userAchievements.length > 0) {
+                for (const userAch of userAchievements) {
+                    await database.run(`
+                        INSERT OR REPLACE INTO user_achievements 
+                        (id, user_id, achievement_id, progress, is_completed, completed_at, reward_claimed, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    `, [
+                        userAch.id, userAch.user_id, userAch.achievement_id, userAch.progress,
+                        userAch.is_completed, userAch.completed_at, userAch.reward_claimed, userAch.created_at
+                    ]);
+                }
+            }
+            
+            // Restore set completion data
+            if (setCompletion && setCompletion.length > 0) {
+                for (const completion of setCompletion) {
+                    await database.run(`
+                        INSERT OR REPLACE INTO set_completion 
+                        (id, user_id, set_id, set_name, total_cards, owned_cards, completion_percentage, 
+                         is_completed, completed_at, reward_claimed, created_at, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    `, [
+                        completion.id, completion.user_id, completion.set_id, completion.set_name,
+                        completion.total_cards, completion.owned_cards, completion.completion_percentage,
+                        completion.is_completed, completion.completed_at, completion.reward_claimed,
+                        completion.created_at, completion.updated_at
+                    ]);
+                }
+            }
+            
+            // Restore set rewards configuration
+            if (setRewards && setRewards.length > 0) {
+                for (const reward of setRewards) {
+                    await database.run(`
+                        INSERT OR REPLACE INTO set_rewards 
+                        (id, set_id, set_name, reward_type, reward_value, reward_description, 
+                         bonus_multiplier, is_active, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    `, [
+                        reward.id, reward.set_id, reward.set_name, reward.reward_type,
+                        reward.reward_value, reward.reward_description, reward.bonus_multiplier,
+                        reward.is_active, reward.created_at
+                    ]);
+                }
+            }
+            
+            // Restore user titles
+            if (userTitles && userTitles.length > 0) {
+                for (const title of userTitles) {
+                    await database.run(`
+                        INSERT OR REPLACE INTO user_titles 
+                        (id, user_id, title, title_type, source_id, earned_at, is_active)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    `, [
+                        title.id, title.user_id, title.title, title.title_type,
+                        title.source_id, title.earned_at, title.is_active
+                    ]);
+                }
+            }
+            
             console.log(`✅ Restored: ${users.length} users, ${userItems.length} items, ${activeEffects.length} effects`);
+            if (achievements) console.log(`🏆 Restored: ${achievements.length} achievements`);
+            if (userAchievements) console.log(`🎯 Restored: ${userAchievements.length} user achievements`);
+            if (setCompletion) console.log(`📊 Restored: ${setCompletion.length} set completion records`);
+            if (setRewards) console.log(`🎁 Restored: ${setRewards.length} set rewards`);
+            if (userTitles) console.log(`👑 Restored: ${userTitles.length} user titles`);
             console.log(`📅 Backup from: ${backupData.timestamp}`);
             
             return true;
