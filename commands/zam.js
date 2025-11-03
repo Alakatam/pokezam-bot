@@ -105,23 +105,55 @@ experience awaiting    : "Cards, quests, and adventure!"
             let baseGoldReward = this.getGoldReward(drawnCard.rarity);
             let goldReward = Math.floor(baseGoldReward * variantInfo.goldMultiplier);
             
-            // Check for Welcome Charm effect
-            const welcomeCharm = await database.getUserEffectsByCategory(userId, 'multi_boost');
-            const activeWelcomeCharm = welcomeCharm.find(effect => 
-                effect.effect_type === 'welcome_charm' && 
-                effect.uses_remaining && 
-                effect.uses_remaining > 0
-            );
+            // Check for all active effects
+            const goldBoostEffects = await database.getUserEffectsByCategory(userId, 'gold_boost');
+            const luckBoostEffects = await database.getUserEffectsByCategory(userId, 'luck_boost');
+            const multiBoostEffects = await database.getUserEffectsByCategory(userId, 'multi_boost');
+            const qualityEffects = await database.getUserEffectsByCategory(userId, 'quality_filter');
+            const luckEffects = await database.getUserEffectsByCategory(userId, 'luck'); // Daily Charm category
             
-            let welcomeCharmActive = false;
-            if (activeWelcomeCharm) {
-                // Apply Welcome Charm: +25% gold bonus
-                goldReward = Math.floor(goldReward * 1.25);
-                welcomeCharmActive = true;
+            // Clean up expired effects
+            const now = Math.floor(Date.now() / 1000);
+            await database.run(`DELETE FROM active_effects WHERE user_id = ? AND expires_at IS NOT NULL AND expires_at <= ?`, [userId, now]);
+            await database.run(`DELETE FROM active_effects WHERE user_id = ? AND uses_remaining IS NOT NULL AND uses_remaining <= 0`, [userId]);
+            
+            // Combine all effects and apply bonuses
+            const allEffects = [...goldBoostEffects, ...luckBoostEffects, ...multiBoostEffects, ...qualityEffects, ...luckEffects];
+            let totalGoldMultiplier = 1.0;
+            let totalLuckMultiplier = 1.0;
+            const activeEffectNames = [];
+            
+            // Add reference to this for helper method
+            const self = this;
+            
+            for (const effect of allEffects) {
+                // Check if effect is still valid
+                if (effect.expires_at && effect.expires_at <= now) continue;
+                if (effect.uses_remaining !== null && effect.uses_remaining <= 0) continue;
                 
-                // Decrement uses
-                await database.updateEffectUses(activeWelcomeCharm.id, activeWelcomeCharm.uses_remaining - 1);
+                // Apply effect based on category
+                if (effect.category === 'gold_boost' || effect.category === 'multi_boost') {
+                    totalGoldMultiplier *= effect.multiplier || 1.0;
+                    activeEffectNames.push(self.getEffectDisplayName(effect.effect_type));
+                }
+                if (effect.category === 'luck_boost' || effect.category === 'luck' || effect.category === 'multi_boost') {
+                    totalLuckMultiplier *= effect.multiplier || 1.0;
+                    if (!activeEffectNames.includes(self.getEffectDisplayName(effect.effect_type))) {
+                        activeEffectNames.push(self.getEffectDisplayName(effect.effect_type));
+                    }
+                }
+                
+                // Decrement uses for limited-use effects
+                if (effect.uses_remaining !== null && effect.uses_remaining > 0) {
+                    await database.run(`UPDATE active_effects SET uses_remaining = uses_remaining - 1 WHERE id = ?`, [effect.id]);
+                }
             }
+            
+            // Apply gold multiplier
+            goldReward = Math.floor(goldReward * totalGoldMultiplier);
+            
+            // Store for display (keep old variable name for compatibility)
+            const welcomeCharmActive = activeEffectNames.length > 0;
             
             // Add XP, Gold and update draws
             const xpResult = await userManager.addXP(userId, xpReward);
@@ -214,8 +246,8 @@ experience awaiting    : "Cards, quests, and adventure!"
             if (variantInfo.goldMultiplier > 1) {
                 bonuses.push(`${variantInfo.goldMultiplier}x variant`);
             }
-            if (welcomeCharmActive) {
-                bonuses.push('1.25x Welcome Charm');
+            if (totalGoldMultiplier > 1) {
+                bonuses.push(`${totalGoldMultiplier}x ${activeEffectNames.join(', ')}`);
             }
             if (bonuses.length > 0) {
                 goldDisplay += ` (${bonuses.join(' + ')})`;
@@ -768,5 +800,23 @@ experience awaiting    : "Cards, quests, and adventure!"
             // Don't break the main command if set completion fails
             console.error('Error checking set completion:', error);
         }
+    },
+
+    // Helper method to get display names for effects
+    getEffectDisplayName(effectType) {
+        const displayNames = {
+            'daily_charm': 'Daily Charm',
+            'welcome_charm': 'Welcome Charm', 
+            'amulet_coin': 'Amulet Coin',
+            'golden_horseshoe': 'Golden Horseshoe',
+            'fortune_charm': 'Fortune Charm',
+            'lucky_coin': 'Lucky Coin',
+            'collectors_charm': "Collector's Charm",
+            'shiny_charm': 'Shiny Charm',
+            'rainbow_feather': 'Rainbow Feather',
+            'sacred_orb': 'Sacred Orb',
+            'divine_blessing': 'Divine Blessing'
+        };
+        return displayNames[effectType] || effectType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
     }
 };

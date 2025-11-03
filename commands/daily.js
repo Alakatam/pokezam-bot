@@ -161,6 +161,19 @@ module.exports = {
                 VALUES (?, ?, COALESCE((SELECT quantity FROM user_items WHERE user_id = ? AND item_id = ?), 0) + 1)
             `, [userId, 'Daily Charm', userId, 'Daily Charm']);
 
+            // Auto-activate Daily Charm as a permanent luck boost
+            const nowTimestamp = Math.floor(Date.now() / 1000);
+            const tomorrow = nowTimestamp + 86400; // 24 hours from now
+            
+            try {
+                await database.run(`
+                    INSERT OR REPLACE INTO active_effects (user_id, effect_type, category, multiplier, expires_at, uses_remaining, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                `, [userId, 'daily_charm', 'luck', 1.2, tomorrow, null, nowTimestamp]);
+            } catch (error) {
+                console.error('Failed to activate Daily Charm:', error);
+            }
+
             // Create progressive reward display
             const yamlRewards = progressiveRewards.createProgressiveRewardDisplay(rewards, interaction.user.displayName);
 

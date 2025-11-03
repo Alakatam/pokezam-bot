@@ -22,11 +22,37 @@ module.exports = {
             const activeEffects = await this.getActiveEffects(database, userId);
 
             if (activeEffects.length === 0) {
+                const yamlDescription = '```yaml\n' +
+                    '#═══════════════════════════════════════════════════\n' +
+                    `# 😴 ${interaction.user.displayName.toUpperCase()}'S ACTIVE EFFECTS\n` +
+                    '#═══════════════════════════════════════════════════\n\n' +
+                    `📊 OVERVIEW:\n` +
+                    `   Total Active Effects: 0\n` +
+                    `   Status             : "NO ACTIVE BOOSTS"\n` +
+                    `   Last Updated       : "${new Date().toLocaleString()}"\n\n` +
+                    `💡 GET STARTED:\n` +
+                    `   - Visit /shop to buy useful items\n` +
+                    `   - Use /use to activate items from inventory\n` +
+                    `   - Check /inventory to see what items you own\n` +
+                    `   - Claim /daily rewards for Daily Charm bonus\n\n` +
+                    `🎯 AVAILABLE BOOSTS:\n` +
+                    `   - Gold Multipliers (Amulet Coin, Lucky Coin)\n` +
+                    `   - Luck Enhancers (Shiny Charm, Rainbow Feather)\n` +
+                    `   - Cooldown Skips (Quick Ball, Master Ball)\n` +
+                    `   - Multi Boosts (Divine Blessing, Sacred Orb)\n\n` +
+                    '#═══════════════════════════════════════════════════\n' +
+                    '```';
+                
                 return await interaction.editReply({
-                    embeds: [EmbedUtils.createInfoEmbed(
-                        '😴 No Active Effects',
-                        `You don't have any active item effects right now.\n\n💡 **Get started:**\n• Visit \`/shop\` to buy useful items\n• Use \`/use\` to activate items from your inventory\n• Check \`/inventory\` to see what items you own`
-                    )]
+                    embeds: [new EmbedBuilder()
+                        .setTitle('😴 No Active Effects')
+                        .setDescription(yamlDescription)
+                        .setColor('#6B73FF')
+                        .setTimestamp()
+                        .setFooter({ 
+                            text: 'Visit /shop to get started with boosts!',
+                            iconURL: interaction.user.displayAvatarURL({ dynamic: true })
+                        })]
                 });
             }
 
