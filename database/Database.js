@@ -82,15 +82,31 @@ class Database {
     async checkAndMigrateSchema() {
         // Check if we need to migrate the cards table
         try {
-            const tableInfo = await this.all("PRAGMA table_info(cards)");
-            const hasApiId = tableInfo.some(column => column.name === 'api_id');
+            let tableInfo = [];
+            let columnNames = [];
+            
+            if (this.dbType === 'sqlite') {
+                tableInfo = await this.all("PRAGMA table_info(cards)");
+                columnNames = tableInfo.map(col => col.name);
+            } else {
+                // PostgreSQL column check
+                const result = await this.all(`
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'cards' AND table_schema = 'public'
+                `);
+                columnNames = result.map(col => col.column_name);
+                tableInfo = result.map(col => ({ name: col.column_name }));
+            }
+            
+            const hasApiId = columnNames.includes('api_id');
             
             if (!hasApiId && tableInfo.length > 0) {
                 console.log('Migrating cards table to add api_id column...');
                 await this.run('ALTER TABLE cards ADD COLUMN api_id TEXT');
                 
                 // Add other missing columns that might be needed
-                const columnNames = tableInfo.map(col => col.name);
+                // columnNames already defined above
                 const newColumns = [
                     { name: 'set_series', type: 'TEXT' },
                     { name: 'supertype', type: 'TEXT' },
@@ -139,8 +155,20 @@ class Database {
 
         // Check and migrate users table for daily rewards
         try {
-            const userTableInfo = await this.all("PRAGMA table_info(users)");
-            const userColumnNames = userTableInfo.map(col => col.name);
+            let userColumnNames = [];
+            
+            if (this.dbType === 'sqlite') {
+                const userTableInfo = await this.all("PRAGMA table_info(users)");
+                userColumnNames = userTableInfo.map(col => col.name);
+            } else {
+                // PostgreSQL column check
+                const result = await this.all(`
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'users' AND table_schema = 'public'
+                `);
+                userColumnNames = result.map(col => col.column_name);
+            }
             
             const dailyColumns = [
                 { name: 'last_daily_claim', type: 'TEXT' },
@@ -166,22 +194,59 @@ class Database {
 
         // Check and migrate quest system for enhanced quests
         try {
-            const questTableInfo = await this.all("PRAGMA table_info(quests)");
-            const questColumnNames = questTableInfo.map(col => col.name);
+            let questColumnNames = [];
+            
+            if (this.dbType === 'sqlite') {
+                const questTableInfo = await this.all("PRAGMA table_info(quests)");
+                questColumnNames = questTableInfo.map(col => col.name);
+                console.log('📋 Quest table columns:', questColumnNames);
+            } else {
+                // PostgreSQL column check
+                const result = await this.all(`
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'quests' AND table_schema = 'public'
+                `);
+                questColumnNames = result.map(col => col.column_name);
+                console.log('📋 Quest table columns (PostgreSQL):', questColumnNames);
+            }
             
             // Add target_type column if it doesn't exist
             if (!questColumnNames.includes('target_type')) {
+                console.log('⚠️ target_type column missing, adding it...');
                 try {
-                    await this.run('ALTER TABLE quests ADD COLUMN target_type TEXT DEFAULT "card_draws"');
+                    const defaultValue = this.dbType === 'sqlite' ? '"card_draws"' : "'card_draws'";
+                    await this.run(`ALTER TABLE quests ADD COLUMN target_type TEXT DEFAULT ${defaultValue}`);
                     console.log('✅ Added target_type column to quests table for enhanced quest system');
                 } catch (err) {
-                    console.log('target_type column may already exist');
+                    console.error('❌ Failed to add target_type column:', err.message);
+                    // Try alternative approach
+                    try {
+                        await this.run(`ALTER TABLE quests ADD target_type TEXT DEFAULT 'card_draws'`);
+                        console.log('✅ Added target_type column (alternative method)');
+                    } catch (err2) {
+                        console.error('❌ Alternative method also failed:', err2.message);
+                    }
                 }
+            } else {
+                console.log('✅ target_type column already exists');
             }
 
             // Add rare pull statistics columns to users table
-            const userTableInfo = await this.all("PRAGMA table_info(users)");
-            const userColumnNames = userTableInfo.map(col => col.name);
+            let userColumnNames = [];
+            
+            if (this.dbType === 'sqlite') {
+                const userTableInfo = await this.all("PRAGMA table_info(users)");
+                userColumnNames = userTableInfo.map(col => col.name);
+            } else {
+                // PostgreSQL column check
+                const result = await this.all(`
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'users' AND table_schema = 'public'
+                `);
+                userColumnNames = result.map(col => col.column_name);
+            }
             
             const rarePullColumns = [
                 { name: 'legendary_pulls', type: 'INTEGER DEFAULT 0' },

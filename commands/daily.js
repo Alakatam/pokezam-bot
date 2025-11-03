@@ -1,9 +1,10 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const ProgressiveDailyRewards = require('../utils/ProgressiveDailyRewards');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('daily')
-        .setDescription('Claim your daily rewards! Includes XP, items, and a Daily Charm.'),
+        .setDescription('Claim your progressive daily rewards! Streak bonuses, milestones, and special rewards!'),
 
     async execute(interaction, { database, userManager, cardManager, questManager }) {
         const userId = interaction.user.id;
@@ -87,66 +88,10 @@ module.exports = {
                 });
             }
 
-            // Define shop items for random reward
-            const shopItems = [
-                // Cheaper items (higher chance)
-                { name: 'Gold Boost', cost: 50, weight: 40 },
-                { name: 'Luck Boost', cost: 75, weight: 35 },
-                
-                // Medium items
-                { name: 'XP Boost', cost: 100, weight: 15 },
-                { name: 'Rare Boost', cost: 150, weight: 8 },
-                
-                // Expensive items (lower chance)
-                { name: 'Shiny Boost', cost: 300, weight: 2 }
-            ];
+            // Initialize Progressive Daily Rewards system
+            const progressiveRewards = new ProgressiveDailyRewards(database);
 
-            // Calculate total weight for weighted random selection
-            const totalWeight = shopItems.reduce((sum, item) => sum + item.weight, 0);
-            let randomWeight = Math.floor(Math.random() * totalWeight);
-            
-            // Select item based on weighted probability
-            let selectedItem = shopItems[0];
-            for (const item of shopItems) {
-                randomWeight -= item.weight;
-                if (randomWeight <= 0) {
-                    selectedItem = item;
-                    break;
-                }
-            }
-
-            // Calculate rewards
-            const xpReward = 250;
-            const coinReward = Math.floor(Math.random() * 50) + 25; // 25-75 coins bonus
-            const itemReward = selectedItem.name;
-
-            // Update user data  
-            const newXP = userData.xp + xpReward;
-            const newCoins = (userData.coins || 0) + coinReward;
-            const newLevel = userManager.calculateLevel(newXP);
-            const leveledUp = newLevel > userData.level;
-
-            // Update database with current timestamp
-            const claimTimestamp = now.toISOString();
-            await database.run(`
-                UPDATE users 
-                SET xp = ?, coins = ?, level = ?, last_daily_claim = ?
-                WHERE id = ?
-            `, [newXP, newCoins, newLevel, claimTimestamp, userId]);
-
-            // Add the item to user's inventory
-            await database.run(`
-                INSERT OR REPLACE INTO user_items (user_id, item_id, quantity)
-                VALUES (?, ?, COALESCE((SELECT quantity FROM user_items WHERE user_id = ? AND item_id = ?), 0) + 1)
-            `, [userId, itemReward, userId, itemReward]);
-
-            // Add Daily Charm to inventory
-            await database.run(`
-                INSERT OR REPLACE INTO user_items (user_id, item_id, quantity)
-                VALUES (?, ?, COALESCE((SELECT quantity FROM user_items WHERE user_id = ? AND item_id = ?), 0) + 1)
-            `, [userId, 'Daily Charm', userId, 'Daily Charm']);
-
-            // Create streak tracking (based on 22:00 ET resets)
+            // Calculate progressive streak (based on 22:00 ET resets)
             let streakCount = 1;
             
             if (userData.last_daily_claim) {
@@ -175,62 +120,98 @@ module.exports = {
                 }
             }
 
-            // Update streak
-            await database.run(`
-                UPDATE users 
-                SET daily_streak = ?
-                WHERE id = ?
-            `, [streakCount, userId]);
-
-            // Create professional YAML reward display
-            let yamlRewards = '```yaml\n';
-            yamlRewards += '#════════════════════════════════\n';
-            yamlRewards += '# 🎁 DAILY REWARDS CLAIMED\n';
-            yamlRewards += '#════════════════════════════════\n\n';
+            // Calculate progressive rewards based on streak
+            const rewards = await progressiveRewards.calculateDailyRewards(userId, streakCount);
             
-            yamlRewards += `👋 WELCOME BACK: ${interaction.user.displayName}\n`;
-            yamlRewards += `📅 DATE: ${new Date().toLocaleDateString()}\n\n`;
+            // Calculate new totals including milestone bonuses
+            let totalGold = rewards.gold;
+            let totalXP = rewards.xp;
             
-            yamlRewards += '🎁 REWARDS EARNED:\n';
-            yamlRewards += `   📈 Experience: +${xpReward} XP\n`;
-            yamlRewards += `   🪙 Bonus Coins: +${coinReward} coins\n`;
-            yamlRewards += `   🎯 Random Item: ${getItemEmoji(itemReward)} ${itemReward}\n`;
-            yamlRewards += `   ✨ Daily Charm: 🍀 Daily Charm (+1)\n\n`;
-            
-            yamlRewards += '📊 PROGRESS UPDATE:\n';
-            yamlRewards += `   🏆 Level: ${newLevel}${leveledUp ? ' (LEVEL UP! 🎉)' : ''}\n`;
-            yamlRewards += `   💰 Total Coins: ${newCoins.toLocaleString()}\n`;
-            yamlRewards += `   🔥 Daily Streak: ${streakCount} day${streakCount > 1 ? 's' : ''}\n\n`;
-            
-            if (streakCount === 7) {
-                yamlRewards += '🏆 STREAK BONUS:\n';
-                yamlRewards += '   ✨ Shiny Boost earned for 7-day streak!\n\n';
+            if (rewards.milestones && rewards.milestones.length > 0) {
+                rewards.milestones.forEach(milestone => {
+                    totalGold += milestone.bonusGold;
+                    totalXP += milestone.bonusXP;
+                });
             }
             
-            yamlRewards += '💡 NEXT STEPS:\n';
-            yamlRewards += '   /inventory - View your items\n';
-            yamlRewards += '   /profile - Check your progress\n';
-            yamlRewards += '   /shop - Browse the shop\n\n';
-            yamlRewards += '#════════════════════════════════\n';
-            yamlRewards += '```';
+            // Update user data with progressive rewards
+            const newXP = userData.xp + totalXP;
+            const newCoins = (userData.coins || 0) + rewards.coins;
+            const newGold = userData.gold + totalGold;
+            const newLevel = userManager.calculateLevel(newXP);
+            const leveledUp = newLevel > userData.level;
+
+            // Update database with current timestamp and new streak
+            const claimTimestamp = now.toISOString();
+            await database.run(`
+                UPDATE users 
+                SET xp = ?, coins = ?, gold = ?, level = ?, last_daily_claim = ?, daily_streak = ?
+                WHERE id = ?
+            `, [newXP, newCoins, newGold, newLevel, claimTimestamp, streakCount, userId]);
+
+            // Add the progressive item to user's inventory
+            await database.run(`
+                INSERT OR REPLACE INTO user_items (user_id, item_id, quantity)
+                VALUES (?, ?, COALESCE((SELECT quantity FROM user_items WHERE user_id = ? AND item_id = ?), 0) + 1)
+            `, [userId, rewards.item, userId, rewards.item]);
+
+            // Add Daily Charm for all daily claims
+            await database.run(`
+                INSERT OR REPLACE INTO user_items (user_id, item_id, quantity)
+                VALUES (?, ?, COALESCE((SELECT quantity FROM user_items WHERE user_id = ? AND item_id = ?), 0) + 1)
+            `, [userId, 'Daily Charm', userId, 'Daily Charm']);
+
+            // Create progressive reward display
+            const yamlRewards = progressiveRewards.createProgressiveRewardDisplay(rewards, interaction.user.displayName);
+
+            // Update progress display
+            let progressInfo = '\n📊 PROGRESS UPDATE:\n';
+            progressInfo += `   🏆 Level: ${newLevel}${leveledUp ? ' (LEVEL UP! 🎉)' : ''}\n`;
+            progressInfo += `   💰 Total Gold: ${newGold.toLocaleString()}\n`;
+            progressInfo += `   🪙 Total Coins: ${newCoins.toLocaleString()}\n`;
+            progressInfo += `   ✨ Total XP: ${newXP.toLocaleString()}\n\n`;
+            progressInfo += '💡 NEXT STEPS:\n';
+            progressInfo += '   /quest - View daily quests\n';
+            progressInfo += '   /inventory - Check your items\n';
+            progressInfo += '   /profile - See your progress\n';
+            
+            const finalDisplay = yamlRewards.replace('#═══════════════════════════════════════════════════\n```', progressInfo + '\n#═══════════════════════════════════════════════════\n```');
 
             const rewardEmbed = new EmbedBuilder()
-                .setTitle('🎁 Daily Rewards Claimed!')
-                .setDescription(yamlRewards)
-                .setColor('#4CAF50')
+                .setTitle(`${rewards.special ? '🌟 SPECIAL ' : '🎁 '}Daily Rewards - Day ${streakCount}!`)
+                .setDescription(finalDisplay)
+                .setColor(rewards.special ? '#FFD700' : '#4CAF50')
                 .setTimestamp()
                 .setFooter({ 
-                    text: `Next daily reward at 22:00 ET • Streak bonus at 7 days`,
+                    text: `Next reward at 22:00 ET • ${rewards.streakProtection ? 'Streak Protection Active' : 'Keep your streak going!'}`,
                     iconURL: interaction.user.displayAvatarURL({ dynamic: true })
                 });
 
-            // Add streak bonus rewards for milestones
-            if (streakCount === 7) {
-                await database.run(`
-                    INSERT OR REPLACE INTO user_items (user_id, item_id, quantity)
-                    VALUES (?, ?, COALESCE((SELECT quantity FROM user_items WHERE user_id = ? AND item_id = ?), 0) + 1)
-                `, [userId, 'Shiny Boost', userId, 'Shiny Boost']);
+            // Add milestone bonus rewards if applicable
+            if (rewards.milestoneReward) {
+                // Add milestone bonus gold
+                if (rewards.milestoneBonus) {
+                    await database.run(`UPDATE users SET gold = gold + ? WHERE id = ?`, [rewards.milestoneBonus, userId]);
+                }
+                
+                // Add milestone bonus item
+                if (rewards.milestoneItem) {
+                    await database.run(`
+                        INSERT OR REPLACE INTO user_items (user_id, item_id, quantity)
+                        VALUES (?, ?, COALESCE((SELECT quantity FROM user_items WHERE user_id = ? AND item_id = ?), 0) + 1)
+                    `, [userId, rewards.milestoneItem, userId, rewards.milestoneItem]);
+                }
+            }
 
+            // Send milestone celebration if applicable
+            if (rewards.milestoneReward) {
+                const celebrationEmbed = new EmbedBuilder()
+                    .setTitle(`🎊 MILESTONE ACHIEVED! Day ${streakCount}! 🎊`)
+                    .setDescription(`**${rewards.milestoneName}**\n\n${rewards.milestoneMessage}\n\n🏆 **Milestone Rewards:**\n${rewards.milestoneBonus ? `💰 ${rewards.milestoneBonus.toLocaleString()} Gold\n` : ''}${rewards.milestoneItem ? `🎁 ${rewards.milestoneItem}\n` : ''}`)
+                    .setColor('#FFD700')
+                    .setTimestamp();
+                
+                await interaction.followUp({ embeds: [celebrationEmbed] });
             }
 
             await interaction.reply({ embeds: [rewardEmbed] });

@@ -268,68 +268,80 @@ experience awaiting    : "Cards, quests, and adventure!"
             }
 
             // Update quest progress for all applicable quests using enhanced system
-            await questManager.autoAssignQuests(userId);
+            let questResults = [];
             
-            const questResults = [];
-            
-            // Card drawing quests
-            questResults.push(
-                ...await questManager.updateEnhancedQuestProgress(userId, 'card_draws', 1, detailedCard)
-            );
-            
-            // Type-specific quests  
-            if (detailedCard.types) {
-                const cardTypes = typeof detailedCard.types === 'string' ? 
-                    JSON.parse(detailedCard.types) : detailedCard.types;
+            try {
+                await questManager.autoAssignQuests(userId);
                 
-                for (const type of cardTypes) {
-                    const targetType = `type_${type.toLowerCase()}`;
+                // Card drawing quests
+                questResults.push(
+                    ...await questManager.updateEnhancedQuestProgress(userId, 'card_draws', 1, detailedCard)
+                );
+                
+                // Type-specific quests  
+                if (detailedCard.types) {
+                    const cardTypes = typeof detailedCard.types === 'string' ? 
+                        JSON.parse(detailedCard.types) : detailedCard.types;
+                    
+                    for (const type of cardTypes) {
+                        const targetType = `type_${type.toLowerCase()}`;
+                        questResults.push(
+                            ...await questManager.updateEnhancedQuestProgress(userId, targetType, 1, detailedCard)
+                        );
+                    }
+                }
+                
+                // Rarity-specific quests
+                const rarity = detailedCard.rarity?.toLowerCase() || '';
+                if (rarity.includes('rare') || rarity.includes('ultra') || rarity.includes('secret')) {
                     questResults.push(
-                        ...await questManager.updateEnhancedQuestProgress(userId, targetType, 1, detailedCard)
+                        ...await questManager.updateEnhancedQuestProgress(userId, 'rarity_rare_plus', 1, detailedCard)
                     );
                 }
-            }
-            
-            // Rarity-specific quests
-            const rarity = detailedCard.rarity?.toLowerCase() || '';
-            if (rarity.includes('rare') || rarity.includes('ultra') || rarity.includes('secret')) {
-                questResults.push(
-                    ...await questManager.updateEnhancedQuestProgress(userId, 'rarity_rare_plus', 1, detailedCard)
-                );
-            }
-            if (rarity.includes('holo')) {
-                questResults.push(
-                    ...await questManager.updateEnhancedQuestProgress(userId, 'rarity_holo', 1, detailedCard)
-                );
-            }
-            if (rarity.includes('ultra')) {
-                questResults.push(
-                    ...await questManager.updateEnhancedQuestProgress(userId, 'rarity_ultra', 1, detailedCard)
-                );
-            }
-            
-            // Gold accumulation quests (add gold value from draw)
-            const goldValue = rarityInfo ? rarityInfo.gold_value || 0 : 0;
-            if (goldValue > 0) {
-                questResults.push(
-                    ...await questManager.updateEnhancedQuestProgress(userId, 'gold_from_zam', goldValue, detailedCard)
-                );
-            }
-            
-            // Generation-specific quests
-            const cardSetId = detailedCard.set_id;
-            if (cardSetId) {
-                // Gen 1 sets
-                if (['base1', 'base2', 'base3', 'gym1', 'gym2'].includes(cardSetId)) {
+                if (rarity.includes('holo')) {
                     questResults.push(
-                        ...await questManager.updateEnhancedQuestProgress(userId, 'generation_1', 1, detailedCard)
+                        ...await questManager.updateEnhancedQuestProgress(userId, 'rarity_holo', 1, detailedCard)
                     );
                 }
-                // Modern sets (example)
-                else if (['swsh9', 'swsh10', 'swsh11', 'swsh12'].includes(cardSetId)) {
+                if (rarity.includes('ultra')) {
                     questResults.push(
-                        ...await questManager.updateEnhancedQuestProgress(userId, 'generation_modern', 1, detailedCard)
+                        ...await questManager.updateEnhancedQuestProgress(userId, 'rarity_ultra', 1, detailedCard)
                     );
+                }
+                
+                // Gold accumulation quests (add gold value from draw)
+                const goldValue = rarityInfo ? rarityInfo.gold_value || 0 : 0;
+                if (goldValue > 0) {
+                    questResults.push(
+                        ...await questManager.updateEnhancedQuestProgress(userId, 'gold_from_zam', goldValue, detailedCard)
+                    );
+                }
+                
+                // Generation-specific quests
+                const cardSetId = detailedCard.set_id;
+                if (cardSetId) {
+                    // Gen 1 sets
+                    if (['base1', 'base2', 'base3', 'gym1', 'gym2'].includes(cardSetId)) {
+                        questResults.push(
+                            ...await questManager.updateEnhancedQuestProgress(userId, 'generation_1', 1, detailedCard)
+                        );
+                    }
+                    // Modern sets (example)
+                    else if (['swsh9', 'swsh10', 'swsh11', 'swsh12'].includes(cardSetId)) {
+                        questResults.push(
+                            ...await questManager.updateEnhancedQuestProgress(userId, 'generation_modern', 1, detailedCard)
+                        );
+                    }
+                }
+                
+            } catch (error) {
+                console.error('Enhanced quest system error:', error.message);
+                // Fall back to basic quest system if enhanced system fails
+                console.log('⚠️ Falling back to basic quest progress update');
+                try {
+                    await questManager.updateQuestProgress(userId, 'draw_card', 1);
+                } catch (fallbackError) {
+                    console.error('Basic quest fallback also failed:', fallbackError.message);
                 }
             }
             

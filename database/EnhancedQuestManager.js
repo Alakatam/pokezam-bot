@@ -101,21 +101,45 @@ class EnhancedQuestManager {
             // Add all quest types to database
             for (const [questType, quests] of Object.entries(this.questPool)) {
                 for (const quest of quests) {
-                    await this.db.run(`
-                        INSERT INTO quests 
-                        (id, name, description, quest_type, target_value, reward_gold, reward_xp, reset_interval, target_type)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    `, [
-                        questId++,
-                        quest.name,
-                        quest.description, 
-                        questType,
-                        quest.target_value,
-                        quest.reward_gold,
-                        quest.reward_xp,
-                        questType === 'daily' ? 86400 : questType === 'weekly' ? 604800 : 2592000,
-                        quest.target_type
-                    ]);
+                    try {
+                        // Try with target_type column first
+                        await this.db.run(`
+                            INSERT INTO quests 
+                            (id, name, description, quest_type, target_value, reward_gold, reward_xp, reset_interval, target_type)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        `, [
+                            questId++,
+                            quest.name,
+                            quest.description, 
+                            questType,
+                            quest.target_value,
+                            quest.reward_gold,
+                            quest.reward_xp,
+                            questType === 'daily' ? 86400 : questType === 'weekly' ? 604800 : 2592000,
+                            quest.target_type
+                        ]);
+                    } catch (error) {
+                        if (error.message.includes('no such column: target_type')) {
+                            console.log('⚠️ Fallback: inserting quest without target_type column');
+                            // Fallback for databases without target_type column
+                            await this.db.run(`
+                                INSERT INTO quests 
+                                (id, name, description, quest_type, target_value, reward_gold, reward_xp, reset_interval)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            `, [
+                                questId - 1, // Use the same ID since it was incremented above
+                                quest.name,
+                                quest.description, 
+                                questType,
+                                quest.target_value,
+                                quest.reward_gold,
+                                quest.reward_xp,
+                                questType === 'daily' ? 86400 : questType === 'weekly' ? 604800 : 2592000
+                            ]);
+                        } else {
+                            throw error;
+                        }
+                    }
                 }
             }
             
@@ -166,12 +190,32 @@ class EnhancedQuestManager {
     // Enhanced quest progress update with type checking
     async updateEnhancedQuestProgress(userId, targetType, amount = 1, cardData = null) {
         // Get active user quests that match the target type
-        const userQuests = await this.db.all(`
-            SELECT uq.*, q.name, q.target_value, q.reward_gold, q.reward_xp, q.description, q.target_type
-            FROM user_quests uq
-            JOIN quests q ON uq.quest_id = q.id
-            WHERE uq.user_id = ? AND q.target_type = ? AND uq.completed = FALSE
-        `, [userId, targetType]);
+        let userQuests = [];
+        
+        try {
+            // Try the enhanced query with target_type column
+            userQuests = await this.db.all(`
+                SELECT uq.*, q.name, q.target_value, q.reward_gold, q.reward_xp, q.description, 
+                       COALESCE(q.target_type, 'card_draws') as target_type
+                FROM user_quests uq
+                JOIN quests q ON uq.quest_id = q.id
+                WHERE uq.user_id = ? AND COALESCE(q.target_type, 'card_draws') = ? AND uq.completed = FALSE
+            `, [userId, targetType]);
+        } catch (error) {
+            if (error.message.includes('no such column: q.target_type')) {
+                console.log('⚠️ target_type column not found, using fallback query');
+                // Fallback for databases without target_type column
+                userQuests = await this.db.all(`
+                    SELECT uq.*, q.name, q.target_value, q.reward_gold, q.reward_xp, q.description, 
+                           'card_draws' as target_type
+                    FROM user_quests uq
+                    JOIN quests q ON uq.quest_id = q.id
+                    WHERE uq.user_id = ? AND uq.completed = FALSE
+                `, [userId]);
+            } else {
+                throw error;
+            }
+        }
 
         const completedQuests = [];
 
