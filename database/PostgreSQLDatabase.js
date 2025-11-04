@@ -403,8 +403,8 @@ class PostgreSQLDatabase {
     async addActiveEffect(userId, effectName, effectType, multiplier, expiresAt = null, usesRemaining = null) {
         // Category defaults to 'boost' for most effects
         const category = effectType === 'multi_boost' ? 'boost' : 'unknown';
-        // effect_value defaults to effectName for compatibility
-        const effectValue = effectName;
+        // effect_value should be numeric - use multiplier as the numeric value
+        const effectValue = multiplier;
         
         // DEBUG: Log the parameters to see what's wrong
         console.log('🔍 addActiveEffect DEBUG:', {
