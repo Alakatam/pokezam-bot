@@ -3,7 +3,7 @@ const { Client, Collection, GatewayIntentBits, Partials, REST, Routes } = requir
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
-const Database = require('./database/Database');
+const DatabaseManager = require('./database/DatabaseManager');
 const UserManager = require('./database/UserManager');
 const CardManager = require('./database/CardManager');
 const QuestManager = require('./database/QuestManager');
@@ -26,10 +26,11 @@ class PokezamBot {
         this.cooldowns = new Collection();
         
         // Initialize database managers
-        this.database = new Database();
-        this.userManager = new UserManager(this.database);
-        this.cardManager = new CardManager(this.database);
-        this.questManager = new QuestManager(this.database);
+        this.databaseManager = new DatabaseManager();
+        this.database = null; // Will be set after connection
+        this.userManager = null; // Will be initialized after database connection
+        this.cardManager = null; // Will be initialized after database connection
+        this.questManager = null; // Will be initialized after database connection
         this.achievementManager = null; // Will be initialized after database connection
         this.backupManager = new DatabaseBackupManager();
         
@@ -45,28 +46,45 @@ class PokezamBot {
             // Ensure TCG data is available (for cloud hosting)
             await this.ensureTCGData();
             
-            // Connect to database
-            await this.database.connect();
+            // Connect to database (auto-selects SQLite or PostgreSQL)
+            this.database = await this.databaseManager.connect();
             
-            // Only restore from backup if database is empty/missing (not on every restart!)
+            // PostgreSQL deployment: Skip backup restore on first deployment
+            // Fresh PostgreSQL database will be created with proper schema
             if (process.env.NODE_ENV === 'production' || process.env.PORT) {
-                const shouldRestore = await this.checkIfDatabaseNeedsRestore();
-                if (shouldRestore) {
-                    console.log('🔄 Database empty/missing, restoring from backup...');
-                    await this.backupManager.restoreBackup();
+                const isPostgreSQL = this.databaseManager.dbType === 'postgresql';
+                if (isPostgreSQL) {
+                    console.log('🐘 PostgreSQL detected - using fresh database with progressive loading');
+                    console.log('💡 If you need to migrate existing SQLite data, use: npm run migrate');
                 } else {
-                    console.log('✅ Database exists with data, skipping backup restore to preserve progress');
+                    // Only restore from backup for SQLite in production (edge case)
+                    const shouldRestore = await this.checkIfDatabaseNeedsRestore();
+                    if (shouldRestore) {
+                        console.log('🔄 Database empty/missing, restoring from backup...');
+                        await this.backupManager.restoreBackup();
+                    } else {
+                        console.log('✅ Database exists with data, skipping backup restore to preserve progress');
+                    }
                 }
             }
             
+            // Apply PostgreSQL production fixes before initialization
+            const PostgreSQLProductionFix = require('./database/PostgreSQLProductionFix');
+            PostgreSQLProductionFix.apply(this.database);
+            
             await this.database.initialize();
             
-            // Initialize achievement manager after database is ready
+            // Initialize managers after database is ready
+            const UserManager = require('./database/UserManager');
+            const CardManager = require('./database/CardManager');
+            const QuestManager = require('./database/QuestManager');
             const AchievementManager = require('./database/AchievementManager');
-            this.achievementManager = new AchievementManager(this.database);
-            
-            // Initialize set completion manager
             const SetCompletionManager = require('./database/SetCompletionManager');
+            
+            this.userManager = new UserManager(this.database);
+            this.cardManager = new CardManager(this.database);
+            this.questManager = new QuestManager(this.database);
+            this.achievementManager = new AchievementManager(this.database);
             this.setCompletionManager = new SetCompletionManager(this.database);
             
             // Initialize default set rewards
