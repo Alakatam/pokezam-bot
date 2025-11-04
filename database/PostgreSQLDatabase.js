@@ -237,7 +237,7 @@ class PostgreSQLDatabase {
             // Execute each migration query
             for (const query of migrationQueries) {
                 try {
-                    await this.query(query);
+                    await this.pool.query(query);
                 } catch (error) {
                     // Log but don't fail - column might already exist
                     if (error.code !== '42701') { // duplicate_column error is OK
