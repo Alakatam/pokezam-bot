@@ -172,6 +172,126 @@ class DatabaseManager {
             await this.database.initialize();
         }
     }
+
+    // ===== ITEM MANAGEMENT DELEGATION =====
+    
+    async addUserItem(userId, itemId, quantity = 1) {
+        if (this.database.addUserItem) {
+            return await this.database.addUserItem(userId, itemId, quantity);
+        }
+        throw new Error('addUserItem method not available');
+    }
+
+    async getUserItem(userId, itemId) {
+        if (this.database.getUserItem) {
+            return await this.database.getUserItem(userId, itemId);
+        }
+        throw new Error('getUserItem method not available');
+    }
+
+    async getAllUserItems(userId) {
+        if (this.database.getAllUserItems) {
+            return await this.database.getAllUserItems(userId);
+        }
+        throw new Error('getAllUserItems method not available');
+    }
+
+    async updateItemQuantity(userId, itemId, quantity) {
+        if (this.database.updateItemQuantity) {
+            return await this.database.updateItemQuantity(userId, itemId, quantity);
+        }
+        throw new Error('updateItemQuantity method not available');
+    }
+
+    async removeUserItem(userId, itemId, quantity = 1) {
+        if (this.database.removeUserItem) {
+            return await this.database.removeUserItem(userId, itemId, quantity);
+        }
+        throw new Error('removeUserItem method not available');
+    }
+
+    // ===== ACTIVE EFFECTS DELEGATION =====
+    
+    async addActiveEffect(userId, effectType, category, multiplier, expiresAt = null, usesRemaining = null) {
+        if (this.database.addActiveEffect) {
+            return await this.database.addActiveEffect(userId, effectType, category, multiplier, expiresAt, usesRemaining);
+        }
+        throw new Error('addActiveEffect method not available');
+    }
+
+    async getUserActiveEffects(userId) {
+        if (this.database.getUserActiveEffects) {
+            return await this.database.getUserActiveEffects(userId);
+        }
+        throw new Error('getUserActiveEffects method not available');
+    }
+
+    async removeActiveEffect(userId, effectId) {
+        if (this.database.removeActiveEffect) {
+            return await this.database.removeActiveEffect(userId, effectId);
+        }
+        throw new Error('removeActiveEffect method not available');
+    }
+
+    async cleanupExpiredEffects() {
+        if (this.database.cleanupExpiredEffects) {
+            return await this.database.cleanupExpiredEffects();
+        }
+        throw new Error('cleanupExpiredEffects method not available');
+    }
+
+    async updateEffectUses(effectId, usesRemaining) {
+        if (this.database.updateEffectUses) {
+            return await this.database.updateEffectUses(effectId, usesRemaining);
+        }
+        throw new Error('updateEffectUses method not available');
+    }
+
+    async getUserEffectsByCategory(userId, category) {
+        if (this.database.getUserEffectsByCategory) {
+            return await this.database.getUserEffectsByCategory(userId, category);
+        }
+        throw new Error('getUserEffectsByCategory method not available');
+    }
+
+    // ===== SHOP METHODS DELEGATION =====
+    
+    async addShopItem(itemId, name, description, category, price, maxStock = null, sortOrder = 0) {
+        if (this.database.addShopItem) {
+            return await this.database.addShopItem(itemId, name, description, category, price, maxStock, sortOrder);
+        }
+        throw new Error('addShopItem method not available');
+    }
+
+    async getShopItem(itemId) {
+        if (this.database.getShopItem) {
+            return await this.database.getShopItem(itemId);
+        }
+        throw new Error('getShopItem method not available');
+    }
+
+    async getAllShopItems(category = null) {
+        if (this.database.getAllShopItems) {
+            return await this.database.getAllShopItems(category);
+        }
+        throw new Error('getAllShopItems method not available');
+    }
+
+    async updateShopStock(itemId, newStock) {
+        if (this.database.updateShopStock) {
+            return await this.database.updateShopStock(itemId, newStock);
+        }
+        throw new Error('updateShopStock method not available');
+    }
+
+    // ===== TRANSACTION DELEGATION =====
+    
+    async transaction(callback) {
+        if (this.database.transaction) {
+            return await this.database.transaction(callback);
+        }
+        throw new Error('transaction method not available');
+    }
 }
 
 module.exports = DatabaseManager;
