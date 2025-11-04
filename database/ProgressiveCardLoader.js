@@ -6,7 +6,6 @@
  */
 
 const axios = require('axios');
-const Database = require('./Database');
 
 class ProgressiveCardLoader {
     constructor(database) {
@@ -134,7 +133,8 @@ class ProgressiveCardLoader {
                                 release_date, unlock_level, holo_chance, is_cached, last_updated,
                                 created_at, variant_normal, variant_reverse, variant_holo,
                                 variant_first_edition, variant_promo
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            ON CONFLICT (api_id) DO NOTHING
                         `, [
                             card.id,
                             card.name || 'Unknown Card',
@@ -161,14 +161,14 @@ class ProgressiveCardLoader {
                             card.set?.releaseDate || null,
                             this.calculateUnlockLevel(card.set?.releaseDate),
                             this.calculateHoloChance(card.rarity),
-                            1,
-                            now,
-                            now,
-                            card.variant_normal || 1,
-                            card.variant_reverse || 1,
-                            card.variant_holo || 1,
-                            card.variant_first_edition || 0,
-                            card.variant_promo || 0
+                            true, // is_cached 
+                            Math.floor(Date.now() / 1000), // last_updated
+                            Math.floor(Date.now() / 1000), // created_at  
+                            card.variant_normal !== false ? true : false, // boolean conversion
+                            card.variant_reverse !== false ? true : false, // boolean conversion
+                            card.variant_holo !== false ? true : false, // boolean conversion
+                            card.variant_first_edition === true, // boolean conversion
+                            card.variant_promo === true // boolean conversion
                         ]);
                         newCards++;
                     } catch (error) {
