@@ -133,7 +133,7 @@ class ProgressiveCardLoader {
                                 release_date, unlock_level, holo_chance, is_cached, last_updated,
                                 created_at, variant_normal, variant_reverse, variant_holo,
                                 variant_first_edition, variant_promo
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                             ON CONFLICT (api_id) DO NOTHING
                         `, [
                             card.id,
