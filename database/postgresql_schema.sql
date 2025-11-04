@@ -103,12 +103,12 @@ CREATE TABLE IF NOT EXISTS user_quests (
 CREATE TABLE IF NOT EXISTS active_effects (
     id SERIAL PRIMARY KEY,
     user_id VARCHAR(20) NOT NULL,
-    effect_name VARCHAR(100) NOT NULL,
-    effect_type VARCHAR(50) NOT NULL,
-    effect_value DECIMAL(10,2) NOT NULL,
-    duration_minutes INTEGER NOT NULL,
-    activated_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW()),
-    expires_at BIGINT NOT NULL,
+    effect_type VARCHAR(100) NOT NULL,
+    category VARCHAR(50) NOT NULL,
+    multiplier DECIMAL(10,2) DEFAULT 1.0,
+    expires_at BIGINT DEFAULT NULL,
+    uses_remaining INTEGER DEFAULT NULL,
+    created_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW()),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
