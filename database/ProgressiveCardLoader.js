@@ -115,15 +115,32 @@ class ProgressiveCardLoader {
                 return;
             }
             
-            // Load cards using direct database insertion
+            // OPTIMIZED: Load cards using batch insertion for better performance
             let newCards = 0;
-            const now = Math.floor(Date.now() / 1000);
+            const BATCH_SIZE = 50; // Process in smaller batches for better memory management
+            const cards = setData.cards;
             
-            for (const card of setData.cards) {
-                const existing = await this.database.get('SELECT id FROM cards WHERE api_id = ?', [card.id]);
-                if (!existing) {
+            for (let i = 0; i < cards.length; i += BATCH_SIZE) {
+                const batch = cards.slice(i, i + BATCH_SIZE);
+                
+                // Check existing cards in batch
+                const apiIds = batch.map(card => card.id);
+                const existing = await this.database.all(
+                    `SELECT api_id FROM cards WHERE api_id IN (${apiIds.map(() => '?').join(',')})`,
+                    apiIds
+                );
+                const existingIds = new Set(existing.map(e => e.api_id));
+                
+                // Filter out already existing cards
+                const newCardsInBatch = batch.filter(card => !existingIds.has(card.id));
+                
+                if (newCardsInBatch.length === 0) {
+                    continue; // Skip if all cards in batch already exist
+                }
+                
+                // Build batch insert statement
+                const insertPromises = newCardsInBatch.map(async (card) => {
                     try {
-                        // Insert card with same structure as loadTCGData.js
                         await this.database.run(`
                             INSERT INTO cards (
                                 api_id, name, set_id, set_name, set_series, number, rarity,
@@ -170,14 +187,30 @@ class ProgressiveCardLoader {
                             card.variant_first_edition === true, // boolean conversion
                             card.variant_promo === true // boolean conversion
                         ]);
-                        newCards++;
+                        return 1; // Successfully inserted
                     } catch (error) {
                         console.error(`Failed to insert card ${card.name}:`, error.message);
+                        return 0; // Failed to insert
                     }
+                });
+                
+                // Execute batch insert
+                const results = await Promise.all(insertPromises);
+                const batchInserted = results.reduce((sum, result) => sum + result, 0);
+                newCards += batchInserted;
+                
+                // Memory management: Force garbage collection every 200 cards
+                if (i % 200 === 0 && global.gc) {
+                    global.gc();
+                }
+                
+                // Progress reporting for large sets
+                if (cards.length > 200 && i % 100 === 0) {
+                    console.log(`   📊 Progress: ${Math.min(i + BATCH_SIZE, cards.length)}/${cards.length} cards processed...`);
                 }
             }
             
-            console.log(`   ✅ ${setInfo.setId}: +${newCards} new cards`);
+            console.log(`   ✅ ${setInfo.setId}: +${newCards} new cards (batch optimized)`);
             
         } catch (error) {
             throw new Error(`Failed to load ${setInfo.setId}: ${error.message}`);

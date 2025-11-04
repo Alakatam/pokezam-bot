@@ -105,20 +105,32 @@ experience awaiting    : "Cards, quests, and adventure!"
             let baseGoldReward = this.getGoldReward(drawnCard.rarity);
             let goldReward = Math.floor(baseGoldReward * variantInfo.goldMultiplier);
             
-            // Check for all active effects
-            const goldBoostEffects = await database.getUserEffectsByCategory(userId, 'gold_boost');
-            const luckBoostEffects = await database.getUserEffectsByCategory(userId, 'luck_boost');
-            const multiBoostEffects = await database.getUserEffectsByCategory(userId, 'multi_boost');
-            const qualityEffects = await database.getUserEffectsByCategory(userId, 'quality_filter');
-            const luckEffects = await database.getUserEffectsByCategory(userId, 'luck'); // Daily Charm category
-            
-            // Clean up expired effects
+            // OPTIMIZED: Get all active effects in a single query and clean up expired ones
             const now = Math.floor(Date.now() / 1000);
-            await database.run(`DELETE FROM active_effects WHERE user_id = ? AND expires_at IS NOT NULL AND expires_at <= ?`, [userId, now]);
-            await database.run(`DELETE FROM active_effects WHERE user_id = ? AND uses_remaining IS NOT NULL AND uses_remaining <= 0`, [userId]);
             
-            // Combine all effects and apply bonuses
-            const allEffects = [...goldBoostEffects, ...luckBoostEffects, ...multiBoostEffects, ...qualityEffects, ...luckEffects];
+            // Single query to get all valid active effects
+            const allEffects = await database.all(`
+                SELECT * FROM active_effects 
+                WHERE user_id = ? 
+                AND (expires_at IS NULL OR expires_at > ?) 
+                AND (uses_remaining IS NULL OR uses_remaining > 0)
+                ORDER BY created_at DESC
+            `, [userId, now]);
+            
+            // Clean up expired effects in a single query (async to not block response)
+            setImmediate(async () => {
+                try {
+                    await database.run(`
+                        DELETE FROM active_effects 
+                        WHERE user_id = ? AND (
+                            (expires_at IS NOT NULL AND expires_at <= ?) OR 
+                            (uses_remaining IS NOT NULL AND uses_remaining <= 0)
+                        )
+                    `, [userId, now]);
+                } catch (error) {
+                    console.error('Error cleaning up expired effects:', error);
+                }
+            });
             let totalGoldMultiplier = 1.0;
             let totalLuckMultiplier = 1.0;
             const activeEffectNames = [];

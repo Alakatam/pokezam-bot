@@ -35,6 +35,7 @@ class PokezamBot {
         this.backupManager = new DatabaseBackupManager();
         
         this.setupEventHandlers();
+        this.setupPerformanceOptimizations();
     }
 
     async initialize() {
@@ -90,17 +91,8 @@ class PokezamBot {
             // Initialize default set rewards
             await this.setCompletionManager.initializeDefaultSetRewards();
             
-            // Progressive card loading for cloud deployment (non-blocking)
-            if (process.env.NODE_ENV === 'production' || process.env.PORT) {
-                const ProgressiveCardLoader = require('./database/ProgressiveCardLoader');
-                const cardLoader = new ProgressiveCardLoader(this.database);
-                
-                console.log('🔄 Starting progressive card loading from GitHub...');
-                // Load additional cards in background (don't block bot startup)
-                cardLoader.checkAndLoadCards().catch(error => {
-                    console.error('❌ Progressive loading failed (bot still functional):', error.message);
-                });
-            }
+            // DEPLOYMENT FIX: Progressive card loading will happen AFTER bot is ready
+            // Removed from startup sequence to prevent deployment timeouts
             
             // Load commands and events (but don't register commands yet)
             await this.loadCommandsOnly();
@@ -1201,6 +1193,62 @@ class PokezamBot {
             console.error('❌ Error ensuring TCG data:', error.message);
             console.log('⚠️  Continuing with API fallback...');
         }
+    }
+
+    // PERFORMANCE OPTIMIZATION: Setup memory management and cleanup processes
+    setupPerformanceOptimizations() {
+        // Cleanup expired cooldowns to prevent memory leaks
+        setInterval(() => {
+            const now = Date.now();
+            let cleanedCount = 0;
+            
+            for (const [userId, timestamp] of this.cooldowns.entries()) {
+                // Clean cooldowns older than 5 minutes (300000ms)
+                if (now - timestamp > 300000) {
+                    this.cooldowns.delete(userId);
+                    cleanedCount++;
+                }
+            }
+            
+            if (cleanedCount > 0) {
+                console.log(`🧹 Cleaned ${cleanedCount} expired cooldown entries`);
+            }
+        }, 60000); // Run cleanup every minute
+        
+        // Memory usage monitoring (every 10 minutes)
+        setInterval(() => {
+            const memUsage = process.memoryUsage();
+            const rssMB = Math.round(memUsage.rss / 1024 / 1024);
+            const heapUsedMB = Math.round(memUsage.heapUsed / 1024 / 1024);
+            
+            console.log(`📊 Memory Usage: ${rssMB}MB RSS, ${heapUsedMB}MB Heap, ${this.cooldowns.size} active cooldowns`);
+            
+            // Force garbage collection if memory usage is high (only if --expose-gc flag is used)
+            if (rssMB > 400 && global.gc) {
+                console.log('🗑️ High memory usage detected, forcing garbage collection...');
+                global.gc();
+            }
+        }, 600000); // Monitor every 10 minutes
+        
+        // Database connection health check (every 30 minutes) 
+        setInterval(async () => {
+            try {
+                if (this.database) {
+                    // Test database connectivity with a simple query
+                    await this.database.get('SELECT 1 as test');
+                    console.log('✅ Database connection healthy');
+                    
+                    // Clean up expired effects (performance optimization)
+                    if (this.database.cleanupExpiredEffects) {
+                        await this.database.cleanupExpiredEffects();
+                    }
+                }
+            } catch (error) {
+                console.error('❌ Database health check failed:', error.message);
+            }
+        }, 1800000); // Check every 30 minutes
+        
+        console.log('🚀 Performance optimizations initialized');
     }
 }
 
