@@ -270,9 +270,9 @@ class DatabaseManager {
 
     // ===== ACTIVE EFFECTS DELEGATION =====
     
-    async addActiveEffect(userId, effectType, category, multiplier, expiresAt = null, usesRemaining = null) {
+    async addActiveEffect(userId, effectName, effectType, multiplier, expiresAt = null, usesRemaining = null) {
         if (this.database.addActiveEffect) {
-            return await this.database.addActiveEffect(userId, effectType, category, multiplier, expiresAt, usesRemaining);
+            return await this.database.addActiveEffect(userId, effectName, effectType, multiplier, expiresAt, usesRemaining);
         }
         throw new Error('addActiveEffect method not available');
     }

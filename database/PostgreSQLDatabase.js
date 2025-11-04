@@ -367,10 +367,13 @@ class PostgreSQLDatabase {
 
     // ===== ACTIVE EFFECTS METHODS =====
     
-    async addActiveEffect(userId, effectType, category, multiplier, expiresAt = null, usesRemaining = null) {
+    async addActiveEffect(userId, effectName, effectType, multiplier, expiresAt = null, usesRemaining = null) {
+        // Category defaults to 'boost' for most effects
+        const category = effectType === 'multi_boost' ? 'boost' : 'unknown';
+        
         return this.run(
-            'INSERT INTO active_effects (user_id, effect_type, category, multiplier, expires_at, uses_remaining) VALUES ($1, $2, $3, $4, $5, $6)',
-            [userId, effectType, category, multiplier, expiresAt, usesRemaining]
+            'INSERT INTO active_effects (user_id, effect_name, effect_type, category, multiplier, expires_at, uses_remaining) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+            [userId, effectName, effectType, category, multiplier, expiresAt, usesRemaining]
         );
     }
 
