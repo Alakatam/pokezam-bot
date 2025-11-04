@@ -151,25 +151,34 @@ module.exports = {
 
             // Add the progressive item to user's inventory
             await database.run(`
-                INSERT OR REPLACE INTO user_items (user_id, item_id, quantity)
-                VALUES (?, ?, COALESCE((SELECT quantity FROM user_items WHERE user_id = ? AND item_id = ?), 0) + 1)
-            `, [userId, rewards.item, userId, rewards.item]);
+                INSERT INTO user_items (user_id, item_id, quantity)
+                VALUES (?, ?, 1)
+                ON CONFLICT (user_id, item_id) DO UPDATE SET
+                    quantity = user_items.quantity + 1
+            `, [userId, rewards.item]);
 
             // Add Daily Charm for all daily claims
             await database.run(`
-                INSERT OR REPLACE INTO user_items (user_id, item_id, quantity)
-                VALUES (?, ?, COALESCE((SELECT quantity FROM user_items WHERE user_id = ? AND item_id = ?), 0) + 1)
-            `, [userId, 'Daily Charm', userId, 'Daily Charm']);
+                INSERT INTO user_items (user_id, item_id, quantity)
+                VALUES (?, ?, 1)
+                ON CONFLICT (user_id, item_id) DO UPDATE SET
+                    quantity = user_items.quantity + 1
+            `, [userId, 'Daily Charm']);
 
-            // Auto-activate Daily Charm as a permanent luck boost
+            // Auto-activate Daily Charm as a 100-use luck boost
             const nowTimestamp = Math.floor(Date.now() / 1000);
-            const tomorrow = nowTimestamp + 86400; // 24 hours from now
             
             try {
                 await database.run(`
-                    INSERT OR REPLACE INTO active_effects (user_id, effect_type, category, multiplier, expires_at, uses_remaining, created_at)
+                    INSERT INTO active_effects (user_id, effect_type, category, multiplier, expires_at, uses_remaining, created_at)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
-                `, [userId, 'daily_charm', 'luck', 1.2, tomorrow, null, nowTimestamp]);
+                    ON CONFLICT (user_id, effect_type) DO UPDATE SET
+                        category = EXCLUDED.category,
+                        multiplier = EXCLUDED.multiplier,
+                        expires_at = EXCLUDED.expires_at,
+                        uses_remaining = EXCLUDED.uses_remaining,
+                        created_at = EXCLUDED.created_at
+                `, [userId, 'daily_charm', 'luck', 1.2, null, 100, nowTimestamp]);
             } catch (error) {
                 console.error('Failed to activate Daily Charm:', error);
             }
@@ -210,9 +219,11 @@ module.exports = {
                 // Add milestone bonus item
                 if (rewards.milestoneItem) {
                     await database.run(`
-                        INSERT OR REPLACE INTO user_items (user_id, item_id, quantity)
-                        VALUES (?, ?, COALESCE((SELECT quantity FROM user_items WHERE user_id = ? AND item_id = ?), 0) + 1)
-                    `, [userId, rewards.milestoneItem, userId, rewards.milestoneItem]);
+                        INSERT INTO user_items (user_id, item_id, quantity)
+                        VALUES (?, ?, 1)
+                        ON CONFLICT (user_id, item_id) DO UPDATE SET
+                            quantity = user_items.quantity + 1
+                    `, [userId, rewards.milestoneItem]);
                 }
             }
 

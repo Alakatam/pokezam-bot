@@ -110,7 +110,8 @@ CREATE TABLE IF NOT EXISTS active_effects (
     expires_at BIGINT DEFAULT NULL,
     uses_remaining INTEGER DEFAULT NULL,
     created_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW()),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE(user_id, effect_type)
 );
 
 -- User inventory system
