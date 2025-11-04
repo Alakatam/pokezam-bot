@@ -254,6 +254,102 @@ class PostgreSQLDatabase {
             console.log('✅ Data restoration complete');
         });
     }
+
+    // ===== ITEM MANAGEMENT METHODS =====
+    
+    async addUserItem(userId, itemId, quantity = 1) {
+        return this.run(`
+            INSERT INTO user_items (user_id, item_id, quantity) 
+            VALUES ($1, $2, $3)
+            ON CONFLICT (user_id, item_id) DO UPDATE SET 
+            quantity = user_items.quantity + $3
+        `, [userId, itemId, quantity]);
+    }
+
+    async getUserItem(userId, itemId) {
+        return this.get('SELECT * FROM user_items WHERE user_id = $1 AND item_id = $2', [userId, itemId]);
+    }
+
+    async getAllUserItems(userId) {
+        return this.all('SELECT * FROM user_items WHERE user_id = $1 ORDER BY item_id', [userId]);
+    }
+
+    async updateItemQuantity(userId, itemId, quantity) {
+        if (quantity <= 0) {
+            return this.run('DELETE FROM user_items WHERE user_id = $1 AND item_id = $2', [userId, itemId]);
+        }
+        return this.run('UPDATE user_items SET quantity = $1 WHERE user_id = $2 AND item_id = $3', [quantity, userId, itemId]);
+    }
+
+    async removeUserItem(userId, itemId, quantity = 1) {
+        const item = await this.getUserItem(userId, itemId);
+        if (!item) return false;
+        
+        const newQuantity = item.quantity - quantity;
+        if (newQuantity <= 0) {
+            await this.run('DELETE FROM user_items WHERE user_id = $1 AND item_id = $2', [userId, itemId]);
+        } else {
+            await this.run('UPDATE user_items SET quantity = $1 WHERE user_id = $2 AND item_id = $3', [newQuantity, userId, itemId]);
+        }
+        return true;
+    }
+
+    // ===== ACTIVE EFFECTS METHODS =====
+    
+    async addActiveEffect(userId, effectType, category, multiplier, expiresAt = null, usesRemaining = null) {
+        return this.run(
+            'INSERT INTO active_effects (user_id, effect_type, category, multiplier, expires_at, uses_remaining) VALUES ($1, $2, $3, $4, $5, $6)',
+            [userId, effectType, category, multiplier, expiresAt, usesRemaining]
+        );
+    }
+
+    async getUserActiveEffects(userId) {
+        return this.all('SELECT * FROM active_effects WHERE user_id = $1 ORDER BY created_at DESC', [userId]);
+    }
+
+    async removeActiveEffect(userId, effectId) {
+        return this.run('DELETE FROM active_effects WHERE user_id = $1 AND id = $2', [userId, effectId]);
+    }
+
+    async cleanupExpiredEffects() {
+        const now = Math.floor(Date.now() / 1000);
+        return this.run('DELETE FROM active_effects WHERE expires_at IS NOT NULL AND expires_at < $1', [now]);
+    }
+
+    async updateEffectUses(effectId, usesRemaining) {
+        if (usesRemaining <= 0) {
+            return this.run('DELETE FROM active_effects WHERE id = $1', [effectId]);
+        }
+        return this.run('UPDATE active_effects SET uses_remaining = $1 WHERE id = $2', [usesRemaining, effectId]);
+    }
+
+    async getUserEffectsByCategory(userId, category) {
+        return this.all('SELECT * FROM active_effects WHERE user_id = $1 AND category = $2', [userId, category]);
+    }
+
+    // ===== SHOP METHODS =====
+    
+    async addShopItem(itemId, name, description, category, price, maxStock = null, sortOrder = 0) {
+        return this.run(
+            'INSERT INTO shop_items (item_id, name, description, category, price, max_stock, current_stock, sort_order) VALUES ($1, $2, $3, $4, $5, $6, $6, $7) ON CONFLICT (item_id) DO UPDATE SET name = $2, description = $3, category = $4, price = $5, max_stock = $6, current_stock = $6, sort_order = $7',
+            [itemId, name, description, category, price, maxStock, sortOrder]
+        );
+    }
+
+    async getShopItem(itemId) {
+        return this.get('SELECT * FROM shop_items WHERE item_id = $1', [itemId]);
+    }
+
+    async getAllShopItems(category = null) {
+        if (category) {
+            return this.all('SELECT * FROM shop_items WHERE category = $1 AND is_available = TRUE ORDER BY sort_order, name', [category]);
+        }
+        return this.all('SELECT * FROM shop_items WHERE is_available = TRUE ORDER BY sort_order, category, name');
+    }
+
+    async updateShopStock(itemId, newStock) {
+        return this.run('UPDATE shop_items SET current_stock = $1 WHERE item_id = $2', [newStock, itemId]);
+    }
 }
 
 module.exports = PostgreSQLDatabase;
