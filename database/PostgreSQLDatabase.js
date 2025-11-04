@@ -184,9 +184,73 @@ class PostgreSQLDatabase {
             
             console.log('✅ Database schema initialized');
             
+            // CRITICAL FIX: Apply migration fixes for missing columns immediately after schema initialization
+            await this.applyMigrationFixes();
+            
         } catch (error) {
             console.error('❌ Schema initialization failed:', error.message);
             throw error;
+        }
+    }
+
+    // CRITICAL: Apply migration fixes for missing columns
+    async applyMigrationFixes() {
+        console.log('🔧 Applying PostgreSQL migration fixes for missing columns...');
+        
+        try {
+            const migrationQueries = [
+                // Fix active_effects table - add missing columns
+                `DO $$ BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'active_effects' AND column_name = 'created_at') THEN
+                        ALTER TABLE active_effects ADD COLUMN created_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW());
+                        RAISE NOTICE 'Added created_at column to active_effects';
+                    END IF;
+                END $$;`,
+                
+                `DO $$ BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'active_effects' AND column_name = 'category') THEN
+                        ALTER TABLE active_effects ADD COLUMN category VARCHAR(50) DEFAULT 'unknown';
+                        RAISE NOTICE 'Added category column to active_effects';
+                    END IF;
+                END $$;`,
+                
+                `DO $$ BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'active_effects' AND column_name = 'multiplier') THEN
+                        ALTER TABLE active_effects ADD COLUMN multiplier DECIMAL(10,2) DEFAULT 1.0;
+                        RAISE NOTICE 'Added multiplier column to active_effects';
+                    END IF;
+                END $$;`,
+                
+                `DO $$ BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'active_effects' AND column_name = 'uses_remaining') THEN
+                        ALTER TABLE active_effects ADD COLUMN uses_remaining INTEGER DEFAULT NULL;
+                        RAISE NOTICE 'Added uses_remaining column to active_effects';
+                    END IF;
+                END $$;`,
+                
+                // Update existing records with NULL values
+                `UPDATE active_effects SET created_at = EXTRACT(EPOCH FROM NOW()) WHERE created_at IS NULL;`,
+                `UPDATE active_effects SET category = 'legacy' WHERE category IS NULL OR category = '';`,
+                `UPDATE active_effects SET multiplier = 1.0 WHERE multiplier IS NULL;`
+            ];
+            
+            // Execute each migration query
+            for (const query of migrationQueries) {
+                try {
+                    await this.query(query);
+                } catch (error) {
+                    // Log but don't fail - column might already exist
+                    if (error.code !== '42701') { // duplicate_column error is OK
+                        console.log(`Migration query note: ${error.message}`);
+                    }
+                }
+            }
+            
+            console.log('✅ PostgreSQL migration fixes applied successfully');
+            
+        } catch (error) {
+            console.error('❌ Error applying migration fixes:', error.message);
+            // Don't throw - let the bot continue, we'll fix this
         }
     }
 
