@@ -415,9 +415,24 @@ class PostgreSQLDatabase {
             typeof category, typeof multiplier, typeof expiresAt, typeof usesRemaining
         ]);
         
+        // For use-based effects like Welcome Charm/Daily Charm, duration_minutes = number of uses
+        // For time-based effects, duration_minutes = calculated from expiresAt
+        let durationMinutes;
+        if (usesRemaining !== null && usesRemaining !== undefined) {
+            // Use-based effect: duration = number of uses
+            durationMinutes = usesRemaining;
+        } else if (expiresAt) {
+            // Time-based effect: duration = minutes until expiry
+            const now = Math.floor(Date.now() / 1000);
+            durationMinutes = Math.ceil((expiresAt - now) / 60);
+        } else {
+            // Permanent effect
+            durationMinutes = 0;
+        }
+        
         return this.run(
-            'INSERT INTO active_effects (user_id, effect_name, effect_type, effect_value, category, multiplier, expires_at, uses_remaining) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
-            [userId, effectName, effectType, effectValue, category, multiplier, expiresAt, usesRemaining]
+            'INSERT INTO active_effects (user_id, effect_name, effect_type, effect_value, duration_minutes, category, multiplier, expires_at, uses_remaining) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
+            [userId, effectName, effectType, effectValue, durationMinutes, category, multiplier, expiresAt, usesRemaining]
         );
     }
 
