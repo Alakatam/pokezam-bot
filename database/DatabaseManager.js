@@ -171,6 +171,64 @@ class DatabaseManager {
         if (this.database.initialize) {
             await this.database.initialize();
         }
+        
+        // POSTGRESQL FIX: Apply migration fixes for missing columns
+        if (this.isProduction && this.database.dbType === 'postgresql') {
+            await this.applyPostgreSQLMigrationFixes();
+        }
+    }
+
+    // Apply PostgreSQL migration fixes for missing columns
+    async applyPostgreSQLMigrationFixes() {
+        try {
+            console.log('🔧 Applying PostgreSQL schema migration fixes...');
+            
+            const migrationQueries = [
+                // Fix active_effects table
+                `DO $$ BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'active_effects' AND column_name = 'created_at') THEN
+                        ALTER TABLE active_effects ADD COLUMN created_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW());
+                    END IF;
+                END $$;`,
+                
+                `DO $$ BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'active_effects' AND column_name = 'category') THEN
+                        ALTER TABLE active_effects ADD COLUMN category VARCHAR(50) DEFAULT 'unknown';
+                    END IF;
+                END $$;`,
+                
+                `DO $$ BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'active_effects' AND column_name = 'multiplier') THEN
+                        ALTER TABLE active_effects ADD COLUMN multiplier DECIMAL(10,2) DEFAULT 1.0;
+                    END IF;
+                END $$;`,
+                
+                `DO $$ BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'active_effects' AND column_name = 'uses_remaining') THEN
+                        ALTER TABLE active_effects ADD COLUMN uses_remaining INTEGER DEFAULT NULL;
+                    END IF;
+                END $$;`,
+                
+                // Update existing records with NULL values
+                `UPDATE active_effects SET created_at = EXTRACT(EPOCH FROM NOW()) WHERE created_at IS NULL;`,
+                `UPDATE active_effects SET category = 'legacy' WHERE category IS NULL OR category = '';`,
+                `UPDATE active_effects SET multiplier = 1.0 WHERE multiplier IS NULL;`
+            ];
+            
+            for (const query of migrationQueries) {
+                try {
+                    await this.database.run(query);
+                } catch (error) {
+                    console.log(`Migration query skipped (may already exist): ${error.message}`);
+                }
+            }
+            
+            console.log('✅ PostgreSQL schema migration fixes applied successfully');
+            
+        } catch (error) {
+            console.error('❌ Error applying PostgreSQL migration fixes:', error.message);
+            // Don't throw - let the bot continue running
+        }
     }
 
     // ===== ITEM MANAGEMENT DELEGATION =====

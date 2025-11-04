@@ -9,7 +9,7 @@ module.exports = {
     
     async execute(interaction, { database, userManager, cardManager, questManager }) {
         try {
-            // Defer reply for database operations
+            // OPTIMIZATION: Defer reply immediately to prevent Discord timeout
             await interaction.deferReply();
             
             const userId = interaction.user.id;

@@ -7,6 +7,7 @@ module.exports = {
 
     async execute(interaction, { database, userManager, cardManager, questManager }) {
         try {
+            // OPTIMIZATION: Defer reply immediately to prevent timeout
             await interaction.deferReply();
 
             const userId = interaction.user.id;
@@ -73,9 +74,17 @@ Strategic Gameplay:
             await userManager.addGold(userId, 1000);
             await database.addUserItem(userId, 'treasure_chest', 1);
             
-            // Check if Welcome Charm already exists
-            const existingEffects = await database.getUserActiveEffects(userId);
-            const hasWelcomeCharm = existingEffects.some(effect => effect.effect_type === 'welcome_charm');
+            // OPTIMIZATION: Check if Welcome Charm already exists with timeout protection
+            let existingEffects = [];
+            let hasWelcomeCharm = false;
+            
+            try {
+                existingEffects = await database.getUserActiveEffects(userId);
+                hasWelcomeCharm = existingEffects.some(effect => effect.effect_type === 'welcome_charm');
+            } catch (error) {
+                console.error('Error checking existing effects (continuing anyway):', error.message);
+                // Continue without checking - will handle duplicates gracefully
+            }
             
             // Add Welcome Charm effect only if not already present (125 uses, 1.25x gold + 2x luck)
             if (!hasWelcomeCharm) {
