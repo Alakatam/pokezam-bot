@@ -105,6 +105,7 @@ CREATE TABLE IF NOT EXISTS active_effects (
     user_id VARCHAR(20) NOT NULL,
     effect_name VARCHAR(100) NOT NULL,
     effect_type VARCHAR(100) NOT NULL,
+    effect_value VARCHAR(100) DEFAULT NULL,
     category VARCHAR(50) NOT NULL DEFAULT 'unknown',
     multiplier DECIMAL(10,2) DEFAULT 1.0,
     expires_at BIGINT DEFAULT NULL,

@@ -208,6 +208,13 @@ class PostgreSQLDatabase {
                 END $$;`,
                 
                 `DO $$ BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'active_effects' AND column_name = 'effect_value') THEN
+                        ALTER TABLE active_effects ADD COLUMN effect_value VARCHAR(100) DEFAULT NULL;
+                        RAISE NOTICE 'Added effect_value column to active_effects';
+                    END IF;
+                END $$;`,
+                
+                `DO $$ BEGIN
                     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'active_effects' AND column_name = 'created_at') THEN
                         ALTER TABLE active_effects ADD COLUMN created_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW());
                         RAISE NOTICE 'Added created_at column to active_effects';
