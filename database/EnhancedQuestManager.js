@@ -354,7 +354,8 @@ class EnhancedQuestManager {
     // Get user quests with enhanced display
     async getUserQuests(userId) {
         return await this.db.all(`
-            SELECT uq.*, q.name, q.description, q.quest_type, q.target_value, 
+            SELECT uq.id, uq.user_id, uq.quest_id, uq.progress, uq.completed, uq.assigned_date, uq.completed_date,
+                   q.name, q.description, q.quest_type, q.target_value, 
                    q.reward_gold, q.reward_xp, q.reset_interval, q.target_type
             FROM user_quests uq
             JOIN quests q ON uq.quest_id = q.id

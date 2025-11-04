@@ -260,7 +260,7 @@ async function handleRewardsCommand(interaction, setManager) {
     await interaction.deferReply();
 
     // Get available rewards from database
-    const rewards = await interaction.client.database.all(`
+    const rewards = await setManager.database.all(`
         SELECT sr.*, sc.username as completed_by
         FROM set_rewards sr
         LEFT JOIN (
