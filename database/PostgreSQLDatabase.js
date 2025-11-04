@@ -209,7 +209,7 @@ class PostgreSQLDatabase {
                 
                 `DO $$ BEGIN
                     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'active_effects' AND column_name = 'effect_value') THEN
-                        ALTER TABLE active_effects ADD COLUMN effect_value VARCHAR(100) DEFAULT NULL;
+                        ALTER TABLE active_effects ADD COLUMN effect_value VARCHAR(100) NOT NULL DEFAULT 'unknown';
                         RAISE NOTICE 'Added effect_value column to active_effects';
                     END IF;
                 END $$;`,
@@ -377,10 +377,12 @@ class PostgreSQLDatabase {
     async addActiveEffect(userId, effectName, effectType, multiplier, expiresAt = null, usesRemaining = null) {
         // Category defaults to 'boost' for most effects
         const category = effectType === 'multi_boost' ? 'boost' : 'unknown';
+        // effect_value defaults to effectName for compatibility
+        const effectValue = effectName;
         
         return this.run(
-            'INSERT INTO active_effects (user_id, effect_name, effect_type, category, multiplier, expires_at, uses_remaining) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-            [userId, effectName, effectType, category, multiplier, expiresAt, usesRemaining]
+            'INSERT INTO active_effects (user_id, effect_name, effect_type, effect_value, category, multiplier, expires_at, uses_remaining) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+            [userId, effectName, effectType, effectValue, category, multiplier, expiresAt, usesRemaining]
         );
     }
 
