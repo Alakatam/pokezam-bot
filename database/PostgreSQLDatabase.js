@@ -193,9 +193,35 @@ class PostgreSQLDatabase {
         }
     }
 
+    // INVESTIGATION: Inspect actual production database schema
+    async inspectActiveEffectsSchema() {
+        console.log('🔍 INVESTIGATING: Actual active_effects table schema...');
+        try {
+            const result = await this.pool.query(`
+                SELECT column_name, data_type, is_nullable, column_default, ordinal_position
+                FROM information_schema.columns 
+                WHERE table_name = 'active_effects' 
+                ORDER BY ordinal_position
+            `);
+            
+            console.log('🔍 PRODUCTION active_effects SCHEMA:');
+            result.rows.forEach((row, index) => {
+                console.log(`  ${index + 1}. ${row.column_name} (${row.data_type}) - ${row.is_nullable === 'YES' ? 'NULL' : 'NOT NULL'} - Default: ${row.column_default || 'NONE'}`);
+            });
+            
+            return result.rows;
+        } catch (error) {
+            console.error('❌ Failed to inspect schema:', error.message);
+            return [];
+        }
+    }
+
     // CRITICAL: Apply migration fixes for missing columns
     async applyMigrationFixes() {
         console.log('🔧 Applying PostgreSQL migration fixes for missing columns...');
+        
+        // FIRST: Inspect the actual schema
+        await this.inspectActiveEffectsSchema();
         
         try {
             const migrationQueries = [
@@ -379,6 +405,15 @@ class PostgreSQLDatabase {
         const category = effectType === 'multi_boost' ? 'boost' : 'unknown';
         // effect_value defaults to effectName for compatibility
         const effectValue = effectName;
+        
+        // DEBUG: Log the parameters to see what's wrong
+        console.log('🔍 addActiveEffect DEBUG:', {
+            userId, effectName, effectType, effectValue, category, multiplier, expiresAt, usesRemaining
+        });
+        console.log('🔍 Parameter types:', [
+            typeof userId, typeof effectName, typeof effectType, typeof effectValue, 
+            typeof category, typeof multiplier, typeof expiresAt, typeof usesRemaining
+        ]);
         
         return this.run(
             'INSERT INTO active_effects (user_id, effect_name, effect_type, effect_value, category, multiplier, expires_at, uses_remaining) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
