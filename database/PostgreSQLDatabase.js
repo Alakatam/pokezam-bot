@@ -492,9 +492,13 @@ class PostgreSQLDatabase {
             finalExpiresAt = Math.floor(Date.now() / 1000) + (365 * 24 * 60 * 60); // 1 year from now
         }
         
+        // PRODUCTION SCHEMA ALIGNMENT: Match exact column order from investigation
+        // Columns: id, user_id, effect_name, effect_type, effect_value, duration_minutes, activated_at, expires_at, created_at, category, multiplier, uses_remaining
+        // We let activated_at and created_at use their DEFAULT values (EXTRACT(epoch FROM now()))
+        
         return this.run(
-            'INSERT INTO active_effects (user_id, effect_name, effect_type, effect_value, duration_minutes, category, multiplier, expires_at, uses_remaining) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
-            [userId, effectName, effectType, effectValue, durationMinutes, category, multiplier, finalExpiresAt, usesRemaining]
+            'INSERT INTO active_effects (user_id, effect_name, effect_type, effect_value, duration_minutes, expires_at, category, multiplier, uses_remaining) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
+            [userId, effectName, effectType, effectValue, durationMinutes, finalExpiresAt, category, multiplier, usesRemaining]
         );
     }
 
