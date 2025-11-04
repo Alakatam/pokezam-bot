@@ -165,23 +165,7 @@ module.exports = {
                     quantity = user_items.quantity + 1
             `, [userId, 'Daily Charm']);
 
-            // Auto-activate Daily Charm as a 100-use luck boost
-            const nowTimestamp = Math.floor(Date.now() / 1000);
-            
-            try {
-                await database.run(`
-                    INSERT INTO active_effects (user_id, effect_type, category, multiplier, expires_at, uses_remaining, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT (user_id, effect_type) DO UPDATE SET
-                        category = EXCLUDED.category,
-                        multiplier = EXCLUDED.multiplier,
-                        expires_at = EXCLUDED.expires_at,
-                        uses_remaining = EXCLUDED.uses_remaining,
-                        created_at = EXCLUDED.created_at
-                `, [userId, 'daily_charm', 'luck', 1.2, null, 100, nowTimestamp]);
-            } catch (error) {
-                console.error('Failed to activate Daily Charm:', error);
-            }
+            // Daily Charm is now a manual activation item - use /use daily-charm to activate!
 
             // Create progressive reward display
             const yamlRewards = progressiveRewards.createProgressiveRewardDisplay(rewards, interaction.user.displayName);
@@ -193,6 +177,7 @@ module.exports = {
             progressInfo += `   🪙 Total Coins: ${newCoins.toLocaleString()}\n`;
             progressInfo += `   ✨ Total XP: ${newXP.toLocaleString()}\n\n`;
             progressInfo += '💡 NEXT STEPS:\n';
+            progressInfo += '   /use daily-charm - Activate your Daily Charm! 🍀\n';
             progressInfo += '   /quest - View daily quests\n';
             progressInfo += '   /inventory - Check your items\n';
             progressInfo += '   /profile - See your progress\n';

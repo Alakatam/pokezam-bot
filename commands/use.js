@@ -17,6 +17,7 @@ module.exports = {
                     { name: '🪙 Lucky Coin - 1.5x Gold & Luck for 2 hours', value: 'lucky_coin' },
                     
                     // ✨ Luck Boost Items
+                    { name: '🍀 Daily Charm - 1.2x Luck for 100 draws', value: 'daily_charm' },
                     { name: '🍀 Collector\'s Charm - 2x Rare chance for 1 hour', value: 'collectors_charm' },
                     { name: '✨ Shiny Charm - 3x Rare chance for 30 minutes', value: 'shiny_charm' },
                     { name: '🌈 Rainbow Feather - 5x Rare chance for 15 minutes', value: 'rainbow_feather' },
@@ -350,6 +351,7 @@ module.exports = {
             'golden_horseshoe': '� Golden Horseshoe',
             'fortune_charm': '� Fortune Charm',
             // Luck Boost Items
+            'daily_charm': '🍀 Daily Charm',
             'collectors_charm': '🍀 Collector\'s Charm',
             'shiny_charm': '✨ Shiny Charm',
             'rainbow_feather': '🌈 Rainbow Feather',
@@ -378,6 +380,7 @@ module.exports = {
             'golden_horseshoe': 'gold_boost',
             'fortune_charm': 'gold_boost',
             // Luck Boost Items
+            'daily_charm': 'luck_boost',
             'collectors_charm': 'luck_boost',
             'shiny_charm': 'luck_boost',
             'rainbow_feather': 'luck_boost',
@@ -407,6 +410,7 @@ module.exports = {
             'fortune_charm': { category: 'gold_boost', multiplier: 5.0, duration: 900, description: '5x gold from packs for 15 minutes' },
             
             // Luck Boost Items
+            'daily_charm': { category: 'luck_boost', multiplier: 1.2, uses: 100, description: '1.2x luck boost for next 100 card draws' },
             'collectors_charm': { category: 'luck_boost', multiplier: 2.0, duration: 3600, description: '2x chance of rare cards for 1 hour' },
             'shiny_charm': { category: 'luck_boost', multiplier: 3.0, duration: 1800, description: '3x chance of rare cards for 30 minutes' },
             'rainbow_feather': { category: 'luck_boost', multiplier: 5.0, duration: 900, description: '5x chance of rare cards for 15 minutes' },
