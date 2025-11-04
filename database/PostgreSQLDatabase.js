@@ -193,6 +193,57 @@ class PostgreSQLDatabase {
         }
     }
 
+    // DEEP INVESTIGATION: Complete database mismatch analysis
+    async deepDatabaseInvestigation() {
+        console.log('🕵️ ===== DEEP DATABASE MISMATCH INVESTIGATION =====');
+        
+        // 1. SCHEMA STRUCTURE
+        await this.inspectActiveEffectsSchema();
+        
+        // 2. CONSTRAINTS ANALYSIS  
+        try {
+            console.log('\n🔒 CONSTRAINTS INVESTIGATION:');
+            const constraints = await this.pool.query(`
+                SELECT 
+                    tc.constraint_name,
+                    tc.constraint_type,
+                    kcu.column_name,
+                    cc.check_clause
+                FROM information_schema.table_constraints tc
+                LEFT JOIN information_schema.key_column_usage kcu 
+                    ON tc.constraint_name = kcu.constraint_name
+                LEFT JOIN information_schema.check_constraints cc 
+                    ON tc.constraint_name = cc.constraint_name
+                WHERE tc.table_name = 'active_effects'
+                ORDER BY tc.constraint_type, kcu.column_name
+            `);
+            constraints.rows.forEach(row => {
+                console.log(`  - ${row.constraint_type}: ${row.column_name} (${row.constraint_name})`);
+                if (row.check_clause) console.log(`    Check: ${row.check_clause}`);
+            });
+        } catch (error) {
+            console.error('❌ Constraint analysis failed:', error.message);
+        }
+        
+        // 3. SAMPLE DATA INSPECTION
+        try {
+            console.log('\n📊 SAMPLE DATA ANALYSIS:');
+            const sampleData = await this.pool.query('SELECT * FROM active_effects LIMIT 2');
+            if (sampleData.rows.length > 0) {
+                console.log('  Sample row structure:');
+                Object.keys(sampleData.rows[0]).forEach((key, index) => {
+                    console.log(`    ${index + 1}. ${key}: ${sampleData.rows[0][key]} (${typeof sampleData.rows[0][key]})`);
+                });
+            } else {
+                console.log('  No existing data found');
+            }
+        } catch (error) {
+            console.error('❌ Sample data analysis failed:', error.message);
+        }
+        
+        console.log('\n🕵️ ===== DEEP INVESTIGATION COMPLETE =====\n');
+    }
+
     // INVESTIGATION: Inspect actual production database schema
     async inspectActiveEffectsSchema() {
         console.log('🔍 INVESTIGATING: Actual active_effects table schema...');
@@ -219,6 +270,9 @@ class PostgreSQLDatabase {
     // CRITICAL: Apply migration fixes for missing columns
     async applyMigrationFixes() {
         console.log('🔧 Applying PostgreSQL migration fixes for missing columns...');
+        
+        // DEEP INVESTIGATION: Check ALL mismatches between production and code
+        await this.deepDatabaseInvestigation();
         
         // FIRST: Inspect the actual schema
         await this.inspectActiveEffectsSchema();
@@ -418,21 +472,29 @@ class PostgreSQLDatabase {
         // For use-based effects like Welcome Charm/Daily Charm, duration_minutes = number of uses
         // For time-based effects, duration_minutes = calculated from expiresAt
         let durationMinutes;
+        let finalExpiresAt = expiresAt;
+        
         if (usesRemaining !== null && usesRemaining !== undefined) {
             // Use-based effect: duration = number of uses
             durationMinutes = usesRemaining;
+            // If expires_at is NULL but production requires NOT NULL, set far future date
+            if (!finalExpiresAt) {
+                finalExpiresAt = Math.floor(Date.now() / 1000) + (365 * 24 * 60 * 60); // 1 year from now
+            }
         } else if (expiresAt) {
             // Time-based effect: duration = minutes until expiry
             const now = Math.floor(Date.now() / 1000);
             durationMinutes = Math.ceil((expiresAt - now) / 60);
+            finalExpiresAt = expiresAt;
         } else {
-            // Permanent effect
+            // Permanent effect - set far future date for NOT NULL constraint
             durationMinutes = 0;
+            finalExpiresAt = Math.floor(Date.now() / 1000) + (365 * 24 * 60 * 60); // 1 year from now
         }
         
         return this.run(
             'INSERT INTO active_effects (user_id, effect_name, effect_type, effect_value, duration_minutes, category, multiplier, expires_at, uses_remaining) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
-            [userId, effectName, effectType, effectValue, durationMinutes, category, multiplier, expiresAt, usesRemaining]
+            [userId, effectName, effectType, effectValue, durationMinutes, category, multiplier, finalExpiresAt, usesRemaining]
         );
     }
 
