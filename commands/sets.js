@@ -51,14 +51,12 @@ module.exports = {
                         .setName('title')
                         .setDescription('Title to set as active (for set action)'))),
 
-    async execute(interaction) {
+    async execute(interaction, { database, userManager, cardManager, questManager }) {
         const subcommand = interaction.options.getSubcommand();
 
         // Initialize managers
         const SetCompletionManager = require('../database/SetCompletionManager');
-        const setManager = new SetCompletionManager(interaction.client.database);
-        const UserManager = require('../database/UserManager');
-        const userManager = new UserManager(interaction.client.database);
+        const setManager = new SetCompletionManager(database);
 
         try {
             switch (subcommand) {

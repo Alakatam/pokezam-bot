@@ -258,6 +258,18 @@ module.exports = {
         const guildCount = await database.get('SELECT COUNT(*) as count FROM guilds');
         const marketListings = await database.get('SELECT COUNT(*) as count FROM market_listings');
 
+        // Check progressive loading status for cloud deployments
+        let progressiveStatus = null;
+        if (process.env.NODE_ENV === 'production' || process.env.PORT) {
+            try {
+                const ProgressiveCardLoader = require('../database/ProgressiveCardLoader');
+                const cardLoader = new ProgressiveCardLoader(database);
+                progressiveStatus = cardLoader.getLoadingStatus();
+            } catch (error) {
+                // Progressive loader not available
+            }
+        }
+
         // Get top users
         const topUsers = await database.all('SELECT username, level, total_draws FROM users ORDER BY level DESC, total_draws DESC LIMIT 5');
 
@@ -273,6 +285,17 @@ module.exports = {
                 { name: '🏛️ Guilds', value: guildCount.count.toString(), inline: true },
                 { name: '🏪 Market Listings', value: marketListings.count.toString(), inline: true }
             ]);
+
+        // Add progressive loading status for cloud deployments
+        if (progressiveStatus) {
+            const loadingInfo = progressiveStatus.completionPercentage >= 100 
+                ? `✅ Complete (${progressiveStatus.extendedSetsLoaded}/${progressiveStatus.totalSetsAvailable} sets)`
+                : `🔄 ${progressiveStatus.completionPercentage}% (${progressiveStatus.extendedSetsLoaded}/${progressiveStatus.totalSetsAvailable} sets)`;
+            
+            embed.addFields([
+                { name: '🌐 Card Loading Status', value: loadingInfo, inline: true }
+            ]);
+        }
 
         if (topUsers.length > 0) {
             const topUsersList = topUsers

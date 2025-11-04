@@ -61,18 +61,19 @@ module.exports = {
             // Get achievement stats
             const stats = await achievementManager.getAchievementStats(targetUser.id);
 
-            // Create main embed
-            const embed = new EmbedBuilder()
-                .setTitle(`🏆 ${targetUser.username}'s Achievements`)
-                .setColor('#FFD700')
-                .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
-                .setTimestamp();
+            // Create YAML formatted achievement display
+            let yamlDescription = '```yaml\n';
+            yamlDescription += '#═══════════════════════════════════════════════════\n';
+            yamlDescription += `# 🏆 ${targetUser.username.toUpperCase()}'S ACHIEVEMENTS\n`;
+            yamlDescription += '#═══════════════════════════════════════════════════\n\n';
+            
+            yamlDescription += `📊 PROGRESS OVERVIEW:\n`;
+            yamlDescription += `   Total Achievements  : ${stats.total}\n`;
+            yamlDescription += `   Completed          : ${stats.completed}\n`;
+            yamlDescription += `   Progress           : ${stats.percentage}%\n`;
+            yamlDescription += `   Category Filter    : "${category === 'all' ? 'ALL CATEGORIES' : category.toUpperCase()}"\n\n`;
 
-            // Add progress bar
-            const progressBar = this.createProgressBar(stats.completed, stats.total);
-            embed.setDescription(`**Achievement Progress: ${stats.completed}/${stats.total} (${stats.percentage}%)**\n${progressBar}\n\n${category === 'all' ? 'Showing all achievements' : `Showing ${category} achievements`}`);
-
-            // Group achievements by category for better display
+            // Group achievements by category
             const categories = {};
             achievements.forEach(achievement => {
                 if (!categories[achievement.category]) {
@@ -81,40 +82,40 @@ module.exports = {
                 categories[achievement.category].push(achievement);
             });
 
-            // Display achievements by category
+            // Display achievements by category in YAML format
             for (const [catName, catAchievements] of Object.entries(categories)) {
                 const categoryEmoji = this.getCategoryEmoji(catName);
-                const achievementList = catAchievements.map(achievement => {
-                    const status = achievement.is_completed ? 
-                        `${achievement.emoji} **${achievement.title}** ✅` :
-                        `${achievement.emoji} **${achievement.title}** ${this.getProgressDisplay(achievement)}`;
+                yamlDescription += `${categoryEmoji} ${catName.toUpperCase()} ACHIEVEMENTS:\n`;
+                
+                catAchievements.forEach(achievement => {
+                    const status = achievement.is_completed ? 'COMPLETED ✅' : 'IN PROGRESS 📋';
+                    const progress = achievement.is_completed ? 
+                        `${achievement.current_value}/${achievement.target_value}` :
+                        `${achievement.current_value}/${achievement.target_value}`;
                     
-                    const description = achievement.is_completed ?
-                        `*${achievement.description}*` :
-                        `*${achievement.description}* - ${this.getProgressText(achievement)}`;
-
-                    return `${status}\n${description}`;
-                }).join('\n\n');
-
-                // Split long category lists into multiple fields if needed
-                const maxFieldLength = 1024;
-                if (achievementList.length > maxFieldLength) {
-                    const chunks = this.chunkText(achievementList, maxFieldLength);
-                    chunks.forEach((chunk, index) => {
-                        embed.addFields([{
-                            name: index === 0 ? `${categoryEmoji} ${catName.charAt(0).toUpperCase() + catName.slice(1)}` : `${categoryEmoji} ${catName} (cont.)`,
-                            value: chunk,
-                            inline: false
-                        }]);
-                    });
-                } else {
-                    embed.addFields([{
-                        name: `${categoryEmoji} ${catName.charAt(0).toUpperCase() + catName.slice(1)}`,
-                        value: achievementList || 'No achievements in this category',
-                        inline: false
-                    }]);
-                }
+                    yamlDescription += `   ${achievement.emoji} ${achievement.title}:\n`;
+                    yamlDescription += `      Status          : "${status}"\n`;
+                    yamlDescription += `      Progress        : ${progress}\n`;
+                    yamlDescription += `      Description     : "${achievement.description}"\n`;
+                    if (achievement.is_completed && achievement.reward_gold > 0) {
+                        yamlDescription += `      Reward          : ${achievement.reward_gold.toLocaleString()} Gold\n`;
+                    }
+                    yamlDescription += '\n';
+                });
             }
+
+            yamlDescription += '#═══════════════════════════════════════════════════\n';
+            yamlDescription += '```';
+
+            const embed = new EmbedBuilder()
+                .setTitle(`🏆 ${targetUser.username}'s Achievement Progress`)
+                .setDescription(yamlDescription)
+                .setColor('#FFD700')
+                .setTimestamp()
+                .setFooter({ 
+                    text: `${stats.completed}/${stats.total} achievements unlocked • ${stats.percentage}% complete`,
+                    iconURL: targetUser.displayAvatarURL({ dynamic: true })
+                });
 
             // Add recent achievements if viewing own profile
             if (targetUser.id === interaction.user.id) {

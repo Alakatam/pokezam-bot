@@ -72,6 +72,18 @@ class PokezamBot {
             // Initialize default set rewards
             await this.setCompletionManager.initializeDefaultSetRewards();
             
+            // Progressive card loading for cloud deployment (non-blocking)
+            if (process.env.NODE_ENV === 'production' || process.env.PORT) {
+                const ProgressiveCardLoader = require('./database/ProgressiveCardLoader');
+                const cardLoader = new ProgressiveCardLoader(this.database);
+                
+                console.log('🔄 Starting progressive card loading from GitHub...');
+                // Load additional cards in background (don't block bot startup)
+                cardLoader.checkAndLoadCards().catch(error => {
+                    console.error('❌ Progressive loading failed (bot still functional):', error.message);
+                });
+            }
+            
             // Load commands and events (but don't register commands yet)
             await this.loadCommandsOnly();
             await this.loadEvents();
