@@ -14,7 +14,9 @@
     "db:seed": "node scripts/seedCards.js",
     "cards:add": "node scripts/addStarterCards.js",
     "commands:clear": "node scripts/clearCommands.js",
-    "migrate": "node scripts/migrateToPostgreSQL.js"
+    "migrate": "node scripts/migrateToPostgreSQL.js",
+    "load:basesets": "node scripts/loadProductionBaseSets.js",
+    "load:all": "node scripts/loadTCGData.js"
   },
   "keywords": [
     "discord",
