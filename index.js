@@ -1261,12 +1261,32 @@ class PokezamBot {
         console.log('🚀 AUTO-LOADING Base Sets 1, 2, 3...');
         
         try {
-            // Import the production loader
-            const { ProductionTCGLoader } = require('./scripts/loadProductionBaseSets');
-            console.log('✅ ProductionTCGLoader imported successfully');
+            // Import the production loader with detailed error handling
+            console.log('📂 Attempting to require ProductionTCGLoader...');
+            let ProductionTCGLoader;
+            
+            try {
+                const loaderModule = require('./scripts/loadProductionBaseSets');
+                console.log('✅ Module loaded, available exports:', Object.keys(loaderModule));
+                ProductionTCGLoader = loaderModule.ProductionTCGLoader;
+                
+                if (!ProductionTCGLoader) {
+                    throw new Error('ProductionTCGLoader not found in module exports');
+                }
+                console.log('✅ ProductionTCGLoader imported successfully');
+            } catch (requireError) {
+                console.error('❌ Failed to import ProductionTCGLoader:', requireError.message);
+                throw requireError;
+            }
             
             const loader = new ProductionTCGLoader();
             console.log('✅ ProductionTCGLoader instance created');
+            
+            // Verify method exists
+            if (typeof loader.loadBaseSetsOnly !== 'function') {
+                throw new Error('loadBaseSetsOnly method not found on loader instance');
+            }
+            console.log('✅ loadBaseSetsOnly method verified');
             
             // Use the existing database connection
             loader.db = this.database;
@@ -1294,7 +1314,13 @@ class PokezamBot {
             
             // Load only base sets
             console.log('🎴 Starting base sets loading...');
-            await loader.loadBaseSetsOnly();
+            try {
+                await loader.loadBaseSetsOnly();
+            } catch (methodError) {
+                console.error('❌ loadBaseSetsOnly failed:', methodError.message);
+                console.log('🔄 Falling back to inline loading...');
+                await this.inlineLoadBaseSets();
+            }
             
             console.log('🎉 Base Sets auto-loading complete!');
             
@@ -1304,6 +1330,81 @@ class PokezamBot {
                 console.error('📋 Error stack:', error.stack);
             }
             console.log('⚠️  Bot will continue without base set loading...');
+        }
+    }
+
+    // Inline fallback base set loading (if module import fails)
+    async inlineLoadBaseSets() {
+        console.log('🔄 INLINE BASE SET LOADING...');
+        
+        try {
+            const fs = require('fs');
+            const path = require('path');
+            
+            // Load base set cards directly
+            const cardFiles = ['base1.json', 'base2.json', 'base3.json'];
+            let totalLoaded = 0;
+            
+            for (const fileName of cardFiles) {
+                try {
+                    const filePath = path.resolve(__dirname, 'tcg-data', 'cards', 'en', fileName);
+                    console.log(`📂 Loading ${fileName} from ${filePath}...`);
+                    
+                    if (fs.existsSync(filePath)) {
+                        const fileContent = fs.readFileSync(filePath, 'utf8');
+                        const cards = JSON.parse(fileContent);
+                        
+                        console.log(`📋 ${fileName}: ${cards.length} cards found`);
+                        
+                        // Insert cards into database
+                        for (const card of cards) {
+                            try {
+                                await this.database.run(`
+                                    INSERT OR IGNORE INTO cards (
+                                        card_id, name, supertype, subtype, level, hp, 
+                                        rarity, artist, set_id, set_name, number, 
+                                        flavor_text, national_pokedex_number, image_url_small, 
+                                        image_url_large, tcgplayer_url, cardmarket_url, 
+                                        created_at, updated_at
+                                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                `, [
+                                    card.id,
+                                    card.name || 'Unknown',
+                                    card.supertype || '',
+                                    (card.subtypes || []).join(', '),
+                                    card.level ? parseInt(card.level) : null,
+                                    card.hp ? parseInt(card.hp) : null,
+                                    card.rarity || 'Common',
+                                    card.artist || '',
+                                    card.set?.id || '',
+                                    card.set?.name || '',
+                                    card.number || '',
+                                    card.flavorText || '',
+                                    card.nationalPokedexNumbers?.[0] || null,
+                                    card.images?.small || '',
+                                    card.images?.large || '',
+                                    card.tcgplayer?.url || '',
+                                    card.cardmarket?.url || '',
+                                    Date.now(),
+                                    Date.now()
+                                ]);
+                                totalLoaded++;
+                            } catch (cardError) {
+                                // Card might already exist, continue
+                            }
+                        }
+                    } else {
+                        console.log(`⚠️  File not found: ${filePath}`);
+                    }
+                } catch (fileError) {
+                    console.error(`❌ Error loading ${fileName}:`, fileError.message);
+                }
+            }
+            
+            console.log(`✅ Inline loading complete: ${totalLoaded} cards processed`);
+            
+        } catch (error) {
+            console.error('❌ Inline base set loading failed:', error.message);
         }
     }
 
