@@ -322,7 +322,7 @@ class AchievementManager {
             SELECT a.*, ua.earned_at
             FROM achievements a
             JOIN user_achievements ua ON a.achievement_id = ua.achievement_id
-            WHERE ua.user_id = ? AND (ua.is_completed = 1 OR ua.is_completed = '1' OR ua.is_completed = true)
+            WHERE ua.user_id = ? AND ua.is_completed = TRUE
             ORDER BY ua.earned_at DESC
         `, [userId]);
     }
@@ -335,7 +335,7 @@ class AchievementManager {
                 SELECT a.*, ua.is_completed
                 FROM achievements a
                 LEFT JOIN user_achievements ua ON a.achievement_id = ua.achievement_id AND ua.user_id = ?
-                WHERE (ua.is_completed IS NULL OR ua.is_completed = '0' OR ua.is_completed = 0)
+                WHERE (ua.is_completed IS NULL OR ua.is_completed = FALSE)
             `, [userId]);
             
             // Filter by condition_type in JavaScript (since column doesn't exist in PostgreSQL)
@@ -383,10 +383,10 @@ class AchievementManager {
     }
 
     async getAchievementStats(userId) {
-        const total = await this.db.get('SELECT COUNT(*) as count FROM achievements WHERE is_secret = 0');
+        const total = await this.db.get('SELECT COUNT(*) as count FROM achievements WHERE is_hidden = FALSE');
         const completed = await this.db.get(`
             SELECT COUNT(*) as count FROM user_achievements 
-            WHERE user_id = ? AND (is_completed = 1 OR is_completed = '1' OR is_completed = true)
+            WHERE user_id = ? AND is_completed = TRUE
         `, [userId]);
 
         return {
