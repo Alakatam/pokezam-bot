@@ -119,7 +119,12 @@ class PostgreSQLSchemaFixer {
                 { name: 'resistances', type: 'TEXT' },
                 { name: 'legalities', type: 'TEXT' },
                 { name: 'tcgplayer', type: 'TEXT' },
-                { name: 'cardmarket', type: 'TEXT' }
+                { name: 'cardmarket', type: 'TEXT' },
+                { name: 'national_pokedex_number', type: 'INTEGER' },
+                { name: 'evolves_from', type: 'TEXT' },
+                { name: 'evolves_to', type: 'TEXT' },
+                { name: 'rules', type: 'TEXT' },
+                { name: 'ancient_trait', type: 'TEXT' }
             ];
             
             // Add missing columns
