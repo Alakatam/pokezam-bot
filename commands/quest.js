@@ -79,6 +79,18 @@ benefits               : "Quests + Cards + Shop + More!"
                 });
             }
 
+            // Check quest database status BEFORE assignment
+            console.log('🔍 QUEST: Investigating quest database...');
+            try {
+                const totalQuests = await database.all('SELECT COUNT(*) as count FROM quests');
+                console.log('🔍 QUEST: Total quests in database:', totalQuests[0]?.count || 0);
+                
+                const userQuestsBefore = await database.all('SELECT COUNT(*) as count FROM user_quests WHERE user_id = ?', [userId]);
+                console.log('🔍 QUEST: User quests BEFORE assignment:', userQuestsBefore[0]?.count || 0);
+            } catch (dbError) {
+                console.error('🚨 QUEST: Database investigation error:', dbError.message);
+            }
+
             // Automatically assign and initialize all quest types
             console.log('🔍 QUEST: Starting autoAssignQuests');
             try {
@@ -86,8 +98,11 @@ benefits               : "Quests + Cards + Shop + More!"
                 console.log('🔍 QUEST: autoAssignQuests completed, result:', assignResult);
                 
                 // Check if quests were actually assigned
+                const userQuestsAfter = await database.all('SELECT COUNT(*) as count FROM user_quests WHERE user_id = ?', [userId]);
+                console.log('🔍 QUEST: User quests AFTER assignment:', userQuestsAfter[0]?.count || 0);
+                
                 const questCount = await questManager.getUserQuests(userId);
-                console.log('🔍 QUEST: Quest count after assignment:', questCount ? questCount.length : 0);
+                console.log('🔍 QUEST: Quest count from getUserQuests:', questCount ? questCount.length : 0);
             } catch (questAssignError) {
                 console.error('🚨 QUEST: Error in autoAssignQuests:', questAssignError.message);
                 console.error('🚨 QUEST: Full error:', questAssignError);
