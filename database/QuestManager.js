@@ -31,10 +31,18 @@ class QuestManager {
                 'SELECT COUNT(*) as count FROM quests WHERE target_type IS NOT NULL'
             );
             
+            console.log('🔍 QUEST: Enhanced quest count in database:', enhancedQuests[0]?.count || 0);
+            
             if (enhancedQuests[0].count === 0) {
                 console.log('🚀 Initializing enhanced quest system...');
                 await this.enhancedManager.initializeEnhancedQuests();
                 console.log('✅ Enhanced quest system initialized');
+                
+                // Verify initialization
+                const verifyQuests = await this.db.all('SELECT COUNT(*) as count FROM quests');
+                console.log('🔍 QUEST: Total quests after initialization:', verifyQuests[0]?.count || 0);
+            } else {
+                console.log('✅ Enhanced quest system already initialized');
             }
         } catch (error) {
             console.log('Error checking enhanced quest initialization:', error.message);

@@ -82,8 +82,12 @@ benefits               : "Quests + Cards + Shop + More!"
             // Automatically assign and initialize all quest types
             console.log('🔍 QUEST: Starting autoAssignQuests');
             try {
-                await questManager.autoAssignQuests(userId);
-                console.log('🔍 QUEST: autoAssignQuests completed');
+                const assignResult = await questManager.autoAssignQuests(userId);
+                console.log('🔍 QUEST: autoAssignQuests completed, result:', assignResult);
+                
+                // Check if quests were actually assigned
+                const questCount = await questManager.getUserQuests(userId);
+                console.log('🔍 QUEST: Quest count after assignment:', questCount ? questCount.length : 0);
             } catch (questAssignError) {
                 console.error('🚨 QUEST: Error in autoAssignQuests:', questAssignError.message);
                 console.error('🚨 QUEST: Full error:', questAssignError);
