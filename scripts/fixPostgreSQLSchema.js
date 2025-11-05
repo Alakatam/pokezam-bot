@@ -87,6 +87,38 @@ class PostgreSQLSchemaFixer {
         }
     }
 
+    async fixCardsTableSchema() {
+        console.log('🔧 Fixing Cards table schema...');
+        
+        try {
+            // Get existing columns
+            const result = await this.db.all(`
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name = 'cards' AND table_schema = 'public'
+            `);
+            const existingColumns = result.map(col => col.column_name);
+            
+            console.log(`📋 Existing cards columns: ${existingColumns.length} found`);
+            
+            // Check for card_id column (needed by loading scripts)
+            if (!existingColumns.includes('card_id')) {
+                try {
+                    await this.db.run(`ALTER TABLE cards ADD COLUMN card_id TEXT UNIQUE`);
+                    console.log(`✅ Added cards column: card_id`);
+                    this.fixedColumns.push('cards.card_id');
+                } catch (err) {
+                    console.error(`❌ Failed to add cards.card_id:`, err.message);
+                }
+            } else {
+                console.log(`📋 Column cards.card_id already exists`);
+            }
+            
+        } catch (error) {
+            console.error('❌ Cards table schema fix failed:', error.message);
+        }
+    }
+
     async fixQuestsTableSchema() {
         console.log('🔧 Fixing Quests table schema...');
         
@@ -165,6 +197,7 @@ async function fixPostgreSQLSchema() {
         }
         
         await fixer.fixUsersTableSchema();
+        await fixer.fixCardsTableSchema();
         await fixer.fixQuestsTableSchema();
         await fixer.verifyFixes();
         

@@ -8,8 +8,8 @@ database/*.db-journal
 .vscode/
 .idea/
 
-# TCG Data - too large for GitHub, will download on startup
-tcg-data/
+# TCG Data - essential files now included for production deployment
+# tcg-data/ - commenting out to include base sets in deployment
 
 # Database files - will be created fresh on hosting platform
 *.db
