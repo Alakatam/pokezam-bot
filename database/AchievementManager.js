@@ -312,8 +312,8 @@ class AchievementManager {
         return await this.db.all(`
             SELECT a.*, ua.progress, ua.is_completed, ua.earned_at
             FROM achievements a
-            LEFT JOIN user_achievements ua ON a.id = ua.achievement_id AND ua.user_id = ?
-            ORDER BY a.unlock_order, a.name
+            LEFT JOIN user_achievements ua ON a.achievement_id = ua.achievement_id AND ua.user_id = ?
+            ORDER BY a.sort_order, a.name
         `, [userId]);
     }
 
@@ -321,7 +321,7 @@ class AchievementManager {
         return await this.db.all(`
             SELECT a.*, ua.earned_at
             FROM achievements a
-            JOIN user_achievements ua ON a.id = ua.achievement_id
+            JOIN user_achievements ua ON a.achievement_id = ua.achievement_id
             WHERE ua.user_id = ? AND (ua.is_completed = 1 OR ua.is_completed = '1' OR ua.is_completed = true)
             ORDER BY ua.earned_at DESC
         `, [userId]);
@@ -333,7 +333,7 @@ class AchievementManager {
             const achievements = await this.db.all(`
                 SELECT a.*, ua.is_completed
                 FROM achievements a
-                LEFT JOIN user_achievements ua ON a.id = ua.achievement_id AND ua.user_id = ?
+                LEFT JOIN user_achievements ua ON a.achievement_id = ua.achievement_id AND ua.user_id = ?
                 WHERE a.condition_type = ? AND (ua.is_completed IS NULL OR ua.is_completed = '0' OR ua.is_completed = 0)
             `, [userId, conditionType]);
 
@@ -345,8 +345,8 @@ class AchievementManager {
                     await this.db.run(`
                         INSERT OR REPLACE INTO user_achievements 
                         (user_id, achievement_id, progress, is_completed, earned_at)
-                        VALUES (?, ?, ?, 1, ?)
-                    `, [userId, achievement.id, achievement.condition_value, Math.floor(Date.now() / 1000)]);
+                        VALUES (?, ?, ?, TRUE, ?)
+                    `, [userId, achievement.achievement_id, achievement.condition_value, Math.floor(Date.now() / 1000)]);
 
                     newlyCompleted.push(achievement);
                 } else {
@@ -354,8 +354,8 @@ class AchievementManager {
                     await this.db.run(`
                         INSERT OR REPLACE INTO user_achievements 
                         (user_id, achievement_id, progress, is_completed)
-                        VALUES (?, ?, ?, 0)
-                    `, [userId, achievement.id, currentValue]);
+                        VALUES (?, ?, ?, FALSE)
+                    `, [userId, achievement.achievement_id, currentValue]);
                 }
             }
 
