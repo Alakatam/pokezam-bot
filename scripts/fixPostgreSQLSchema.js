@@ -101,17 +101,30 @@ class PostgreSQLSchemaFixer {
             
             console.log(`📋 Existing cards columns: ${existingColumns.length} found`);
             
-            // Check for card_id column (needed by loading scripts)
-            if (!existingColumns.includes('card_id')) {
-                try {
-                    await this.db.run(`ALTER TABLE cards ADD COLUMN card_id TEXT UNIQUE`);
-                    console.log(`✅ Added cards column: card_id`);
-                    this.fixedColumns.push('cards.card_id');
-                } catch (err) {
-                    console.error(`❌ Failed to add cards.card_id:`, err.message);
+            // Define required columns for cards table
+            const requiredColumns = [
+                { name: 'card_id', type: 'TEXT UNIQUE' },
+                { name: 'subtype', type: 'TEXT' },
+                { name: 'supertype', type: 'TEXT' },
+                { name: 'types', type: 'TEXT' },
+                { name: 'hp', type: 'INTEGER' },
+                { name: 'artist', type: 'TEXT' },
+                { name: 'flavor_text', type: 'TEXT' }
+            ];
+            
+            // Add missing columns
+            for (const column of requiredColumns) {
+                if (!existingColumns.includes(column.name)) {
+                    try {
+                        await this.db.run(`ALTER TABLE cards ADD COLUMN ${column.name} ${column.type}`);
+                        console.log(`✅ Added cards column: ${column.name}`);
+                        this.fixedColumns.push(`cards.${column.name}`);
+                    } catch (err) {
+                        console.error(`❌ Failed to add cards.${column.name}:`, err.message);
+                    }
+                } else {
+                    console.log(`📋 Column cards.${column.name} already exists`);
                 }
-            } else {
-                console.log(`📋 Column cards.card_id already exists`);
             }
             
         } catch (error) {
