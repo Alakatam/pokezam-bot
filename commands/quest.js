@@ -191,14 +191,6 @@ error details          : "${showPageError.message}"
             } catch (replyError) {
                 console.error('Error sending quest error response:', replyError);
             }
-            } else {
-                await interaction.editReply({
-                    embeds: [EmbedUtils.createErrorEmbed(
-                        'Quest Error',
-                        'An error occurred while loading quest information. Please try again!'
-                    )]
-                });
-            }
         }
     },
 
