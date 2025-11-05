@@ -135,7 +135,6 @@ class ProductionTCGLoader {
             console.log('✅ Using existing database connection');
             console.log(`🔗 Database type: ${this.db.dbType ? this.db.dbType.toUpperCase() : 'Unknown'}`);
         }
-        }
     }
 
     async loadBaseSetsOnly() {

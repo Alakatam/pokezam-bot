@@ -1261,13 +1261,19 @@ class PokezamBot {
         console.log('🚀 AUTO-LOADING Base Sets 1, 2, 3...');
         
         try {
+            // Import the production loader
             const { ProductionTCGLoader } = require('./scripts/loadProductionBaseSets');
+            console.log('✅ ProductionTCGLoader imported successfully');
+            
             const loader = new ProductionTCGLoader();
+            console.log('✅ ProductionTCGLoader instance created');
             
             // Use the existing database connection
             loader.db = this.database;
+            console.log('✅ Database connection assigned to loader');
             
             // Create sets table if needed
+            console.log('🔧 Creating pokemon_sets table if needed...');
             await this.database.run(`
                 CREATE TABLE IF NOT EXISTS pokemon_sets (
                     ${this.databaseManager.dbType === 'postgresql' ? 'id SERIAL PRIMARY KEY' : 'id INTEGER PRIMARY KEY AUTOINCREMENT'},
@@ -1284,14 +1290,19 @@ class PokezamBot {
                     updated_at ${this.databaseManager.dbType === 'postgresql' ? 'BIGINT' : 'INTEGER'}
                 )
             `);
+            console.log('✅ pokemon_sets table ready');
             
             // Load only base sets
+            console.log('🎴 Starting base sets loading...');
             await loader.loadBaseSetsOnly();
             
             console.log('🎉 Base Sets auto-loading complete!');
             
         } catch (error) {
             console.error('❌ Base Sets auto-loading failed:', error.message);
+            if (error.stack) {
+                console.error('📋 Error stack:', error.stack);
+            }
             console.log('⚠️  Bot will continue without base set loading...');
         }
     }
