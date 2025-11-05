@@ -144,9 +144,9 @@ class QuestManager {
                 if (shouldReset) {
                     await this.db.run(`
                         UPDATE user_quests 
-                        SET progress = 0, completed = FALSE, last_reset = ?, completed_date = NULL
+                        SET progress = 0, completed = FALSE, completed_date = NULL
                         WHERE id = ?
-                    `, [nowTimestamp, quest.id]);
+                    `, [quest.id]);
                     resetCount++;
                 }
             }

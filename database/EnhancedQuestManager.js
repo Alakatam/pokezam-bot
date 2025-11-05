@@ -178,8 +178,8 @@ class EnhancedQuestManager {
                     if (!existing) {
                         // Create new quest for user
                         await this.db.run(`
-                            INSERT INTO user_quests (user_id, quest_id, progress, completed, last_reset)
-                            VALUES (?, ?, 0, FALSE, strftime('%s', 'now'))
+                            INSERT INTO user_quests (user_id, quest_id, progress, completed, assigned_date)
+                            VALUES (?, ?, 0, FALSE, EXTRACT(EPOCH FROM NOW()))
                         `, [userId, dbQuest.id]);
                     }
                 }
