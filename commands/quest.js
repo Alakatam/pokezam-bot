@@ -287,7 +287,7 @@ error details          : "${showPageError.message}"
             const progressBar = this.createProgressBar(quest.progress, quest.target_value);
             const status = quest.completed ? '✅ COMPLETE' : '⏳ IN PROGRESS';
             const progressPercent = Math.round((quest.progress / quest.target_value) * 100);
-            const resetTime = questManager.getTimeUntilReset(quest.last_reset, quest.reset_interval);
+            const resetTime = questManager.getTimeUntilReset(quest.assigned_date, quest.reset_interval);
             
             yamlContent += `🎯 quest ${index + 1}:\n`;
             yamlContent += `   title              : "${quest.name}"\n`;

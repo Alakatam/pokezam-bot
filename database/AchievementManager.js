@@ -334,7 +334,7 @@ class AchievementManager {
                 SELECT a.*, ua.is_completed
                 FROM achievements a
                 LEFT JOIN user_achievements ua ON a.id = ua.achievement_id AND ua.user_id = ?
-                WHERE a.condition_type = ? AND (ua.is_completed IS NULL OR ua.is_completed = 0)
+                WHERE a.condition_type = ? AND (ua.is_completed IS NULL OR ua.is_completed = '0' OR ua.is_completed = 0)
             `, [userId, conditionType]);
 
             const newlyCompleted = [];
