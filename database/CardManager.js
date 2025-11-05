@@ -7,6 +7,11 @@ class CardManager {
         return await this.db.all('SELECT * FROM cards ORDER BY set_name, name');
     }
 
+    async getTotalCardCount() {
+        const result = await this.db.get('SELECT COUNT(*) as count FROM cards');
+        return result ? result.count : 0;
+    }
+
     async getCardsBySet(setName) {
         return await this.db.all('SELECT * FROM cards WHERE set_name = ? ORDER BY name', [setName]);
     }
@@ -16,13 +21,28 @@ class CardManager {
     }
 
     async getRandomCard(userLevel, guildLuckBonus = 0) {
+        console.log('\n🔍 ===== CARD SELECTION DEBUG =====');
+        console.log('🎯 User Level:', userLevel);
+        console.log('🎯 Guild Luck Bonus:', guildLuckBonus);
+        
         // Get available generations based on user level
         const availableGenerations = this.getAvailableGenerationsByLevel(userLevel);
+        console.log('🎯 Available Generations:', availableGenerations);
         
         // Convert generation names to set names that exist in our database
         const availableSets = [];
         for (const generation of availableGenerations) {
-            availableSets.push(...this.getSetsByGeneration(generation));
+            const genSets = this.getSetsByGeneration(generation);
+            console.log(`🎯 Sets for ${generation}:`, genSets);
+            availableSets.push(...genSets);
+        }
+        console.log('🎯 Total Available Sets:', availableSets);
+        console.log('🎯 Available Sets Count:', availableSets.length);
+
+        if (availableSets.length === 0) {
+            console.log('❌ NO AVAILABLE SETS! This is why no cards are found!');
+            console.log('===== CARD SELECTION DEBUG END =====\n');
+            return null;
         }
 
         // Prioritize cards with complete API data (proper images and numbers)
@@ -34,9 +54,11 @@ class CardManager {
              ORDER BY RANDOM()`,
             availableSets
         );
+        console.log('🎯 Cards with complete API data:', cards.length);
 
         // Fallback to cached cards if no complete ones found
         if (cards.length === 0) {
+            console.log('🎯 No complete API cards, trying cached cards...');
             cards = await this.db.all(
                 `SELECT * FROM cards 
                  WHERE set_name IN (${availableSets.map(() => '?').join(',')})
@@ -44,7 +66,23 @@ class CardManager {
                  ORDER BY RANDOM()`,
                 availableSets
             );
+            console.log('🎯 Cached cards found:', cards.length);
         }
+
+        // Final fallback - any cards from available sets
+        if (cards.length === 0) {
+            console.log('🎯 No cached cards, trying ANY cards from available sets...');
+            cards = await this.db.all(
+                `SELECT * FROM cards 
+                 WHERE set_name IN (${availableSets.map(() => '?').join(',')})
+                 ORDER BY RANDOM()`,
+                availableSets
+            );
+            console.log('🎯 Any cards found:', cards.length);
+        }
+        
+        console.log('🎯 Final card selection result:', cards.length > 0 ? `Found ${cards.length} cards` : 'NO CARDS FOUND');
+        console.log('===== CARD SELECTION DEBUG END =====\n');
 
         // Final fallback to any available cards from unlocked sets
         if (cards.length === 0) {

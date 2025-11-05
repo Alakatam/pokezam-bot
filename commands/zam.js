@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const EmbedUtils = require('../utils/EmbedUtils');
+const DebugManager = require('../utils/DebugManager');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -80,8 +81,26 @@ experience awaiting    : "Cards, quests, and adventure!"
             // Get unlocked generations for this user
             const unlockedGenerations = await userManager.getUnlockedGenerations(user.id);
             
+            // DEEP DEBUG: Investigate card selection mystery
+            const totalCardsInDB = await cardManager.getTotalCardCount();
+            
+            DebugManager.debugSystem({
+                dbStatus: 'connected',
+                cardsLoaded: totalCardsInDB,
+                schemaVersion: 'v1.0'
+            });
+            
             // Draw a random card based on user level
             const drawnCard = await cardManager.getRandomCard(user.level, guildLuckBonus);
+            
+            // DEEP DEBUG: ZAM command investigation
+            DebugManager.debugZam({
+                userLevel: user.level,
+                guildLuckBonus: guildLuckBonus,
+                unlockedGenerations: unlockedGenerations,
+                totalCardsInDB: totalCardsInDB,
+                drawnCard: drawnCard ? { id: drawnCard.id, name: drawnCard.name, set: drawnCard.set_name } : null
+            });
             
             if (!drawnCard) {
                 return await interaction.editReply({
