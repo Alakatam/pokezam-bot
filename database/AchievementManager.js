@@ -322,7 +322,7 @@ class AchievementManager {
             SELECT a.*, ua.earned_at
             FROM achievements a
             JOIN user_achievements ua ON a.id = ua.achievement_id
-            WHERE ua.user_id = ? AND ua.is_completed = 1
+            WHERE ua.user_id = ? AND (ua.is_completed = 1 OR ua.is_completed = '1' OR ua.is_completed = true)
             ORDER BY ua.earned_at DESC
         `, [userId]);
     }
@@ -371,7 +371,7 @@ class AchievementManager {
         const total = await this.db.get('SELECT COUNT(*) as count FROM achievements WHERE is_secret = 0');
         const completed = await this.db.get(`
             SELECT COUNT(*) as count FROM user_achievements 
-            WHERE user_id = ? AND is_completed = 1
+            WHERE user_id = ? AND (is_completed = 1 OR is_completed = '1' OR is_completed = true)
         `, [userId]);
 
         return {

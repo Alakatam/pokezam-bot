@@ -171,13 +171,26 @@ error details          : "${showPageError.message}"
 
         } catch (error) {
             console.error('Error in quest command:', error);
-            if (!interaction.replied && !interaction.deferred) {
-                await interaction.editReply({
-                    embeds: [EmbedUtils.createErrorEmbed(
-                        'Quest Error',
-                        'An error occurred while loading quest information. Please try again!'
-                    )]
-                });
+            try {
+                if (interaction.deferred && !interaction.replied) {
+                    await interaction.editReply({
+                        embeds: [EmbedUtils.createErrorEmbed(
+                            'Quest Error',
+                            'An error occurred while loading quest information. Please try again!'
+                        )]
+                    });
+                } else if (!interaction.replied) {
+                    await interaction.reply({
+                        embeds: [EmbedUtils.createErrorEmbed(
+                            'Quest Error',
+                            'An error occurred while loading quest information. Please try again!'
+                        )],
+                        ephemeral: true
+                    });
+                }
+            } catch (replyError) {
+                console.error('Error sending quest error response:', replyError);
+            }
             } else {
                 await interaction.editReply({
                     embeds: [EmbedUtils.createErrorEmbed(
