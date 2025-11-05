@@ -353,15 +353,50 @@ class EnhancedQuestManager {
 
     // Get user quests with enhanced display
     async getUserQuests(userId) {
-        return await this.db.all(`
-            SELECT uq.id, uq.user_id, uq.quest_id, uq.progress, uq.completed, uq.assigned_date, uq.completed_date,
-                   q.name, q.description, q.quest_type, q.target_value, 
-                   q.reward_gold, q.reward_xp, q.reset_interval, q.target_type
-            FROM user_quests uq
-            JOIN quests q ON uq.quest_id = q.id
-            WHERE uq.user_id = ?
-            ORDER BY q.quest_type, uq.completed ASC, q.name
-        `, [userId]);
+        console.log('🔍 QUEST: EnhancedQuestManager - getUserQuests called for:', userId);
+        
+        try {
+            const result = await this.db.all(`
+                SELECT uq.id, uq.user_id, uq.quest_id, uq.progress, uq.completed, uq.assigned_date, uq.completed_date,
+                       q.name, q.description, q.quest_type, q.target_value, 
+                       q.reward_gold, q.reward_xp, q.reset_interval, q.target_type
+                FROM user_quests uq
+                JOIN quests q ON uq.quest_id = q.id
+                WHERE uq.user_id = ?
+                ORDER BY q.quest_type, uq.completed ASC, q.name
+            `, [userId]);
+            
+            console.log('🔍 QUEST: EnhancedQuestManager - getUserQuests success, count:', result.length);
+            return result;
+            
+        } catch (error) {
+            console.error('🚨 QUEST: EnhancedQuestManager - getUserQuests error:', error.message);
+            
+            // If target_type column doesn't exist, try without it
+            if (error.message.includes('target_type')) {
+                console.log('🔧 QUEST: Retrying getUserQuests without target_type column');
+                try {
+                    const fallbackResult = await this.db.all(`
+                        SELECT uq.id, uq.user_id, uq.quest_id, uq.progress, uq.completed, uq.assigned_date, uq.completed_date,
+                               q.name, q.description, q.quest_type, q.target_value, 
+                               q.reward_gold, q.reward_xp, q.reset_interval
+                        FROM user_quests uq
+                        JOIN quests q ON uq.quest_id = q.id
+                        WHERE uq.user_id = ?
+                        ORDER BY q.quest_type, uq.completed ASC, q.name
+                    `, [userId]);
+                    
+                    console.log('🔧 QUEST: Fallback getUserQuests success, count:', fallbackResult.length);
+                    return fallbackResult;
+                    
+                } catch (fallbackError) {
+                    console.error('🚨 QUEST: Fallback getUserQuests also failed:', fallbackError.message);
+                    throw fallbackError;
+                }
+            }
+            
+            throw error;
+        }
     }
 }
 

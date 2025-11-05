@@ -15,6 +15,7 @@ class DebugManager {
             inventory: true,  // Not tested yet
             use: true,        // Not tested yet  
             leaderboard: true, // Not tested yet
+            quest: true,      // Quest command debugging
             global: true      // Overall system debugging
         };
     }

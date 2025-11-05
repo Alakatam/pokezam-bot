@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const EmbedUtils = require('../utils/EmbedUtils');
+const DebugManager = require('../utils/DebugManager');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -8,15 +9,21 @@ module.exports = {
     
     async execute(interaction, { database, userManager, cardManager, questManager }) {
         try {
+            console.log('🔍 QUEST: Command started for user:', interaction.user.id);
+            
             await interaction.deferReply();
+            console.log('🔍 QUEST: Reply deferred successfully');
             
             const userId = interaction.user.id;
             
             // Ensure user exists
+            console.log('🔍 QUEST: Getting user data for:', userId);
             let user = await userManager.getUser(userId);
             if (!user) {
+                console.log('🔍 QUEST: User not found, creating new user');
                 user = await userManager.createUser(userId, interaction.user.username);
             }
+            console.log('🔍 QUEST: User data retrieved:', user ? 'Found' : 'Not found');
 
             // Check if user has started their adventure
             if (!user.has_started) {
@@ -73,13 +80,75 @@ benefits               : "Quests + Cards + Shop + More!"
             }
 
             // Automatically assign and initialize all quest types
-            await questManager.autoAssignQuests(userId);
+            console.log('🔍 QUEST: Starting autoAssignQuests');
+            try {
+                await questManager.autoAssignQuests(userId);
+                console.log('🔍 QUEST: autoAssignQuests completed');
+            } catch (questAssignError) {
+                console.error('🚨 QUEST: Error in autoAssignQuests:', questAssignError.message);
+                console.error('🚨 QUEST: Full error:', questAssignError);
+            }
 
             // Reset expired quests based on Eastern Time
-            await questManager.resetExpiredQuestsEasternTime();
+            console.log('🔍 QUEST: Starting resetExpiredQuestsEasternTime');
+            try {
+                await questManager.resetExpiredQuestsEasternTime();
+                console.log('🔍 QUEST: resetExpiredQuestsEasternTime completed');
+            } catch (resetError) {
+                console.error('🚨 QUEST: Error in resetExpiredQuestsEasternTime:', resetError.message);
+                console.error('🚨 QUEST: Full error:', resetError);
+            }
 
             // Show daily quests by default with navigation buttons
-            await this.showQuestPage(interaction, questManager, userId, 'daily');
+            console.log('🔍 QUEST: Starting showQuestPage');
+            try {
+                await this.showQuestPage(interaction, questManager, userId, 'daily');
+                console.log('🔍 QUEST: showQuestPage completed');
+            } catch (showPageError) {
+                console.error('🚨 QUEST: Error in showQuestPage:', showPageError.message);
+                console.error('🚨 QUEST: Full error:', showPageError);
+                
+                // Fallback response if quest page fails
+                await interaction.editReply({
+                    embeds: [{
+                        title: '🔧 Quest System Maintenance',
+                        description: `\`\`\`yaml
+#═══════════════════════════════════════════════════
+# 🎯 QUEST SYSTEM - TEMPORARY MAINTENANCE
+#═══════════════════════════════════════════════════
+
+system status          : "Under maintenance"
+error type             : "Database schema mismatch"
+expected resolution    : "Within 24 hours"
+
+#───────────────────────────────────────────────────
+# 🏆 WHAT'S HAPPENING
+#───────────────────────────────────────────────────
+
+issue                  : "Column alignment in progress"
+user impact            : "Quests temporarily unavailable"
+alternative commands   : "Use /daily, /shop, /zam, /profile"
+
+#───────────────────────────────────────────────────
+# 📈 YOUR PROGRESS IS SAFE
+#───────────────────────────────────────────────────
+
+user data              : "Fully preserved"
+card collection        : "Safe and accessible"
+gold balance           : "No impact"
+daily rewards          : "Available via /daily command"
+
+error details          : "${showPageError.message}"
+\`\`\``,
+                        color: 0xffaa00,
+                        timestamp: new Date().toISOString(),
+                        footer: {
+                            text: `${interaction.user.username}, sorry for the inconvenience!`,
+                            icon_url: interaction.user.displayAvatarURL()
+                        }
+                    }]
+                });
+            }
 
         } catch (error) {
             console.error('Error in quest command:', error);
@@ -102,7 +171,16 @@ benefits               : "Quests + Cards + Shop + More!"
     },
 
     async showQuestPage(interaction, questManager, userId, questType = 'daily') {
-        const userQuests = await questManager.getUserQuests(userId);
+        console.log('🔍 QUEST: showQuestPage - Getting user quests for:', userId);
+        let userQuests;
+        try {
+            userQuests = await questManager.getUserQuests(userId);
+            console.log('🔍 QUEST: showQuestPage - Got user quests count:', userQuests ? userQuests.length : 0);
+        } catch (getUserQuestsError) {
+            console.error('🚨 QUEST: Error in getUserQuests:', getUserQuestsError.message);
+            console.error('🚨 QUEST: Full getUserQuests error:', getUserQuestsError);
+            throw getUserQuestsError; // Re-throw to be caught by parent
+        }
         
         if (userQuests.length === 0) {
             return await interaction.editReply({
