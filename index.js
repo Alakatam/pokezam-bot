@@ -1215,6 +1215,7 @@ class PokezamBot {
                 fixer.db = this.database; // Use existing connection
                 
                 await fixer.fixUsersTableSchema();
+                await fixer.fixCardsTableSchema();
                 await fixer.fixQuestsTableSchema();
                 await fixer.verifyFixes();
                 
