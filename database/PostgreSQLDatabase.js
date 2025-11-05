@@ -244,6 +244,29 @@ class PostgreSQLDatabase {
         console.log('\n🕵️ ===== DEEP INVESTIGATION COMPLETE =====\n');
     }
 
+    // INVESTIGATE user_cards table schema
+    async investigateUserCardsSchema() {
+        console.log('🔍 INVESTIGATING: user_cards table schema...');
+        try {
+            const result = await this.pool.query(`
+                SELECT column_name, data_type, is_nullable, column_default, ordinal_position
+                FROM information_schema.columns 
+                WHERE table_name = 'user_cards' 
+                ORDER BY ordinal_position
+            `);
+            
+            console.log('🔍 PRODUCTION user_cards SCHEMA:');
+            result.rows.forEach((row, index) => {
+                console.log(`  ${index + 1}. ${row.column_name} (${row.data_type}) - ${row.is_nullable === 'YES' ? 'NULL' : 'NOT NULL'} - Default: ${row.column_default || 'NONE'}`);
+            });
+            
+            return result.rows;
+        } catch (error) {
+            console.error('❌ Failed to inspect user_cards schema:', error.message);
+            return [];
+        }
+    }
+
     // INVESTIGATION: Inspect actual production database schema
     async inspectActiveEffectsSchema() {
         console.log('🔍 INVESTIGATING: Actual active_effects table schema...');
@@ -273,6 +296,9 @@ class PostgreSQLDatabase {
         
         // DEEP INVESTIGATION: Check ALL mismatches between production and code
         await this.deepDatabaseInvestigation();
+        
+        // INVESTIGATE user_cards table for star_level ghost column
+        await this.investigateUserCardsSchema();
         
         // FIRST: Inspect the actual schema
         await this.inspectActiveEffectsSchema();

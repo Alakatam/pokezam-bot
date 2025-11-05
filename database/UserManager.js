@@ -201,7 +201,7 @@ class UserManager {
             SELECT 
                 COUNT(DISTINCT uc.card_id) as unique_cards,
                 SUM(uc.quantity) as total_cards,
-                COUNT(CASE WHEN uc.star_level > 0 THEN 1 END) as star_cards
+                0 as star_cards
             FROM user_cards uc
             WHERE uc.user_id = ?
         `, [userId]);
