@@ -87,8 +87,12 @@ class CardManager {
         if (cards.length === 0) {
             console.log('\n🔍 INVESTIGATING: Actual set names in database...');
             try {
-                const actualSets = await this.db.all('SELECT DISTINCT set_name FROM cards ORDER BY set_name LIMIT 20');
-                console.log('🔍 First 20 actual set names in production:', actualSets.map(s => s.set_name));
+                const actualSets = await this.db.all('SELECT DISTINCT set_name FROM cards ORDER BY set_name LIMIT 30');
+                console.log('🔍 First 30 actual set names in production:', actualSets.map(s => s.set_name));
+                
+                // Look for Generation I patterns (base, jungle, fossil, etc.)
+                const gen1Patterns = await this.db.all(`SELECT DISTINCT set_name FROM cards WHERE set_name LIKE 'base%' OR set_name LIKE '%jungle%' OR set_name LIKE '%fossil%' OR set_name LIKE '%rocket%' ORDER BY set_name`);
+                console.log('🔍 Potential Generation I sets found:', gen1Patterns.map(s => s.set_name));
                 
                 const setCount = await this.db.get('SELECT COUNT(DISTINCT set_name) as count FROM cards');
                 console.log('🔍 Total unique sets in database:', setCount.count);
@@ -135,10 +139,10 @@ class CardManager {
 
     getSetsByGeneration(generation) {
         const generationSets = {
-            // 1. Original Series (Generation I) - Kanto Region
+            // 1. Original Series (Generation I) - Kanto Region  
+            // FIXED: Using actual production database set names
             'Generation I': [
-                'Base Set', 'Base', 'Jungle', 'Fossil', 'Base Set 2', 
-                'Team Rocket', 'Gym Heroes', 'Gym Challenge'
+                'base1', 'base4', 'base5'
             ],
             
             // 2. Neo Series (Generation II) - Johto Region
