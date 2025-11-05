@@ -6,7 +6,7 @@ module.exports = {
     once: true,
     async execute(client, bot) {
         console.log(`${client.user.tag} is online!`);
-        client.user.setActivity('/draw - Start your collection!');
+        client.user.setActivity('🃏 Pokémon TCG Collection Bot');
         
         // Set up quest reset timer (runs every hour)
         const questResetJob = new cron.CronJob('0 * * * *', async () => {
