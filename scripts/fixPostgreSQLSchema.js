@@ -109,7 +109,17 @@ class PostgreSQLSchemaFixer {
                 { name: 'types', type: 'TEXT' },
                 { name: 'hp', type: 'INTEGER' },
                 { name: 'artist', type: 'TEXT' },
-                { name: 'flavor_text', type: 'TEXT' }
+                { name: 'flavor_text', type: 'TEXT' },
+                { name: 'level', type: 'INTEGER' },
+                { name: 'retreat_cost', type: 'INTEGER' },
+                { name: 'converted_retreat_cost', type: 'INTEGER' },
+                { name: 'attacks', type: 'TEXT' },
+                { name: 'abilities', type: 'TEXT' },
+                { name: 'weaknesses', type: 'TEXT' },
+                { name: 'resistances', type: 'TEXT' },
+                { name: 'legalities', type: 'TEXT' },
+                { name: 'tcgplayer', type: 'TEXT' },
+                { name: 'cardmarket', type: 'TEXT' }
             ];
             
             // Add missing columns
