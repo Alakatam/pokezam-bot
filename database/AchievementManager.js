@@ -330,12 +330,27 @@ class AchievementManager {
     async checkAndUpdateAchievement(userId, conditionType, currentValue) {
         try {
             // Get achievements that match this condition type
-            const achievements = await this.db.all(`
+            // TEMPORARY FIX: Get all achievements and filter in JavaScript due to missing condition_type column
+            const allAchievements = await this.db.all(`
                 SELECT a.*, ua.is_completed
                 FROM achievements a
                 LEFT JOIN user_achievements ua ON a.achievement_id = ua.achievement_id AND ua.user_id = ?
-                WHERE a.condition_type = ? AND (ua.is_completed IS NULL OR ua.is_completed = '0' OR ua.is_completed = 0)
-            `, [userId, conditionType]);
+                WHERE (ua.is_completed IS NULL OR ua.is_completed = '0' OR ua.is_completed = 0)
+            `, [userId]);
+            
+            // Filter by condition_type in JavaScript (since column doesn't exist in PostgreSQL)
+            const achievements = allAchievements.filter(a => {
+                // Map condition types based on achievement names/patterns
+                const name = a.name.toLowerCase();
+                if (conditionType === 'total_draws' && (name.includes('draw') || name.includes('card'))) return true;
+                if (conditionType === 'level' && name.includes('level')) return true;
+                if (conditionType === 'gold' && name.includes('gold')) return true;
+                if (conditionType === 'rare_cards' && name.includes('rare')) return true;
+                if (conditionType === 'holo_cards' && name.includes('holo')) return true;
+                if (conditionType === 'ultra_cards' && name.includes('ultra')) return true;
+                if (conditionType === 'secret_cards' && name.includes('secret')) return true;
+                return false;
+            });
 
             const newlyCompleted = [];
 
