@@ -82,6 +82,21 @@ class CardManager {
         }
         
         console.log('🎯 Final card selection result:', cards.length > 0 ? `Found ${cards.length} cards` : 'NO CARDS FOUND');
+        
+        // INVESTIGATE: What set names actually exist in the database?
+        if (cards.length === 0) {
+            console.log('\n🔍 INVESTIGATING: Actual set names in database...');
+            try {
+                const actualSets = await this.db.all('SELECT DISTINCT set_name FROM cards ORDER BY set_name LIMIT 20');
+                console.log('🔍 First 20 actual set names in production:', actualSets.map(s => s.set_name));
+                
+                const setCount = await this.db.get('SELECT COUNT(DISTINCT set_name) as count FROM cards');
+                console.log('🔍 Total unique sets in database:', setCount.count);
+            } catch (error) {
+                console.error('❌ Failed to investigate actual sets:', error.message);
+            }
+        }
+        
         console.log('===== CARD SELECTION DEBUG END =====\n');
 
         // Final fallback to any available cards from unlocked sets
