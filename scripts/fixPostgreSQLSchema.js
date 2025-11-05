@@ -124,7 +124,13 @@ class PostgreSQLSchemaFixer {
                 { name: 'evolves_from', type: 'TEXT' },
                 { name: 'evolves_to', type: 'TEXT' },
                 { name: 'rules', type: 'TEXT' },
-                { name: 'ancient_trait', type: 'TEXT' }
+                { name: 'ancient_trait', type: 'TEXT' },
+                { name: 'image_url_small', type: 'TEXT' },
+                { name: 'image_url_large', type: 'TEXT' },
+                { name: 'tcgplayer_url', type: 'TEXT' },
+                { name: 'cardmarket_url', type: 'TEXT' },
+                { name: 'created_at', type: 'BIGINT' },
+                { name: 'updated_at', type: 'BIGINT' }
             ];
             
             // Add missing columns
