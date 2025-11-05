@@ -4,42 +4,81 @@ const Database = require('../database/Database.js');
 
 /**
  * Production TCG Data Loader for Render PostgreSQL Database
- * Specifically designed to load Base Set 2 and 3 into production environment
+ * Robust loader designed specifically for Base Set 2 and 3 production deployment
  */
 
 /**
- * Loads all Pokémon TCG data from a specified directory.
- * @param {string} directory - The relative path to the directory (e.g., 'cards/en').
+ * Loads all Pokémon TCG data from a specified directory with enhanced error handling.
+ * @param {string} directory - The relative path to the directory (e.g., '../tcg-data/cards/en').
  * @returns {Array<Object>} An array of all items loaded from that directory.
  */
 function loadDataFromDirectory(directory) {
-    const dataPath = path.resolve(__dirname, directory);
+    // Handle both relative and absolute paths more robustly
+    let dataPath;
+    if (path.isAbsolute(directory)) {
+        dataPath = directory;
+    } else {
+        dataPath = path.resolve(__dirname, directory);
+    }
+    
     const allItems = [];
+
+    console.log(`📁 Attempting to load from: ${dataPath}`);
 
     try {
         if (!fs.existsSync(dataPath)) {
             console.error(`❌ Directory does not exist: ${dataPath}`);
-            return [];
+            
+            // Try alternative paths
+            const altPaths = [
+                path.resolve(__dirname, '../tcg-data/cards/en'),
+                path.resolve(__dirname, '../tcg-data/sets/en'),
+                path.resolve(process.cwd(), 'tcg-data/cards/en'),
+                path.resolve(process.cwd(), 'tcg-data/sets/en')
+            ];
+            
+            for (const altPath of altPaths) {
+                console.log(`🔍 Trying alternative path: ${altPath}`);
+                if (fs.existsSync(altPath) && altPath.includes(directory.split('/').pop())) {
+                    dataPath = altPath;
+                    console.log(`✅ Found alternative path: ${dataPath}`);
+                    break;
+                }
+            }
+            
+            if (!fs.existsSync(dataPath)) {
+                console.error('❌ No valid data path found');
+                return [];
+            }
         }
 
         const files = fs.readdirSync(dataPath);
         const jsonFiles = files.filter(file => path.extname(file) === '.json');
 
-        console.log(`📁 Found ${jsonFiles.length} JSON files in ${directory}...`);
+        console.log(`📁 Found ${jsonFiles.length} JSON files in ${dataPath}...`);
 
         for (const file of jsonFiles) {
             const filePath = path.join(dataPath, file);
 
             try {
                 const fileContent = fs.readFileSync(filePath, 'utf8');
+                
+                // Handle empty files
+                if (!fileContent.trim()) {
+                    console.log(`   ⚠️  Empty file: ${file}`);
+                    continue;
+                }
+                
                 const items = JSON.parse(fileContent);
 
                 if (Array.isArray(items)) {
                     allItems.push(...items);
                     console.log(`   ✅ ${file}: ${items.length} items`);
-                } else {
+                } else if (items && typeof items === 'object') {
                     allItems.push(items);
                     console.log(`   ✅ ${file}: 1 item`);
+                } else {
+                    console.log(`   ⚠️  Invalid data structure in ${file}`);
                 }
             } catch (fileError) {
                 console.log(`   ⚠️  Failed to parse ${file}: ${fileError.message}`);
@@ -51,32 +90,52 @@ function loadDataFromDirectory(directory) {
         return [];
     }
 
+    console.log(`📊 Total items loaded from ${directory}: ${allItems.length}`);
     return allItems;
 }
 
 class ProductionTCGLoader {
     constructor() {
         this.db = null;
+        this.createdConnection = false;
         this.totalSetsAdded = 0;
         this.totalCardsAdded = 0;
         this.totalCardsUpdated = 0;
     }
 
     async initialize() {
-        // Force PostgreSQL detection for production
-        if (!process.env.DATABASE_URL && process.env.NODE_ENV === 'production') {
-            throw new Error('❌ DATABASE_URL not found in production environment!');
+        // Only initialize if database connection not provided
+        if (!this.db) {
+            console.log('🔧 Initializing Production Database Connection...');
+            console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
+            console.log(`📡 Database URL: ${process.env.DATABASE_URL ? 'CONFIGURED ✅' : 'LOCAL SQLITE 🏠'}`);
+            
+            // Show database type detection
+            const dbType = process.env.DATABASE_URL ? 'PostgreSQL' : 'SQLite';
+            console.log(`🗃️ Detected database type: ${dbType}`);
+
+            try {
+                this.db = new Database();
+                await this.db.connect();
+                await this.db.initialize();
+                this.createdConnection = true;
+                
+                console.log('✅ Database initialized successfully');
+            
+                // Verify connection by checking database type
+                if (this.db.dbType) {
+                    console.log(`🔗 Connected to: ${this.db.dbType.toUpperCase()}`);
+                }
+                
+            } catch (error) {
+                console.error('❌ Database initialization failed:', error.message);
+                throw error;
+            }
+        } else {
+            console.log('✅ Using existing database connection');
+            console.log(`🔗 Database type: ${this.db.dbType ? this.db.dbType.toUpperCase() : 'Unknown'}`);
         }
-
-        console.log('🔧 Initializing Production Database Connection...');
-        console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
-        console.log(`📡 Database URL: ${process.env.DATABASE_URL ? 'CONFIGURED' : 'LOCAL SQLITE'}`);
-
-        this.db = new Database();
-        await this.db.connect();
-        await this.db.initialize();
-        
-        console.log('✅ Production database initialized successfully');
+        }
     }
 
     async loadBaseSetsOnly() {
@@ -123,11 +182,24 @@ class ProductionTCGLoader {
 
     async processSet(set) {
         try {
-            // Check if set exists
-            const existingSet = await this.db.get(
-                'SELECT set_id FROM pokemon_sets WHERE set_id = ?',
-                [set.id]
-            );
+            // Validate set data
+            if (!set || !set.id) {
+                console.log(`   ⚠️  Invalid set data, skipping`);
+                return;
+            }
+
+            // Check if set exists using the proper method
+            let existingSet;
+            try {
+                existingSet = await this.db.get(
+                    'SELECT set_id FROM pokemon_sets WHERE set_id = ?',
+                    [set.id]
+                );
+            } catch (queryError) {
+                // If table doesn't exist, it will be created
+                console.log(`   📋 Sets table check: ${queryError.message}`);
+                existingSet = null;
+            }
 
             if (!existingSet) {
                 await this.db.run(`
@@ -137,11 +209,11 @@ class ProductionTCGLoader {
                         created_at, updated_at
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `, [
-                    set.id,
-                    set.name,
+                    set.id || 'unknown',
+                    set.name || 'Unknown Set',
                     set.series || '',
-                    set.printedTotal || 0,
-                    set.total || 0,
+                    parseInt(set.printedTotal) || 0,
+                    parseInt(set.total) || 0,
                     set.releaseDate || '',
                     set.ptcgoCode || '',
                     set.images?.symbol || '',
@@ -151,22 +223,51 @@ class ProductionTCGLoader {
                 ]);
 
                 this.totalSetsAdded++;
-                console.log(`   ✅ Added set: ${set.name} (${set.id})`);
+                console.log(`   ✅ Added set: ${set.name || 'Unknown'} (${set.id})`);
+            } else {
+                console.log(`   📋 Set already exists: ${set.name} (${set.id})`);
             }
         } catch (error) {
-            console.error(`   ❌ Error processing set ${set.id}:`, error.message);
+            console.error(`   ❌ Error processing set ${set?.id || 'unknown'}:`, error.message);
         }
     }
 
     async processCard(card) {
         try {
+            // Validate card data
+            if (!card || !card.id) {
+                console.log(`   ⚠️  Invalid card data, skipping`);
+                return;
+            }
+
             // Check if card exists
-            const existingCard = await this.db.get(
-                'SELECT id FROM cards WHERE card_id = ?',
-                [card.id]
-            );
+            let existingCard;
+            try {
+                existingCard = await this.db.get(
+                    'SELECT id FROM cards WHERE card_id = ?',
+                    [card.id]
+                );
+            } catch (queryError) {
+                // Cards table might not exist yet
+                console.log(`   📋 Cards table check: ${queryError.message}`);
+                existingCard = null;
+            }
 
             if (!existingCard) {
+                // Handle HP conversion more safely
+                let hp = null;
+                if (card.hp) {
+                    const hpNum = parseInt(card.hp);
+                    hp = isNaN(hpNum) ? null : hpNum;
+                }
+
+                // Handle level conversion
+                let level = null;
+                if (card.level) {
+                    const levelNum = parseInt(card.level);
+                    level = isNaN(levelNum) ? null : levelNum;
+                }
+
                 await this.db.run(`
                     INSERT INTO cards (
                         card_id, name, supertype, subtype, level, hp, 
@@ -180,8 +281,8 @@ class ProductionTCGLoader {
                     card.name || 'Unknown',
                     card.supertype || '',
                     (card.subtypes || []).join(', '),
-                    card.level || null,
-                    card.hp ? parseInt(card.hp) : null,
+                    level,
+                    hp,
                     card.rarity || 'Common',
                     card.artist || '',
                     card.set?.id || '',
@@ -198,9 +299,17 @@ class ProductionTCGLoader {
                 ]);
 
                 this.totalCardsAdded++;
+            } else {
+                // Card already exists, could update if needed
+                this.totalCardsUpdated++;
             }
         } catch (error) {
-            console.error(`   ❌ Error processing card ${card.id}:`, error.message);
+            console.error(`   ❌ Error processing card ${card?.id || 'unknown'}:`, error.message);
+            console.error(`   📋 Card details:`, {
+                name: card?.name,
+                set: card?.set?.id,
+                rarity: card?.rarity
+            });
         }
     }
 
@@ -240,7 +349,8 @@ class ProductionTCGLoader {
     }
 
     async cleanup() {
-        if (this.db) {
+        // Only close database if we created the connection
+        if (this.db && this.createdConnection) {
             await this.db.close();
         }
     }
@@ -256,23 +366,46 @@ async function main() {
     try {
         await loader.initialize();
         
-        // Create sets table if needed
-        await loader.db.run(`
-            CREATE TABLE IF NOT EXISTS pokemon_sets (
-                id SERIAL PRIMARY KEY,
-                set_id TEXT UNIQUE,
-                name TEXT,
-                series TEXT,
-                printed_total INTEGER,
-                total INTEGER,
-                release_date TEXT,
-                ptcgo_code TEXT,
-                symbol_url TEXT,
-                logo_url TEXT,
-                created_at BIGINT,
-                updated_at BIGINT
-            )
-        `);
+        // Create sets table if needed (handle both SQLite and PostgreSQL)
+        console.log('🔧 Ensuring database tables exist...');
+        
+        if (loader.db.dbType === 'postgresql') {
+            await loader.db.run(`
+                CREATE TABLE IF NOT EXISTS pokemon_sets (
+                    id SERIAL PRIMARY KEY,
+                    set_id TEXT UNIQUE,
+                    name TEXT,
+                    series TEXT,
+                    printed_total INTEGER,
+                    total INTEGER,
+                    release_date TEXT,
+                    ptcgo_code TEXT,
+                    symbol_url TEXT,
+                    logo_url TEXT,
+                    created_at BIGINT,
+                    updated_at BIGINT
+                )
+            `);
+        } else {
+            await loader.db.run(`
+                CREATE TABLE IF NOT EXISTS pokemon_sets (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    set_id TEXT UNIQUE,
+                    name TEXT,
+                    series TEXT,
+                    printed_total INTEGER,
+                    total INTEGER,
+                    release_date TEXT,
+                    ptcgo_code TEXT,
+                    symbol_url TEXT,
+                    logo_url TEXT,
+                    created_at INTEGER,
+                    updated_at INTEGER
+                )
+            `);
+        }
+        
+        console.log('✅ Database tables ready');
         
         await loader.loadBaseSetsOnly();
         await loader.verifyLoading();

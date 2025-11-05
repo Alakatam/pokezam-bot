@@ -91,6 +91,9 @@ class PokezamBot {
             // Initialize default set rewards
             await this.setCompletionManager.initializeDefaultSetRewards();
             
+            // AUTO-LOAD BASE SETS: Check and load Base Sets 1, 2, 3 if missing (for Render free tier)
+            await this.ensureBaseSetsLoaded();
+            
             // DEPLOYMENT FIX: Progressive card loading will happen AFTER bot is ready
             // Removed from startup sequence to prevent deployment timeouts
             
@@ -1192,6 +1195,73 @@ class PokezamBot {
         } catch (error) {
             console.error('❌ Error ensuring TCG data:', error.message);
             console.log('⚠️  Continuing with API fallback...');
+        }
+    }
+
+    // AUTO-LOAD BASE SETS: Ensure Base Sets 1, 2, 3 are loaded (Render free tier solution)
+    async ensureBaseSetsLoaded() {
+        console.log('🎯 Checking Base Sets in database...');
+        
+        try {
+            // Check if base sets exist
+            const baseSetCount = await this.database.get(`
+                SELECT COUNT(*) as count 
+                FROM cards 
+                WHERE set_id IN ('base1', 'base2', 'base3')
+            `);
+            
+            const totalBaseCards = baseSetCount ? baseSetCount.count : 0;
+            
+            if (totalBaseCards < 200) { // Expected ~228 base cards
+                console.log(`📊 Found ${totalBaseCards} base cards, loading missing Base Sets...`);
+                await this.loadBaseSetsFromFiles();
+            } else {
+                console.log(`✅ Base Sets already loaded (${totalBaseCards} cards)`);
+            }
+            
+        } catch (error) {
+            console.error('❌ Error checking base sets:', error.message);
+            console.log('⚠️  Continuing without base set loading...');
+        }
+    }
+
+    // Load Base Sets 1, 2, 3 from local files
+    async loadBaseSetsFromFiles() {
+        console.log('🚀 AUTO-LOADING Base Sets 1, 2, 3...');
+        
+        try {
+            const { ProductionTCGLoader } = require('./scripts/loadProductionBaseSets');
+            const loader = new ProductionTCGLoader();
+            
+            // Use the existing database connection
+            loader.db = this.database;
+            
+            // Create sets table if needed
+            await this.database.run(`
+                CREATE TABLE IF NOT EXISTS pokemon_sets (
+                    ${this.databaseManager.dbType === 'postgresql' ? 'id SERIAL PRIMARY KEY' : 'id INTEGER PRIMARY KEY AUTOINCREMENT'},
+                    set_id TEXT UNIQUE,
+                    name TEXT,
+                    series TEXT,
+                    printed_total INTEGER,
+                    total INTEGER,
+                    release_date TEXT,
+                    ptcgo_code TEXT,
+                    symbol_url TEXT,
+                    logo_url TEXT,
+                    created_at ${this.databaseManager.dbType === 'postgresql' ? 'BIGINT' : 'INTEGER'},
+                    updated_at ${this.databaseManager.dbType === 'postgresql' ? 'BIGINT' : 'INTEGER'}
+                )
+            `);
+            
+            // Load only base sets
+            await loader.loadBaseSetsOnly();
+            
+            console.log('🎉 Base Sets auto-loading complete!');
+            
+        } catch (error) {
+            console.error('❌ Base Sets auto-loading failed:', error.message);
+            console.log('⚠️  Bot will continue without base set loading...');
         }
     }
 
