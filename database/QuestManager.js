@@ -37,7 +37,7 @@ class QuestManager {
             console.log('🔍 QUEST: Count === 0?', enhancedQuests[0]?.count === 0);
             console.log('🔍 QUEST: Count == 0?', enhancedQuests[0]?.count == 0);
             
-            const count = enhancedQuests[0]?.count || 0;
+            const count = parseInt(enhancedQuests[0]?.count) || 0; // Convert string to number for PostgreSQL
             if (count === 0) {
                 console.log('🚀 Initializing enhanced quest system...');
                 try {
