@@ -736,6 +736,15 @@ module.exports = {
                 [!cooldownEnabled, targetUser.id]  // Inverted: enabled=true means bypass=false
             );
 
+            // If cooldowns are being disabled (bypass enabled), clear any existing cooldown timestamps
+            // Note: This affects the in-memory cooldown map, not the database
+            if (!cooldownEnabled) {
+                // Clear cooldown from the timestamps map if it exists
+                // The timestamps map is in the main bot file, but we can't access it here
+                // The bypass setting will take effect on next draw attempt
+                console.log(`[ADMIN] Cooldown bypass enabled for ${targetUser.username} - cooldowns will be ignored on next draw`);
+            }
+
             // Create success embed
             const embed = new EmbedBuilder()
                 .setTitle('🎛️ Cooldown Settings Updated')

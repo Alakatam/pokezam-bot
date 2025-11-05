@@ -875,7 +875,8 @@ class PokezamBot {
                 let hasBypass = false;
                 try {
                     const userBypassCheck = await this.database.get('SELECT cooldown_bypass FROM users WHERE id = ?', [interaction.user.id]);
-                    hasBypass = userBypassCheck?.cooldown_bypass === 1;
+                    // Handle both PostgreSQL (true/false) and SQLite (1/0) formats
+                    hasBypass = userBypassCheck?.cooldown_bypass === true || userBypassCheck?.cooldown_bypass === 1;
                 } catch (error) {
                     // If column doesn't exist or query fails, default to no bypass
                     hasBypass = false;

@@ -536,14 +536,17 @@ class CardManager {
 
         if (userCard) {
             // Update existing entry to mark this variant as owned
+            // Use proper boolean value for PostgreSQL compatibility
+            const booleanValue = this.db.dbType === 'postgresql' ? true : 1;
             await this.db.run(
-                `UPDATE user_cards SET ${variantColumn} = 1, quantity = quantity + 1 WHERE id = ?`,
-                [userCard.id]
+                `UPDATE user_cards SET ${variantColumn} = ?, quantity = quantity + 1 WHERE id = ?`,
+                [booleanValue, userCard.id]
             );
         } else {
             // Create new entry with this variant
             const columns = ['user_id', 'card_id', 'quantity', variantColumn];
-            const values = [userId, cardId, 1, 1];
+            const booleanValue = this.db.dbType === 'postgresql' ? true : 1;
+            const values = [userId, cardId, 1, booleanValue];
             const placeholders = columns.map(() => '?').join(',');
             
             await this.db.run(
