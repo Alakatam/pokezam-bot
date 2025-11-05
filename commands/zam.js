@@ -10,11 +10,17 @@ module.exports = {
     
     async execute(interaction, { database, userManager, cardManager, questManager }) {
         try {
+            console.log('🔍 ZAM: Command started for user:', interaction.user.id);
+            
             // OPTIMIZATION: Defer reply immediately to prevent Discord timeout
+            console.log('🔍 ZAM: Attempting to defer reply...');
             await interaction.deferReply();
+            console.log('🔍 ZAM: Reply deferred successfully');
             
             const userId = interaction.user.id;
+            console.log('🔍 ZAM: Getting user data for:', userId);
             let user = await userManager.getUser(userId);
+            console.log('🔍 ZAM: User data retrieved:', user ? 'Found' : 'Not found');
             
             // Create user if doesn't exist
             if (!user) {

@@ -244,6 +244,29 @@ class PostgreSQLDatabase {
         console.log('\n🕵️ ===== DEEP INVESTIGATION COMPLETE =====\n');
     }
 
+    // INVESTIGATE users table schema
+    async investigateUsersSchema() {
+        console.log('🔍 INVESTIGATING: users table schema...');
+        try {
+            const result = await this.pool.query(`
+                SELECT column_name, data_type, is_nullable, column_default, ordinal_position
+                FROM information_schema.columns 
+                WHERE table_name = 'users' 
+                ORDER BY ordinal_position
+            `);
+            
+            console.log('🔍 PRODUCTION users SCHEMA:');
+            result.rows.forEach((row, index) => {
+                console.log(`  ${index + 1}. ${row.column_name} (${row.data_type}) - ${row.is_nullable === 'YES' ? 'NULL' : 'NOT NULL'} - Default: ${row.column_default || 'NONE'}`);
+            });
+            
+            return result.rows;
+        } catch (error) {
+            console.error('❌ Failed to inspect users schema:', error.message);
+            return [];
+        }
+    }
+
     // INVESTIGATE user_cards table schema
     async investigateUserCardsSchema() {
         console.log('🔍 INVESTIGATING: user_cards table schema...');
@@ -299,6 +322,9 @@ class PostgreSQLDatabase {
         
         // INVESTIGATE user_cards table for star_level ghost column
         await this.investigateUserCardsSchema();
+        
+        // INVESTIGATE users table for potential ghost columns
+        await this.investigateUsersSchema();
         
         // FIRST: Inspect the actual schema
         await this.inspectActiveEffectsSchema();
