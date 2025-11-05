@@ -340,7 +340,7 @@ class EnhancedQuestManager {
     }
 
     getResetTime(questType) {
-        const now = Date.now() / 1000;
+        const now = Math.floor(Date.now() / 1000); // Convert to integer seconds for PostgreSQL BIGINT
         const day = 24 * 60 * 60;
         
         switch (questType) {
