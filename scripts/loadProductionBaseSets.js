@@ -145,31 +145,137 @@ class ProductionTCGLoader {
         // Load sets first
         const setsData = loadDataFromDirectory('../tcg-data/sets/en');
         const targetSets = ['base1', 'base2', 'base3'];
-        const baseSets = setsData.filter(set => targetSets.includes(set.id));
+        
+        // Debug: Show sample sets structure
+        if (setsData.length > 0) {
+            console.log(`🔍 Sample sets structure:`, {
+                type: Array.isArray(setsData),
+                length: setsData.length,
+                firstItem: setsData[0]
+            });
+        }
+        
+        // Handle both individual set files and combined sets file
+        let baseSets = [];
+        if (Array.isArray(setsData) && setsData.length > 0) {
+            // If it's an array, filter for our target sets
+            baseSets = setsData.filter(set => targetSets.includes(set.id));
+            
+            // If no direct matches, maybe all sets are in a single structure
+            if (baseSets.length === 0 && setsData[0] && typeof setsData[0] === 'object') {
+                // Check if the first item contains our sets
+                for (const setId of targetSets) {
+                    if (setsData[0][setId]) {
+                        baseSets.push({ id: setId, ...setsData[0][setId] });
+                    }
+                }
+            }
+        }
         
         console.log(`\n🎴 Found ${baseSets.length} base sets to load`);
         
         // Load cards for base sets only
         const cardsData = loadDataFromDirectory('../tcg-data/cards/en');
-        const baseCards = cardsData.filter(card => targetSets.includes(card.set?.id));
+        
+        // Debug: Show sample card structure
+        if (cardsData.length > 0) {
+            console.log(`🔍 Sample card structure:`, {
+                id: cardsData[0].id,
+                name: cardsData[0].name,
+                set: cardsData[0].set,
+                setId: cardsData[0].set?.id
+            });
+        }
+        
+        // Filter for base sets - check both set.id and infer from card ID patterns
+        const baseCards = cardsData.filter(card => {
+            const cardSetId = card.set?.id || '';
+            const cardId = card.id || '';
+            
+            // Check if set ID matches our target sets
+            if (targetSets.includes(cardSetId)) {
+                return true;
+            }
+            
+            // Also check if card ID suggests it's from base sets (e.g., base1-1, base2-1, etc.)
+            for (const setId of targetSets) {
+                if (cardId.startsWith(setId + '-')) {
+                    return true;
+                }
+            }
+            
+            return false;
+        });
         
         console.log(`🎴 Found ${baseCards.length} base set cards to load`);
 
-        // Process sets
-        console.log('\n🔄 Processing base sets...');
-        for (const set of baseSets) {
-            await this.processSet(set);
+        // Skip sets processing if no sets found, focus on cards
+        if (baseSets.length > 0) {
+            console.log('\n🔄 Processing base sets...');
+            for (const set of baseSets) {
+                await this.processSet(set);
+            }
+        } else {
+            console.log('\n⏭️  No sets metadata found, focusing on cards...');
         }
 
         // Process cards
         console.log('\n🔄 Processing base set cards...');
-        let cardCount = 0;
-        for (const card of baseCards) {
-            await this.processCard(card);
-            cardCount++;
+        
+        if (baseCards.length === 0) {
+            console.log('⚠️  No base cards found with current filtering. Trying direct file approach...');
             
-            if (cardCount % 50 === 0) {
-                console.log(`   📊 Processed ${cardCount} cards...`);
+            // Direct approach: Load base1.json directly since we saw it in the logs
+            try {
+                const fs = require('fs');
+                const path = require('path');
+                
+                const baseFiles = ['base1.json', 'base2.json', 'base3.json'];
+                let directCards = [];
+                
+                for (const fileName of baseFiles) {
+                    try {
+                        const filePath = path.resolve(__dirname, '../tcg-data/cards/en', fileName);
+                        console.log(`📂 Attempting direct load: ${filePath}`);
+                        
+                        if (fs.existsSync(filePath)) {
+                            const fileContent = fs.readFileSync(filePath, 'utf8');
+                            const cards = JSON.parse(fileContent);
+                            directCards.push(...cards);
+                            console.log(`✅ Loaded ${cards.length} cards from ${fileName}`);
+                        }
+                    } catch (fileError) {
+                        console.log(`⚠️  Failed to load ${fileName}: ${fileError.message}`);
+                    }
+                }
+                
+                console.log(`📊 Direct loading found ${directCards.length} cards`);
+                
+                // Process directly loaded cards
+                let cardCount = 0;
+                for (const card of directCards) {
+                    await this.processCard(card);
+                    cardCount++;
+                    this.totalCardsAdded++;
+                    
+                    if (cardCount % 50 === 0) {
+                        console.log(`   📊 Processed ${cardCount} cards...`);
+                    }
+                }
+                
+            } catch (directError) {
+                console.error('❌ Direct loading failed:', directError.message);
+            }
+        } else {
+            // Normal processing
+            let cardCount = 0;
+            for (const card of baseCards) {
+                await this.processCard(card);
+                cardCount++;
+                
+                if (cardCount % 50 === 0) {
+                    console.log(`   📊 Processed ${cardCount} cards...`);
+                }
             }
         }
 
