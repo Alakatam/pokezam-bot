@@ -140,7 +140,7 @@ class CardManager {
     getSetsByGeneration(generation) {
         const generationSets = {
             // 1. Original Series (Generation I) - Kanto Region  
-            // FIXED: Using actual production database set names
+            // EPISODE 112: FIXED TO USE ACTUAL PRODUCTION SET NAMES
             'Generation I': [
                 'base1', 'base4', 'base5'
             ],
