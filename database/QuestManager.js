@@ -126,7 +126,7 @@ class QuestManager {
                 if (shouldReset) {
                     await this.db.run(`
                         UPDATE user_quests 
-                        SET progress = 0, completed = FALSE, last_reset = ?, completed_at = NULL
+                        SET progress = 0, completed = FALSE, last_reset = ?, completed_date = NULL
                         WHERE id = ?
                     `, [nowTimestamp, quest.id]);
                     resetCount++;
@@ -162,7 +162,7 @@ class QuestManager {
             SELECT uq.*, q.name, q.quest_type
             FROM user_quests uq
             JOIN quests q ON uq.quest_id = q.id
-            WHERE uq.user_id = ? AND uq.completed = TRUE AND uq.completed_at > ?
+            WHERE uq.user_id = ? AND uq.completed = TRUE AND uq.completed_date > ?
         `, [userId, oneDayAgo]);
     }
 

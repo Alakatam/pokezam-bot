@@ -246,7 +246,7 @@ class EnhancedQuestManager {
                     // Quest completed!
                     await this.db.run(`
                         UPDATE user_quests 
-                        SET progress = ?, completed = TRUE, completed_at = strftime('%s', 'now')
+                        SET progress = ?, completed = TRUE, completed_date = EXTRACT(EPOCH FROM NOW())
                         WHERE id = ?
                     `, [quest.target_value, quest.id]);
 
@@ -335,7 +335,7 @@ class EnhancedQuestManager {
             DELETE FROM user_quests 
             WHERE user_id = ? AND completed = TRUE 
             AND quest_id IN (SELECT id FROM quests WHERE quest_type = ?)
-            AND completed_at < ?
+            AND completed_date < ?
         `, [userId, questType, resetTime]);
     }
 
