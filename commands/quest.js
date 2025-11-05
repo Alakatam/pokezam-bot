@@ -9,21 +9,14 @@ module.exports = {
     
     async execute(interaction, { database, userManager, cardManager, questManager }) {
         try {
-            console.log('🔍 QUEST: Command started for user:', interaction.user.id);
-            
             await interaction.deferReply();
-            console.log('🔍 QUEST: Reply deferred successfully');
-            
             const userId = interaction.user.id;
             
             // Ensure user exists
-            console.log('🔍 QUEST: Getting user data for:', userId);
             let user = await userManager.getUser(userId);
             if (!user) {
-                console.log('🔍 QUEST: User not found, creating new user');
                 user = await userManager.createUser(userId, interaction.user.username);
             }
-            console.log('🔍 QUEST: User data retrieved:', user ? 'Found' : 'Not found');
 
             // Check if user has started their adventure
             if (!user.has_started) {
@@ -79,30 +72,9 @@ benefits               : "Quests + Cards + Shop + More!"
                 });
             }
 
-            // Check quest database status BEFORE assignment
-            console.log('🔍 QUEST: Investigating quest database...');
-            try {
-                const totalQuests = await database.all('SELECT COUNT(*) as count FROM quests');
-                console.log('🔍 QUEST: Total quests in database:', totalQuests[0]?.count || 0);
-                
-                const userQuestsBefore = await database.all('SELECT COUNT(*) as count FROM user_quests WHERE user_id = ?', [userId]);
-                console.log('🔍 QUEST: User quests BEFORE assignment:', userQuestsBefore[0]?.count || 0);
-            } catch (dbError) {
-                console.error('🚨 QUEST: Database investigation error:', dbError.message);
-            }
-
             // Automatically assign and initialize all quest types
-            console.log('🔍 QUEST: Starting autoAssignQuests');
             try {
-                const assignResult = await questManager.autoAssignQuests(userId);
-                console.log('🔍 QUEST: autoAssignQuests completed, result:', assignResult);
-                
-                // Check if quests were actually assigned
-                const userQuestsAfter = await database.all('SELECT COUNT(*) as count FROM user_quests WHERE user_id = ?', [userId]);
-                console.log('🔍 QUEST: User quests AFTER assignment:', userQuestsAfter[0]?.count || 0);
-                
-                const questCount = await questManager.getUserQuests(userId);
-                console.log('🔍 QUEST: Quest count from getUserQuests:', questCount ? questCount.length : 0);
+                await questManager.autoAssignQuests(userId);
             } catch (questAssignError) {
                 console.error('🚨 QUEST: Error in autoAssignQuests:', questAssignError.message);
                 console.error('🚨 QUEST: Full error:', questAssignError);
@@ -119,10 +91,8 @@ benefits               : "Quests + Cards + Shop + More!"
             }
 
             // Show daily quests by default with navigation buttons
-            console.log('🔍 QUEST: Starting showQuestPage');
             try {
                 await this.showQuestPage(interaction, questManager, userId, 'daily');
-                console.log('🔍 QUEST: showQuestPage completed');
             } catch (showPageError) {
                 console.error('🚨 QUEST: Error in showQuestPage:', showPageError.message);
                 console.error('🚨 QUEST: Full error:', showPageError);
@@ -195,14 +165,11 @@ error details          : "${showPageError.message}"
     },
 
     async showQuestPage(interaction, questManager, userId, questType = 'daily') {
-        console.log('🔍 QUEST: showQuestPage - Getting user quests for:', userId);
         let userQuests;
         try {
             userQuests = await questManager.getUserQuests(userId);
-            console.log('🔍 QUEST: showQuestPage - Got user quests count:', userQuests ? userQuests.length : 0);
         } catch (getUserQuestsError) {
-            console.error('🚨 QUEST: Error in getUserQuests:', getUserQuestsError.message);
-            console.error('🚨 QUEST: Full getUserQuests error:', getUserQuestsError);
+            console.error('QUEST: Error in getUserQuests:', getUserQuestsError.message);
             throw getUserQuestsError; // Re-throw to be caught by parent
         }
         

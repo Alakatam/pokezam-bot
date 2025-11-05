@@ -10,17 +10,11 @@ module.exports = {
     
     async execute(interaction, { database, userManager, cardManager, questManager }) {
         try {
-            console.log('🔍 ZAM: Command started for user:', interaction.user.id);
-            
             // OPTIMIZATION: Defer reply immediately to prevent Discord timeout
-            console.log('🔍 ZAM: Attempting to defer reply...');
             await interaction.deferReply();
-            console.log('🔍 ZAM: Reply deferred successfully');
             
             const userId = interaction.user.id;
-            console.log('🔍 ZAM: Getting user data for:', userId);
             let user = await userManager.getUser(userId);
-            console.log('🔍 ZAM: User data retrieved:', user ? 'Found' : 'Not found');
             
             // Create user if doesn't exist
             if (!user) {
@@ -418,22 +412,30 @@ experience awaiting    : "Cards, quests, and adventure!"
             const completedQuests = questResults.flat();
             
             // Send initial card draw response
+            // OPTIMIZATION: Send Discord response FIRST for speed ⚡
             await interaction.editReply({ embeds: [embed] });
             
-            // Initialize smart notification system
-            const SmartNotificationManager = require('../utils/SmartNotificationManager');
-            const notificationManager = new SmartNotificationManager();
-            
-            // Send enhanced rare card notifications (for Holo Rare+)
-            await notificationManager.sendRareCardNotification(
-                interaction, detailedCard, variant, variantInfo, rarityInfo
-            );
+            // ASYNC PROCESSING: Run background tasks without blocking Discord response
+            setImmediate(async () => {
+                try {
+                    // Initialize smart notification system
+                    const SmartNotificationManager = require('../utils/SmartNotificationManager');
+                    const notificationManager = new SmartNotificationManager();
+                    
+                    // Send enhanced rare card notifications (for Holo Rare+)
+                    await notificationManager.sendRareCardNotification(
+                        interaction, detailedCard, variant, variantInfo, rarityInfo
+                    );
 
-            // Post to Global showcase channel for rare cards (Holo Rare or above)
-            await this.checkAndPostToGlobalShowcase(interaction, detailedCard, variant, variantInfo, rarityInfo);
+                    // Post to Global showcase channel for rare cards (Holo Rare or above)
+                    await this.checkAndPostToGlobalShowcase(interaction, detailedCard, variant, variantInfo, rarityInfo);
 
-            // Check for achievements (if available)
-            await this.checkCardDrawAchievements(userId, drawnCard, updatedUser, { database, userManager, cardManager, questManager });
+                    // Check for achievements (now runs async after Discord response!)
+                    await this.checkCardDrawAchievements(userId, drawnCard, updatedUser, { database, userManager, cardManager, questManager });
+                } catch (asyncError) {
+                    console.error('Background processing error:', asyncError);
+                }
+            });
 
             // Update set completion progress and check for new completions
             await this.checkSetCompletion(userId, detailedCard, interaction);

@@ -1,6 +1,11 @@
 class AchievementManager {
     constructor(database) {
         this.db = database;
+        
+        // OPTIMIZATION: Smart achievement cache for performance ⚡
+        this.achievementCache = new Map();
+        this.cacheInitialized = false;
+        
         // Initialize tables asynchronously (don't block constructor)
         this.initializeTables().catch(error => {
             console.error('Error in AchievementManager initialization:', error);
@@ -327,30 +332,62 @@ class AchievementManager {
         `, [userId]);
     }
 
+    // OPTIMIZATION: Smart cache initialization for achievement patterns ⚡
+    async initializeAchievementCache() {
+        if (this.cacheInitialized) return;
+        
+        try {
+            const allAchievements = await this.db.all('SELECT * FROM achievements');
+            
+            // Pre-categorize achievements by type for instant filtering
+            const categories = {
+                'total_draws': [],
+                'level': [],
+                'gold': [],
+                'rare_cards': [],
+                'holo_cards': [],
+                'ultra_cards': [],
+                'secret_cards': []
+            };
+            
+            allAchievements.forEach(achievement => {
+                const name = achievement.name.toLowerCase();
+                if (name.includes('draw') || name.includes('card')) categories.total_draws.push(achievement.achievement_id);
+                if (name.includes('level')) categories.level.push(achievement.achievement_id);
+                if (name.includes('gold')) categories.gold.push(achievement.achievement_id);
+                if (name.includes('rare')) categories.rare_cards.push(achievement.achievement_id);
+                if (name.includes('holo')) categories.holo_cards.push(achievement.achievement_id);
+                if (name.includes('ultra')) categories.ultra_cards.push(achievement.achievement_id);
+                if (name.includes('secret')) categories.secret_cards.push(achievement.achievement_id);
+            });
+            
+            this.achievementCache = categories;
+            this.cacheInitialized = true;
+        } catch (error) {
+            console.error('Achievement cache initialization failed:', error);
+        }
+    }
+
     async checkAndUpdateAchievement(userId, conditionType, currentValue) {
         try {
-            // Get achievements that match this condition type
-            // TEMPORARY FIX: Get all achievements and filter in JavaScript due to missing condition_type column
-            const allAchievements = await this.db.all(`
+            // OPTIMIZATION: Initialize cache if needed ⚡
+            await this.initializeAchievementCache();
+            
+            // OPTIMIZATION: Use smart cache for instant achievement filtering 🚀
+            const cachedAchievementIds = this.achievementCache[conditionType] || [];
+            
+            if (cachedAchievementIds.length === 0) {
+                return []; // No achievements for this condition type
+            }
+            
+            // Get only relevant achievements using cached IDs (MUCH FASTER!)
+            const placeholders = cachedAchievementIds.map(() => '?').join(',');
+            const achievements = await this.db.all(`
                 SELECT a.*, ua.is_completed
                 FROM achievements a
                 LEFT JOIN user_achievements ua ON a.achievement_id = ua.achievement_id AND ua.user_id = ?
-                WHERE (ua.is_completed IS NULL OR ua.is_completed = FALSE)
-            `, [userId]);
-            
-            // Filter by condition_type in JavaScript (since column doesn't exist in PostgreSQL)
-            const achievements = allAchievements.filter(a => {
-                // Map condition types based on achievement names/patterns
-                const name = a.name.toLowerCase();
-                if (conditionType === 'total_draws' && (name.includes('draw') || name.includes('card'))) return true;
-                if (conditionType === 'level' && name.includes('level')) return true;
-                if (conditionType === 'gold' && name.includes('gold')) return true;
-                if (conditionType === 'rare_cards' && name.includes('rare')) return true;
-                if (conditionType === 'holo_cards' && name.includes('holo')) return true;
-                if (conditionType === 'ultra_cards' && name.includes('ultra')) return true;
-                if (conditionType === 'secret_cards' && name.includes('secret')) return true;
-                return false;
-            });
+                WHERE a.achievement_id IN (${placeholders}) AND (ua.is_completed IS NULL OR ua.is_completed = FALSE)
+            `, [userId, ...cachedAchievementIds]);
 
             const newlyCompleted = [];
 
