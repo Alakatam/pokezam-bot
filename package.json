@@ -16,7 +16,8 @@
     "commands:clear": "node scripts/clearCommands.js",
     "migrate": "node scripts/migrateToPostgreSQL.js",
     "load:basesets": "node scripts/loadProductionBaseSets.js",
-    "load:all": "node scripts/loadTCGData.js"
+    "load:all": "node scripts/loadTCGData.js",
+    "fix:schema": "node scripts/fixPostgreSQLSchema.js"
   },
   "keywords": [
     "discord",

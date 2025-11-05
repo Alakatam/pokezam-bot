@@ -91,6 +91,9 @@ class PokezamBot {
             // Initialize default set rewards
             await this.setCompletionManager.initializeDefaultSetRewards();
             
+            // POSTGRESQL SCHEMA FIX: Ensure all columns exist (for Render PostgreSQL)
+            await this.fixPostgreSQLSchema();
+            
             // AUTO-LOAD BASE SETS: Check and load Base Sets 1, 2, 3 if missing (for Render free tier)
             await this.ensureBaseSetsLoaded();
             
@@ -1195,6 +1198,34 @@ class PokezamBot {
         } catch (error) {
             console.error('❌ Error ensuring TCG data:', error.message);
             console.log('⚠️  Continuing with API fallback...');
+        }
+    }
+
+    // POSTGRESQL SCHEMA FIX: Ensure all required columns exist
+    async fixPostgreSQLSchema() {
+        if (this.databaseManager.dbType === 'postgresql') {
+            console.log('🔧 Running PostgreSQL schema fixes...');
+            
+            try {
+                const { fixPostgreSQLSchema } = require('./scripts/fixPostgreSQLSchema');
+                
+                // Create a fixer instance that uses our existing database
+                const { PostgreSQLSchemaFixer } = require('./scripts/fixPostgreSQLSchema');
+                const fixer = new PostgreSQLSchemaFixer();
+                fixer.db = this.database; // Use existing connection
+                
+                await fixer.fixUsersTableSchema();
+                await fixer.fixQuestsTableSchema();
+                await fixer.verifyFixes();
+                
+                console.log('✅ PostgreSQL schema fixes complete');
+                
+            } catch (error) {
+                console.error('❌ PostgreSQL schema fix failed:', error.message);
+                console.log('⚠️  Continuing with existing schema...');
+            }
+        } else {
+            console.log('📋 SQLite detected, skipping PostgreSQL schema fixes');
         }
     }
 

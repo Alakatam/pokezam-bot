@@ -174,7 +174,7 @@ class Database {
                 { name: 'last_daily_claim', type: 'TEXT' },
                 { name: 'daily_streak', type: 'INTEGER DEFAULT 0' },
                 { name: 'coins', type: 'INTEGER DEFAULT 0' },
-                { name: 'cooldown_bypass', type: 'BOOLEAN DEFAULT 0' },
+                { name: 'cooldown_bypass', type: this.dbType === 'postgresql' ? 'BOOLEAN DEFAULT FALSE' : 'BOOLEAN DEFAULT 0' },
                 { name: 'showcase_count', type: 'INTEGER DEFAULT 0' }
             ];
             
@@ -182,9 +182,20 @@ class Database {
                 if (!userColumnNames.includes(column.name)) {
                     try {
                         await this.run(`ALTER TABLE users ADD COLUMN ${column.name} ${column.type}`);
-                        console.log(`Added daily reward column: ${column.name}`);
+                        console.log(`✅ Added daily reward column: ${column.name}`);
                     } catch (err) {
-                        console.log(`Column ${column.name} may already exist`);
+                        console.log(`⚠️  Column ${column.name} addition failed: ${err.message}`);
+                        // Try alternative PostgreSQL syntax for booleans
+                        if (column.name === 'cooldown_bypass' && this.dbType === 'postgresql') {
+                            try {
+                                await this.run(`ALTER TABLE users ADD COLUMN ${column.name} BOOLEAN`);
+                                await this.run(`UPDATE users SET ${column.name} = FALSE WHERE ${column.name} IS NULL`);
+                                await this.run(`ALTER TABLE users ALTER COLUMN ${column.name} SET DEFAULT FALSE`);
+                                console.log(`✅ Added ${column.name} with PostgreSQL-specific syntax`);
+                            } catch (err2) {
+                                console.error(`❌ Failed to add ${column.name} with alternative syntax:`, err2.message);
+                            }
+                        }
                     }
                 }
             }
