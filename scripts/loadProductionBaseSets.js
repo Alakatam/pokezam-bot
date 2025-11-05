@@ -183,8 +183,16 @@ class ProductionTCGLoader {
                 id: cardsData[0].id,
                 name: cardsData[0].name,
                 set: cardsData[0].set,
-                setId: cardsData[0].set?.id
+                setId: cardsData[0].set?.id,
+                allKeys: Object.keys(cardsData[0])
             });
+            
+            // Show first few cards to understand structure
+            console.log(`🔍 First 3 cards:`, cardsData.slice(0, 3).map(card => ({
+                id: card.id,
+                name: card.name,
+                setId: card.set?.id
+            })));
         }
         
         // Filter for base sets - check both set.id and infer from card ID patterns
@@ -219,64 +227,71 @@ class ProductionTCGLoader {
             console.log('\n⏭️  No sets metadata found, focusing on cards...');
         }
 
-        // Process cards
+        // Process cards - ALWAYS try direct file approach since we know base1.json exists
         console.log('\n🔄 Processing base set cards...');
+        console.log('🎯 Since we detected base files in logs, using direct file approach...');
         
-        if (baseCards.length === 0) {
-            console.log('⚠️  No base cards found with current filtering. Trying direct file approach...');
+        // Direct approach: Load base1.json directly since we saw it in the logs
+        try {
+            const fs = require('fs');
+            const path = require('path');
             
-            // Direct approach: Load base1.json directly since we saw it in the logs
-            try {
-                const fs = require('fs');
-                const path = require('path');
-                
-                const baseFiles = ['base1.json', 'base2.json', 'base3.json'];
-                let directCards = [];
-                
-                for (const fileName of baseFiles) {
-                    try {
-                        const filePath = path.resolve(__dirname, '../tcg-data/cards/en', fileName);
-                        console.log(`📂 Attempting direct load: ${filePath}`);
-                        
-                        if (fs.existsSync(filePath)) {
-                            const fileContent = fs.readFileSync(filePath, 'utf8');
-                            const cards = JSON.parse(fileContent);
-                            directCards.push(...cards);
-                            console.log(`✅ Loaded ${cards.length} cards from ${fileName}`);
-                        }
-                    } catch (fileError) {
-                        console.log(`⚠️  Failed to load ${fileName}: ${fileError.message}`);
+            const baseFiles = ['base1.json', 'base2.json', 'base3.json'];
+            let directCards = [];
+            
+            for (const fileName of baseFiles) {
+                try {
+                    const filePath = path.resolve(__dirname, '../tcg-data/cards/en', fileName);
+                    console.log(`📂 Attempting direct load: ${filePath}`);
+                    
+                    if (fs.existsSync(filePath)) {
+                        const fileContent = fs.readFileSync(filePath, 'utf8');
+                        const cards = JSON.parse(fileContent);
+                        directCards.push(...cards);
+                        console.log(`✅ Loaded ${cards.length} cards from ${fileName}`);
+                    } else {
+                        console.log(`⚠️  File not found: ${filePath}`);
                     }
+                } catch (fileError) {
+                    console.log(`⚠️  Failed to load ${fileName}: ${fileError.message}`);
                 }
-                
-                console.log(`📊 Direct loading found ${directCards.length} cards`);
-                
-                // Process directly loaded cards
+            }
+            
+            console.log(`📊 Direct loading found ${directCards.length} cards`);
+            
+            // Process directly loaded cards
+            if (directCards.length > 0) {
                 let cardCount = 0;
                 for (const card of directCards) {
+                    try {
+                        await this.processCard(card);
+                        cardCount++;
+                        
+                        if (cardCount % 50 === 0) {
+                            console.log(`   📊 Processed ${cardCount} cards...`);
+                        }
+                    } catch (cardError) {
+                        console.log(`⚠️  Failed to process card ${card?.id}: ${cardError.message}`);
+                    }
+                }
+                console.log(`✅ Processed ${cardCount} cards via direct loading`);
+            } else {
+                console.log('⚠️  No cards found via direct loading, trying filtered approach...');
+                
+                // Fallback to filtered loading
+                let cardCount = 0;
+                for (const card of baseCards) {
                     await this.processCard(card);
                     cardCount++;
-                    this.totalCardsAdded++;
                     
                     if (cardCount % 50 === 0) {
                         console.log(`   📊 Processed ${cardCount} cards...`);
                     }
                 }
-                
-            } catch (directError) {
-                console.error('❌ Direct loading failed:', directError.message);
             }
-        } else {
-            // Normal processing
-            let cardCount = 0;
-            for (const card of baseCards) {
-                await this.processCard(card);
-                cardCount++;
-                
-                if (cardCount % 50 === 0) {
-                    console.log(`   📊 Processed ${cardCount} cards...`);
-                }
-            }
+            
+        } catch (directError) {
+            console.error('❌ Direct loading failed:', directError.message);
         }
 
         console.log('\n📊 BASE SET LOADING SUMMARY:');
