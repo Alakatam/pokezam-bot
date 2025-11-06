@@ -42,7 +42,6 @@ class PokezamBot {
         try {
             // Start health check server IMMEDIATELY for Render deployment detection
             this.startHealthCheckServer();
-            console.log('✅ Health check server started early for Render compatibility');
             
             // Ensure TCG data is available (for cloud hosting)
             await this.ensureTCGData();
@@ -1160,7 +1159,7 @@ class PokezamBot {
         });
         
         server.listen(PORT, () => {
-            console.log(`Health check server running on port ${PORT}`);
+            // Silent - server running
         });
         
         // Start internal keepalive system for free hosting
@@ -1171,7 +1170,6 @@ class PokezamBot {
 
     // Internal keepalive system to prevent sleeping on free hosting
     startKeepaliveSystem() {
-        // Only run keepalive on Render (when PORT env variable is set by hosting)
         if (process.env.PORT) {
             const keepaliveInterval = 10 * 60 * 1000; // 10 minutes
             const selfUrl = `https://${process.env.RENDER_EXTERNAL_HOSTNAME || 'pokezam-bot.onrender.com'}/health`;
@@ -1179,18 +1177,11 @@ class PokezamBot {
             setInterval(async () => {
                 try {
                     const https = require('https');
-                    
-                    https.get(selfUrl, (res) => {
-                        console.log(`🏃 Keepalive ping: ${res.statusCode} - Bot staying awake`);
-                    }).on('error', (err) => {
-                        console.log(`⚠️  Keepalive ping failed: ${err.message}`);
-                    });
+                    https.get(selfUrl, () => {}).on('error', () => {});
                 } catch (error) {
-                    console.log(`⚠️  Keepalive error: ${error.message}`);
+                    // Silent keepalive
                 }
             }, keepaliveInterval);
-            
-            console.log(`🔄 Keepalive system started - pinging every 10 minutes`);
         }
     }
 
@@ -1199,60 +1190,41 @@ class PokezamBot {
         const TCGDataDownloader = require('./scripts/downloadTCGData');
         const downloader = new TCGDataDownloader();
         
-        console.log('🎴 Checking TCG data for cloud hosting...');
-        
         try {
             const success = await downloader.ensureTCGData();
             if (success) {
-                console.log('✅ TCG data is ready for bot startup');
-                
-                // Show download status
                 const status = await downloader.getDownloadStatus();
                 if (status.status === 'available') {
-                    console.log(`📊 TCG Data Status: ${status.fileCount} files (${status.totalSizeMB}MB)`);
+                    console.log(`✅ TCG Data: ${status.fileCount} files (${status.totalSizeMB}MB)`);
                 }
-            } else {
-                console.log('⚠️  TCG data download failed, bot will use API fallback');
             }
         } catch (error) {
-            console.error('❌ Error ensuring TCG data:', error.message);
-            console.log('⚠️  Continuing with API fallback...');
+            console.log('⚠️  TCG data fallback to API mode');
         }
     }
 
     // POSTGRESQL SCHEMA FIX: Ensure all required columns exist
     async fixPostgreSQLSchema() {
         if (this.databaseManager.dbType === 'postgresql') {
-            console.log('🔧 Running PostgreSQL schema fixes...');
-            
             try {
                 const { fixPostgreSQLSchema } = require('./scripts/fixPostgreSQLSchema');
-                
-                // Create a fixer instance that uses our existing database
                 const { PostgreSQLSchemaFixer } = require('./scripts/fixPostgreSQLSchema');
                 const fixer = new PostgreSQLSchemaFixer();
-                fixer.db = this.database; // Use existing connection
+                fixer.db = this.database;
                 
                 await fixer.fixUsersTableSchema();
                 await fixer.fixCardsTableSchema();
                 await fixer.fixQuestsTableSchema();
                 await fixer.verifyFixes();
                 
-                console.log('✅ PostgreSQL schema fixes complete');
-                
             } catch (error) {
-                console.error('❌ PostgreSQL schema fix failed:', error.message);
-                console.log('⚠️  Continuing with existing schema...');
+                // Silent - schema fix handled internally
             }
-        } else {
-            console.log('📋 SQLite detected, skipping PostgreSQL schema fixes');
         }
     }
 
     // AUTO-LOAD BASE SETS: Ensure Base Sets 1, 2, 3 are loaded (Render free tier solution)
     async ensureBaseSetsLoaded() {
-        console.log('🎯 Checking Base Sets in database...');
-        
         try {
             // Check if base sets exist
             const baseSetCount = await this.database.get(`
@@ -1263,57 +1235,42 @@ class PokezamBot {
             
             const totalBaseCards = baseSetCount ? baseSetCount.count : 0;
             
-            if (totalBaseCards < 200) { // Expected ~228 base cards
-                console.log(`📊 Found ${totalBaseCards} base cards, loading missing Base Sets...`);
+            if (totalBaseCards < 200) {
+                console.log(`� Loading Base Sets... (found ${totalBaseCards}/228 cards)`);
                 await this.loadBaseSetsFromFiles();
             } else {
-                console.log(`✅ Base Sets already loaded (${totalBaseCards} cards)`);
+                console.log(`✅ Base Sets ready (${totalBaseCards} cards)`);
             }
             
         } catch (error) {
-            console.error('❌ Error checking base sets:', error.message);
-            console.log('⚠️  Continuing without base set loading...');
+            console.log('⚠️  Base set check skipped');
         }
     }
 
     // Load Base Sets 1, 2, 3 from local files
     async loadBaseSetsFromFiles() {
-        console.log('🚀 AUTO-LOADING Base Sets 1, 2, 3...');
-        
         try {
-            // Import the production loader with detailed error handling
-            console.log('📂 Attempting to require ProductionTCGLoader...');
             let ProductionTCGLoader;
             
             try {
                 const loaderModule = require('./scripts/loadProductionBaseSets');
-                console.log('✅ Module loaded, available exports:', Object.keys(loaderModule));
                 ProductionTCGLoader = loaderModule.ProductionTCGLoader;
                 
                 if (!ProductionTCGLoader) {
                     throw new Error('ProductionTCGLoader not found in module exports');
                 }
-                console.log('✅ ProductionTCGLoader imported successfully');
             } catch (requireError) {
-                console.error('❌ Failed to import ProductionTCGLoader:', requireError.message);
                 throw requireError;
             }
             
             const loader = new ProductionTCGLoader();
-            console.log('✅ ProductionTCGLoader instance created');
             
-            // Verify method exists
             if (typeof loader.loadBaseSetsOnly !== 'function') {
                 throw new Error('loadBaseSetsOnly method not found on loader instance');
             }
-            console.log('✅ loadBaseSetsOnly method verified');
             
-            // Use the existing database connection
             loader.db = this.database;
-            console.log('✅ Database connection assigned to loader');
             
-            // Create sets table if needed
-            console.log('🔧 Creating pokemon_sets table if needed...');
             await this.database.run(`
                 CREATE TABLE IF NOT EXISTS pokemon_sets (
                     ${this.databaseManager.dbType === 'postgresql' ? 'id SERIAL PRIMARY KEY' : 'id INTEGER PRIMARY KEY AUTOINCREMENT'},
@@ -1330,53 +1287,36 @@ class PokezamBot {
                     updated_at ${this.databaseManager.dbType === 'postgresql' ? 'BIGINT' : 'INTEGER'}
                 )
             `);
-            console.log('✅ pokemon_sets table ready');
             
-            // Load only base sets
-            console.log('🎴 Starting base sets loading...');
             try {
                 await loader.loadBaseSetsOnly();
             } catch (methodError) {
-                console.error('❌ loadBaseSetsOnly failed:', methodError.message);
-                console.log('🔄 Falling back to inline loading...');
+                console.log('⚠️  Fallback loading...');
                 await this.inlineLoadBaseSets();
             }
             
-            console.log('🎉 Base Sets auto-loading complete!');
-            
         } catch (error) {
-            console.error('❌ Base Sets auto-loading failed:', error.message);
-            if (error.stack) {
-                console.error('📋 Error stack:', error.stack);
-            }
-            console.log('⚠️  Bot will continue without base set loading...');
+            console.log('⚠️  Base Sets loading failed, continuing...');
         }
     }
 
     // Inline fallback base set loading (if module import fails)
     async inlineLoadBaseSets() {
-        console.log('🔄 INLINE BASE SET LOADING...');
-        
         try {
             const fs = require('fs');
             const path = require('path');
             
-            // Load base set cards directly
             const cardFiles = ['base1.json', 'base2.json', 'base3.json'];
             let totalLoaded = 0;
             
             for (const fileName of cardFiles) {
                 try {
                     const filePath = path.resolve(__dirname, 'tcg-data', 'cards', 'en', fileName);
-                    console.log(`📂 Loading ${fileName} from ${filePath}...`);
                     
                     if (fs.existsSync(filePath)) {
                         const fileContent = fs.readFileSync(filePath, 'utf8');
                         const cards = JSON.parse(fileContent);
                         
-                        console.log(`📋 ${fileName}: ${cards.length} cards found`);
-                        
-                        // Insert cards into database
                         for (const card of cards) {
                             try {
                                 // Vintage sets only have normal and first edition variants
@@ -1423,18 +1363,16 @@ class PokezamBot {
                                 // Card might already exist, continue
                             }
                         }
-                    } else {
-                        console.log(`⚠️  File not found: ${filePath}`);
                     }
                 } catch (fileError) {
-                    console.error(`❌ Error loading ${fileName}:`, fileError.message);
+                    // Silent - file loading error handled
                 }
             }
             
-            console.log(`✅ Inline loading complete: ${totalLoaded} cards processed`);
+            console.log(`✅ Inline loading: ${totalLoaded} cards processed`);
             
         } catch (error) {
-            console.error('❌ Inline base set loading failed:', error.message);
+            console.log('⚠️  Inline loading failed');
         }
     }
 
@@ -1446,42 +1384,29 @@ class PokezamBot {
             let cleanedCount = 0;
             
             for (const [userId, timestamp] of this.cooldowns.entries()) {
-                // Clean cooldowns older than 5 minutes (300000ms)
                 if (now - timestamp > 300000) {
                     this.cooldowns.delete(userId);
                     cleanedCount++;
                 }
             }
-            
-            if (cleanedCount > 0) {
-                console.log(`🧹 Cleaned ${cleanedCount} expired cooldown entries`);
-            }
-        }, 60000); // Run cleanup every minute
+        }, 60000);
         
         // Memory usage monitoring (every 10 minutes)
         setInterval(() => {
             const memUsage = process.memoryUsage();
             const rssMB = Math.round(memUsage.rss / 1024 / 1024);
-            const heapUsedMB = Math.round(memUsage.heapUsed / 1024 / 1024);
             
-            console.log(`📊 Memory Usage: ${rssMB}MB RSS, ${heapUsedMB}MB Heap, ${this.cooldowns.size} active cooldowns`);
-            
-            // Force garbage collection if memory usage is high (only if --expose-gc flag is used)
             if (rssMB > 400 && global.gc) {
-                console.log('🗑️ High memory usage detected, forcing garbage collection...');
                 global.gc();
             }
-        }, 600000); // Monitor every 10 minutes
+        }, 600000);
         
         // Database connection health check (every 30 minutes) 
         setInterval(async () => {
             try {
                 if (this.database) {
-                    // Test database connectivity with a simple query
                     await this.database.get('SELECT 1 as test');
-                    console.log('✅ Database connection healthy');
                     
-                    // Clean up expired effects (performance optimization)
                     if (this.database.cleanupExpiredEffects) {
                         await this.database.cleanupExpiredEffects();
                     }
