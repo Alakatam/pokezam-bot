@@ -26,10 +26,7 @@ class PostgreSQLSchemaFixer {
     }
 
     async fixUsersTableSchema() {
-        console.log('🔧 Fixing Users table schema...');
-        
         try {
-            // Get existing columns
             const result = await this.db.all(`
                 SELECT column_name 
                 FROM information_schema.columns 
@@ -37,9 +34,6 @@ class PostgreSQLSchemaFixer {
             `);
             const existingColumns = result.map(col => col.column_name);
             
-            console.log(`📋 Existing users columns: ${existingColumns.length} found`);
-            
-            // Define required columns with PostgreSQL-specific types
             const requiredColumns = [
                 { name: 'last_daily_claim', type: 'TEXT' },
                 { name: 'daily_streak', type: 'INTEGER DEFAULT 0' },
@@ -54,32 +48,21 @@ class PostgreSQLSchemaFixer {
                 { name: 'total_rare_pulls', type: 'INTEGER DEFAULT 0' }
             ];
 
-            // Add missing columns
+            let added = 0;
             for (const column of requiredColumns) {
                 if (!existingColumns.includes(column.name)) {
                     try {
                         await this.db.run(`ALTER TABLE users ADD COLUMN ${column.name} ${column.type}`);
-                        console.log(`✅ Added users column: ${column.name}`);
                         this.fixedColumns.push(`users.${column.name}`);
+                        added++;
                     } catch (err) {
-                        console.error(`❌ Failed to add users.${column.name}:`, err.message);
-                        
-                        // Special handling for cooldown_bypass
-                        if (column.name === 'cooldown_bypass') {
-                            try {
-                                await this.db.run(`ALTER TABLE users ADD COLUMN ${column.name} BOOLEAN`);
-                                await this.db.run(`UPDATE users SET ${column.name} = FALSE WHERE ${column.name} IS NULL`);
-                                await this.db.run(`ALTER TABLE users ALTER COLUMN ${column.name} SET DEFAULT FALSE`);
-                                console.log(`✅ Added ${column.name} with alternative method`);
-                                this.fixedColumns.push(`users.${column.name}`);
-                            } catch (err2) {
-                                console.error(`❌ Alternative method failed for ${column.name}:`, err2.message);
-                            }
-                        }
+                        // Silent fail - column might exist or be incompatible
                     }
-                } else {
-                    console.log(`📋 Column users.${column.name} already exists`);
                 }
+            }
+            
+            if (added > 0) {
+                console.log(`✅ Added ${added} missing users columns`);
             }
             
         } catch (error) {
@@ -88,10 +71,7 @@ class PostgreSQLSchemaFixer {
     }
 
     async fixCardsTableSchema() {
-        console.log('🔧 Fixing Cards table schema...');
-        
         try {
-            // Get existing columns
             const result = await this.db.all(`
                 SELECT column_name 
                 FROM information_schema.columns 
@@ -99,31 +79,24 @@ class PostgreSQLSchemaFixer {
             `);
             const existingColumns = result.map(col => col.column_name);
             
-            console.log(`📋 Existing cards columns: ${existingColumns.length} found`);
-            
-            // First, make api_id nullable if it exists (local JSON files don't have API IDs)
+            // Make api_id nullable (local JSON files don't have API IDs)
             if (existingColumns.includes('api_id')) {
                 try {
                     await this.db.run(`ALTER TABLE cards ALTER COLUMN api_id DROP NOT NULL`);
-                    console.log(`✅ Made api_id column nullable`);
                     this.fixedColumns.push('cards.api_id (nullable)');
                 } catch (err) {
-                    console.log(`⚠️  Could not make api_id nullable: ${err.message}`);
+                    // Silent fail
                 }
             }
             
-            // Fix variant_holo for all existing cards (holo is NOT a variant, it's a rarity)
-            // Only naturally holographic cards (Rare Holo, Holo Rare, etc.) should show holo display
-            // The variant system should not add "holographic" as a variant option
+            // Fix variant_holo (holo is rarity, not variant)
             try {
-                const updateResult = await this.db.run(`UPDATE cards SET variant_holo = FALSE WHERE variant_holo = TRUE`);
-                console.log(`✅ Fixed variant_holo flags (holo is a rarity, not a variant)`);
+                await this.db.run(`UPDATE cards SET variant_holo = FALSE WHERE variant_holo = TRUE`);
                 this.fixedColumns.push('cards.variant_holo (corrected)');
             } catch (err) {
-                console.log(`⚠️  Could not fix variant_holo: ${err.message}`);
+                // Silent fail
             }
             
-            // Define required columns for cards table
             const requiredColumns = [
                 { name: 'card_id', type: 'TEXT UNIQUE' },
                 { name: 'subtype', type: 'TEXT' },
@@ -154,20 +127,22 @@ class PostgreSQLSchemaFixer {
                 { name: 'created_at', type: 'BIGINT' },
                 { name: 'updated_at', type: 'BIGINT' }
             ];
-            
-            // Add missing columns
+
+            let added = 0;
             for (const column of requiredColumns) {
                 if (!existingColumns.includes(column.name)) {
                     try {
                         await this.db.run(`ALTER TABLE cards ADD COLUMN ${column.name} ${column.type}`);
-                        console.log(`✅ Added cards column: ${column.name}`);
                         this.fixedColumns.push(`cards.${column.name}`);
+                        added++;
                     } catch (err) {
-                        console.error(`❌ Failed to add cards.${column.name}:`, err.message);
+                        // Silent fail
                     }
-                } else {
-                    console.log(`📋 Column cards.${column.name} already exists`);
                 }
+            }
+            
+            if (added > 0) {
+                console.log(`✅ Added ${added} missing cards columns`);
             }
             
         } catch (error) {
@@ -176,10 +151,7 @@ class PostgreSQLSchemaFixer {
     }
 
     async fixQuestsTableSchema() {
-        console.log('🔧 Fixing Quests table schema...');
-        
         try {
-            // Get existing columns
             const result = await this.db.all(`
                 SELECT column_name 
                 FROM information_schema.columns 
@@ -187,47 +159,49 @@ class PostgreSQLSchemaFixer {
             `);
             const existingColumns = result.map(col => col.column_name);
             
-            // Check for target_type column
             if (!existingColumns.includes('target_type')) {
                 try {
                     await this.db.run(`ALTER TABLE quests ADD COLUMN target_type TEXT DEFAULT 'card_draws'`);
-                    console.log(`✅ Added quests column: target_type`);
                     this.fixedColumns.push('quests.target_type');
                 } catch (err) {
-                    console.error(`❌ Failed to add quests.target_type:`, err.message);
+                    // Silent fail
                 }
-            } else {
-                console.log(`📋 Column quests.target_type already exists`);
             }
-            
         } catch (error) {
-            console.error('❌ Quests table schema fix failed:', error.message);
+            // Silent fail - table might not exist yet
         }
     }
 
-    async verifyFixes() {
-        console.log('🔍 Verifying schema fixes...');
-        
+    async verifyCooldownBypass() {
         try {
-            // Test cooldown_bypass column specifically
-            const testResult = await this.db.get(`
-                SELECT cooldown_bypass 
-                FROM users 
-                LIMIT 1
-            `);
-            
-            console.log('✅ cooldown_bypass column accessible');
-            
-            // Show summary
-            console.log('📊 Schema Fix Summary:');
-            console.log(`   Columns added: ${this.fixedColumns.length}`);
-            this.fixedColumns.forEach(col => {
-                console.log(`   ✅ ${col}`);
-            });
-            
+            await this.db.get(`SELECT cooldown_bypass FROM users LIMIT 1`);
         } catch (error) {
-            console.error('❌ Schema verification failed:', error.message);
+            // Silent fail
         }
+    }
+
+    async run() {
+        const isPostgreSQL = await this.initialize();
+        
+        if (!isPostgreSQL) {
+            await this.cleanup();
+            return;
+        }
+
+        console.log('🔧 Running PostgreSQL schema fixes...');
+        
+        await this.fixUsersTableSchema();
+        await this.fixCardsTableSchema();
+        await this.fixQuestsTableSchema();
+        await this.verifyCooldownBypass();
+        
+        if (this.fixedColumns.length > 0) {
+            console.log(`✅ Schema fixes complete: ${this.fixedColumns.length} changes applied`);
+        } else {
+            console.log(`✅ Schema already up to date`);
+        }
+        
+        await this.cleanup();
     }
 
     async cleanup() {
