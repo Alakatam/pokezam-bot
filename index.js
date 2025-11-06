@@ -1132,11 +1132,11 @@ class PokezamBot {
         try {
             console.log(`🔄 Registering ${commands.length} application (/) commands...`);
 
-            // Determine environment
-            const isProduction = process.env.NODE_ENV === 'production' || process.env.PORT;
+            // Determine environment - prioritize explicit NODE_ENV setting
+            const isProduction = process.env.NODE_ENV === 'production';
             const GUILD_ID = process.env.GUILD_ID || process.env.TEST_GUILD_ID;
             
-            // Development mode: Register to test guild for instant access
+            // Development mode OR Guild ID present: Register to test guild for instant access
             if (GUILD_ID && !isProduction) {
                 try {
                     console.log('🎯 [DEV MODE] Registering to test guild for instant access...');
