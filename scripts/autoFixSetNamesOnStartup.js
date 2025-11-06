@@ -130,6 +130,14 @@ async function autoFixSetNames(database) {
     console.log('🔧 Auto-running set_name migration...');
     
     try {
+        // Debug: Check what's actually in the database
+        const sampleCards = await database.all(`
+            SELECT card_id, set_id, set_name 
+            FROM cards 
+            LIMIT 5
+        `);
+        console.log('📋 Sample cards:', sampleCards);
+        
         // Get count of cards needing fix
         const cardsToFixCount = await database.get(`
             SELECT COUNT(*) as count 
@@ -139,28 +147,61 @@ async function autoFixSetNames(database) {
             AND (set_name IS NULL OR set_name = '')
         `);
 
+        console.log(`📊 Cards needing fix: ${cardsToFixCount.count}`);
+
         if (cardsToFixCount.count === 0) {
-            console.log('✅ No cards need set_name fix');
-            // Create flag file to prevent re-running
-            fs.writeFileSync(MIGRATION_FLAG_FILE, new Date().toISOString());
-            return;
+            // Check if Generation I cards exist with proper set_name
+            const genICheck = await database.get(`
+                SELECT COUNT(*) as count 
+                FROM cards 
+                WHERE set_name IN ('Base Set', 'Jungle', 'Fossil', 'Base Set 2', 'Team Rocket')
+            `);
+            
+            console.log(`🎯 Generation I cards found: ${genICheck.count}`);
+            
+            if (genICheck.count > 0) {
+                console.log('✅ Database already has proper set_name values!');
+                // Create flag file to prevent re-running
+                fs.writeFileSync(MIGRATION_FLAG_FILE, new Date().toISOString());
+                return;
+            } else {
+                console.log('⚠️  No Generation I cards found with set_name - checking set_id...');
+                const setIdCheck = await database.all(`
+                    SELECT DISTINCT set_id 
+                    FROM cards 
+                    WHERE set_id IN ('base1', 'base2', 'base3', 'base4', 'base5')
+                    ORDER BY set_id
+                `);
+                console.log('🔍 Generation I set_ids found:', setIdCheck.map(s => s.set_id));
+                
+                if (setIdCheck.length === 0) {
+                    console.log('❌ No Generation I cards found at all!');
+                    // Don't create flag file - something is wrong
+                    return;
+                }
+                
+                // Cards exist but set_name is not NULL/empty - it might be equal to set_id
+                console.log('💡 Attempting to fix cards where set_name = set_id...');
+            }
         }
 
-        console.log(`📊 Fixing ${cardsToFixCount.count} cards...`);
+        console.log(`🔄 Fixing cards...`);
 
         let updatedCount = 0;
 
         // Update each set_id to set_name
         for (const [setId, setName] of Object.entries(SET_ID_TO_NAME)) {
             try {
+                // Update cards where set_name is NULL, empty, or equal to set_id
                 const result = await database.run(
-                    "UPDATE cards SET set_name = ? WHERE set_id = ? AND (set_name IS NULL OR set_name = '')",
+                    "UPDATE cards SET set_name = ? WHERE set_id = ? AND (set_name IS NULL OR set_name = '' OR set_name = set_id)",
                     [setName, setId]
                 );
                 // PostgreSQL returns rowCount, SQLite returns changes
                 const changed = result.changes || result.rowCount || 0;
                 if (changed > 0) {
                     updatedCount += changed;
+                    console.log(`   ✅ ${setId} → ${setName}: ${changed} cards`);
                 }
             } catch (error) {
                 console.error(`   ⚠️  Error updating ${setId}:`, error.message);
