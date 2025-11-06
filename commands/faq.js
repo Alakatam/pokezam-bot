@@ -322,7 +322,7 @@ spending gold:
 
 ❓ "How do quests work?"
 access command         : "/quest (requires /start)"
-reset times            : "22:00 ET daily/weekly/monthly"
+reset times            : "20:00 ET daily/weekly/monthly"
 automatic assignment   : "No manual selection needed"
 
 quest types:

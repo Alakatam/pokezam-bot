@@ -9,7 +9,7 @@ async function testDailyResetLogic() {
         await database.connect();
         await database.initialize();
         
-        console.log('🧪 Testing Daily Reset Logic (22:00 ET)...\n');
+        console.log('🧪 Testing Daily Reset Logic (20:00 ET)...\n');
         
         const now = new Date();
         const easternTime = new Date(now.toLocaleString("en-US", {timeZone: "America/New_York"}));
@@ -18,23 +18,23 @@ async function testDailyResetLogic() {
         console.log(`Current ET: ${easternTime.toLocaleString("en-US", {timeZone: "America/New_York"})}`);
         console.log(`Current ET Hour: ${easternTime.getHours()}\n`);
         
-        // Calculate the last 22:00 ET reset time
-        const lastResetTime = new Date(easternTime);
-        lastResetTime.setHours(22, 0, 0, 0);
+        // Calculate the last 20:00 ET reset time
+        const lastResetTime = new Date(easternTimeString);
+        lastResetTime.setHours(20, 0, 0, 0);
         
-        // If it's before 22:00 ET today, the reset was yesterday at 22:00 ET
-        if (easternTime.getHours() < 22) {
+        // If it's before 20:00 ET today, the reset was yesterday at 20:00 ET
+        if (easternTime.getHours() < 20) {
             lastResetTime.setDate(lastResetTime.getDate() - 1);
-            console.log('⏰ Before 22:00 ET - Last reset was yesterday');
+            console.log('⏰ Before 20:00 ET - Last reset was yesterday');
         } else {
-            console.log('⏰ After 22:00 ET - Last reset was today');
+            console.log('⏰ After 20:00 ET - Last reset was today');
         }
         
         console.log(`Last Reset Time (ET): ${lastResetTime.toLocaleString("en-US", {timeZone: "America/New_York"})}`);
         
         // Calculate next reset time
-        const nextReset = new Date(easternTime);
-        nextReset.setHours(22, 0, 0, 0);
+        const nextReset = new Date(easternTimeString);
+        nextReset.setHours(20, 0, 0, 0);
         
         if (easternTime.getHours() >= 22) {
             nextReset.setDate(nextReset.getDate() + 1);
