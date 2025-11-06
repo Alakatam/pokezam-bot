@@ -140,9 +140,9 @@ class CardManager {
     getSetsByGeneration(generation) {
         const generationSets = {
             // 1. Original Series (Generation I) - Kanto Region  
-            // EPISODE 112: FIXED TO USE ACTUAL PRODUCTION SET NAMES
+            // Use actual set_name values from database (not set_id)
             'Generation I': [
-                'base1', 'base2', 'base3', 'base4', 'base5'
+                'Base Set', 'Jungle', 'Fossil', 'Base Set 2', 'Team Rocket'
             ],
             
             // 2. Neo Series (Generation II) - Johto Region
@@ -415,8 +415,11 @@ class CardManager {
         const rand = Math.random();
         
         // SAFEGUARD: Vintage sets (pre-2002) should NEVER have reverse holos
-        const vintageSetIds = ['base1', 'base2', 'base3', 'base4', 'base5', 'gym1', 'gym2', 'neo1', 'neo2', 'neo3', 'neo4'];
-        const isVintageSet = vintageSetIds.includes(card.set_id);
+        // Use set_name since that's what's actually in the database
+        const vintageSetNames = ['Base Set', 'Jungle', 'Fossil', 'Base Set 2', 'Team Rocket', 
+                                  'Gym Heroes', 'Gym Challenge', 'Neo Genesis', 'Neo Discovery', 
+                                  'Neo Revelation', 'Neo Destiny'];
+        const isVintageSet = vintageSetNames.includes(card.set_name);
         
         // Check which variants are available for this card
         const availableVariants = [];
