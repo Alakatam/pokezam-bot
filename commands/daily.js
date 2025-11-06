@@ -27,16 +27,16 @@ module.exports = {
                 userData.coins = 0;
             }
 
-            // Check if user already claimed daily reward (resets at 22:00 ET daily)
+            // Check if user already claimed daily reward (resets at 20:00 ET daily)
             const now = new Date();
             const easternTime = new Date(now.toLocaleString("en-US", {timeZone: "America/New_York"}));
             
-            // Calculate the last 22:00 ET reset time
-            const lastResetTime = new Date(easternTime);
-            lastResetTime.setHours(22, 0, 0, 0);
+            // Calculate the last 20:00 ET reset time
+            const lastResetTime = new Date(easternTimeString);
+            lastResetTime.setHours(20, 0, 0, 0);
             
-            // If it's before 22:00 ET today, the reset was yesterday at 22:00 ET
-            if (easternTime.getHours() < 22) {
+            // If it's before 20:00 ET today, the reset was yesterday at 20:00 ET
+            if (easternTime.getHours() < 20) {
                 lastResetTime.setDate(lastResetTime.getDate() - 1);
             }
             
@@ -44,11 +44,11 @@ module.exports = {
             const lastClaimTimestamp = userData.last_daily_claim ? new Date(userData.last_daily_claim).getTime() / 1000 : 0;
             
             if (lastClaimTimestamp > resetTimestamp) {
-                // Calculate next reset time (22:00 ET)
-                const nextReset = new Date(easternTime);
-                nextReset.setHours(22, 0, 0, 0);
+                // Calculate next reset time (20:00 ET)
+                const nextReset = new Date(easternTimeString);
+                nextReset.setHours(20, 0, 0, 0);
                 
-                // If it's already past 22:00 ET today, next reset is tomorrow
+                // If it's already past 20:00 ET today, next reset is tomorrow
                 if (easternTime.getHours() >= 22) {
                     nextReset.setDate(nextReset.getDate() + 1);
                 }
@@ -68,7 +68,7 @@ module.exports = {
                 yamlCooldown += `   Hours: ${hoursLeft}h\n`;
                 yamlCooldown += `   Minutes: ${minutesLeft}m\n\n`;
                 yamlCooldown += '💡 TIP:\n';
-                yamlCooldown += '   Daily rewards reset at 22:00 ET!\n';
+                yamlCooldown += '   Daily rewards reset at 20:00 ET!\n';
                 yamlCooldown += '   Come back tomorrow for more rewards!\n\n';
                 yamlCooldown += '#════════════════════════════════\n';
                 yamlCooldown += '```';
@@ -80,7 +80,7 @@ module.exports = {
                         .setDescription(yamlCooldown)
                         .setTimestamp()
                         .setFooter({ 
-                            text: 'Daily rewards reset at 22:00 ET!',
+                            text: 'Daily rewards reset at 20:00 ET!',
                             iconURL: interaction.user.displayAvatarURL({ dynamic: true })
                         })
                     ],
@@ -91,14 +91,14 @@ module.exports = {
             // Initialize Progressive Daily Rewards system
             const progressiveRewards = new ProgressiveDailyRewards(database);
 
-            // Calculate progressive streak (based on 22:00 ET resets)
+            // Calculate progressive streak (based on 20:00 ET resets)
             let streakCount = 1;
             
             if (userData.last_daily_claim) {
                 const lastClaimTime = new Date(userData.last_daily_claim);
                 const lastClaimEastern = new Date(lastClaimTime.toLocaleString("en-US", {timeZone: "America/New_York"}));
                 
-                // Calculate expected previous reset time (yesterday at 22:00 ET)
+                // Calculate expected previous reset time (yesterday at 20:00 ET)
                 const expectedPrevReset = new Date(easternTime);
                 expectedPrevReset.setHours(22, 0, 0, 0);
                 expectedPrevReset.setDate(expectedPrevReset.getDate() - 1);

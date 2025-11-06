@@ -91,7 +91,7 @@ class QuestManager {
         const currentDate = easternTime.getDate();
         const lastDayOfMonth = new Date(easternTime.getFullYear(), easternTime.getMonth() + 1, 0).getDate();
         
-        // Only reset at 22:00 (10 PM) Eastern Time
+        // Only reset at 20:00 (8 PM) Eastern Time
         if (currentHour === 22) {
             // Get all user quests with their types
             const userQuests = await this.db.all(`
@@ -108,7 +108,7 @@ class QuestManager {
                 
                 // Check reset conditions based on quest type
                 if (quest.quest_type === 'daily') {
-                    // Daily quests reset every day at 22:00 ET
+                    // Daily quests reset every day at 20:00 ET
                     const assignedDate = new Date(quest.assigned_date * 1000);
                     const assignedEastern = new Date(assignedDate.toLocaleString("en-US", {timeZone: "America/New_York"}));
                     
@@ -119,7 +119,7 @@ class QuestManager {
                         shouldReset = true;
                     }
                 } else if (quest.quest_type === 'weekly') {
-                    // Weekly quests reset every Sunday at 22:00 ET
+                    // Weekly quests reset every Sunday at 20:00 ET
                     if (currentDay === 0) { // Sunday
                         const assignedDate = new Date(quest.assigned_date * 1000);
                         const daysSinceAssignment = Math.floor((nowTimestamp - quest.assigned_date) / (24 * 60 * 60));
@@ -129,7 +129,7 @@ class QuestManager {
                         }
                     }
                 } else if (quest.quest_type === 'monthly') {
-                    // Monthly quests reset on last day of month at 22:00 ET
+                    // Monthly quests reset on last day of month at 20:00 ET
                     if (currentDate === lastDayOfMonth) {
                         const assignedDate = new Date(quest.assigned_date * 1000);
                         const assignedEastern = new Date(assignedDate.toLocaleString("en-US", {timeZone: "America/New_York"}));
@@ -200,24 +200,24 @@ class QuestManager {
     }
 
     getTimeUntilReset(assignedDate, resetInterval) {
-        const now = Math.floor(Date.now() / 1000);
+        const now = Date.now(); // Keep as milliseconds
         
-        // Convert reset interval to seconds
-        let intervalSeconds;
+        // Convert reset interval to milliseconds (not seconds!)
+        let intervalMilliseconds;
         switch(resetInterval) {
-            case 'daily': intervalSeconds = 24 * 60 * 60; break;  // 1 day
-            case 'weekly': intervalSeconds = 7 * 24 * 60 * 60; break;  // 7 days  
-            case 'monthly': intervalSeconds = 30 * 24 * 60 * 60; break;  // 30 days
-            default: intervalSeconds = 24 * 60 * 60; break;  // default to daily
+            case 'daily': intervalMilliseconds = 24 * 60 * 60 * 1000; break;  // 1 day
+            case 'weekly': intervalMilliseconds = 7 * 24 * 60 * 60 * 1000; break;  // 7 days  
+            case 'monthly': intervalMilliseconds = 30 * 24 * 60 * 60 * 1000; break;  // 30 days
+            default: intervalMilliseconds = 24 * 60 * 60 * 1000; break;  // default to daily
         }
         
-        const nextReset = assignedDate + intervalSeconds;
+        const nextReset = assignedDate + intervalMilliseconds;
         const timeLeft = nextReset - now;
         
         if (timeLeft <= 0) return 'Ready to reset';
         
-        const hours = Math.floor(timeLeft / 3600);
-        const minutes = Math.floor((timeLeft % 3600) / 60);
+        const hours = Math.floor(timeLeft / (1000 * 3600));
+        const minutes = Math.floor((timeLeft % (1000 * 3600)) / (1000 * 60));
         
         if (hours > 0) {
             return `${hours}h ${minutes}m`;

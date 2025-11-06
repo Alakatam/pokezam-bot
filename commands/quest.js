@@ -322,58 +322,64 @@ error details          : "${showPageError.message}"
     },
 
     getNextResetInfo(questType) {
-        // Get current time in Eastern Time
+        // Get current time in Eastern Time (properly!)
         const now = new Date();
-        const easternTime = new Date(now.toLocaleString("en-US", {timeZone: "America/New_York"}));
+        // Create Eastern Time Date object using proper UTC offset conversion
+        const easternTimeString = now.toLocaleString("en-US", {timeZone: "America/New_York"});
+        const easternTime = new Date(easternTimeString);
         
         let nextReset, frequency, resetDescription;
         
         if (questType === 'daily') {
-            // Daily resets at 22:00 ET every day
-            nextReset = new Date(easternTime);
-            nextReset.setHours(22, 0, 0, 0);
+            // Daily resets at 20:00 ET every day
+            // Create nextReset in Eastern Time context
+            const etString = now.toLocaleString("en-US", {timeZone: "America/New_York"});
+            nextReset = new Date(etString);
+            nextReset.setHours(20, 0, 0, 0);
             
-            // If it's already past 22:00 today, set to tomorrow
-            if (easternTime.getHours() >= 22) {
+            // If it's already past 20:00 today, set to tomorrow
+            if (easternTime.getHours() >= 20) {
                 nextReset.setDate(nextReset.getDate() + 1);
             }
             
-            frequency = "Every day at 22:00 ET";
+            frequency = "Every day at 20:00 ET";
             resetDescription = "Daily";
             
         } else if (questType === 'weekly') {
-            // Weekly resets every Sunday at 22:00 ET
-            nextReset = new Date(easternTime);
+            // Weekly resets every Sunday at 20:00 ET
+            const etString = now.toLocaleString("en-US", {timeZone: "America/New_York"});
+            nextReset = new Date(etString);
             const daysUntilSunday = (7 - easternTime.getDay()) % 7;
             
-            if (daysUntilSunday === 0 && easternTime.getHours() < 22) {
-                // It's Sunday and before 22:00, reset today
-                nextReset.setHours(22, 0, 0, 0);
+            if (daysUntilSunday === 0 && easternTime.getHours() < 20) {
+                // It's Sunday and before 20:00, reset today
+                nextReset.setHours(20, 0, 0, 0);
             } else {
                 // Set to next Sunday
                 nextReset.setDate(nextReset.getDate() + (daysUntilSunday === 0 ? 7 : daysUntilSunday));
-                nextReset.setHours(22, 0, 0, 0);
+                nextReset.setHours(20, 0, 0, 0);
             }
             
-            frequency = "Every Sunday at 22:00 ET";
+            frequency = "Every Sunday at 20:00 ET";
             resetDescription = "Weekly";
             
         } else if (questType === 'monthly') {
-            // Monthly resets on the last day of the month at 22:00 ET
-            nextReset = new Date(easternTime);
+            // Monthly resets on the last day of the month at 20:00 ET
+            const etString = now.toLocaleString("en-US", {timeZone: "America/New_York"});
+            nextReset = new Date(etString);
             const lastDayOfMonth = new Date(nextReset.getFullYear(), nextReset.getMonth() + 1, 0);
             
-            if (easternTime.getDate() === lastDayOfMonth.getDate() && easternTime.getHours() < 22) {
-                // It's the last day and before 22:00, reset today
+            if (easternTime.getDate() === lastDayOfMonth.getDate() && easternTime.getHours() < 20) {
+                // It's the last day and before 20:00, reset today
                 nextReset = new Date(lastDayOfMonth);
-                nextReset.setHours(22, 0, 0, 0);
+                nextReset.setHours(20, 0, 0, 0);
             } else {
                 // Set to last day of next month
                 nextReset = new Date(nextReset.getFullYear(), nextReset.getMonth() + 1, 0);
-                nextReset.setHours(22, 0, 0, 0);
+                nextReset.setHours(20, 0, 0, 0);
             }
             
-            frequency = "Last day of month at 22:00 ET";
+            frequency = "Last day of month at 20:00 ET";
             resetDescription = "Monthly";
         }
         
