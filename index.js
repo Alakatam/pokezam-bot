@@ -98,10 +98,6 @@ class PokezamBot {
             // POSTGRESQL SCHEMA FIX: Ensure all columns exist (for Render PostgreSQL)
             await this.fixPostgreSQLSchema();
             
-            // AUTO-FIX SET NAMES: One-time migration to populate set_name from set_id
-            const autoFixSetNames = require('./scripts/autoFixSetNamesOnStartup');
-            await autoFixSetNames(this.database);
-            
             // AUTO-ADD COOLDOWN BYPASS: One-time migration to add cooldown_bypass column
             console.log('🔧 Checking cooldown_bypass column...');
             try {
@@ -145,6 +141,10 @@ class PokezamBot {
             
             await this.ensureBaseSetsLoaded();
             console.log('✅ Base sets check complete');
+            
+            // AUTO-FIX SET NAMES: Run AFTER base sets are loaded to fix set_name values
+            const autoFixSetNames = require('./scripts/autoFixSetNamesOnStartup');
+            await autoFixSetNames(this.database);
             
             // DEPLOYMENT FIX: Progressive card loading will happen AFTER bot is ready
             // Removed from startup sequence to prevent deployment timeouts
