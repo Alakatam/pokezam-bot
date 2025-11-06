@@ -192,15 +192,22 @@ class ProductionTCGLoader {
             if (directCards.length > 0) {
                 console.log(`📥 Processing ${directCards.length} base set cards...`);
                 let cardCount = 0;
+                let errorCount = 0;
                 for (const card of directCards) {
                     try {
                         await this.processCard(card);
                         cardCount++;
                     } catch (cardError) {
-                        // Silent fail on individual card errors
+                        errorCount++;
+                        if (errorCount <= 3) {
+                            console.error(`   ❌ Card error: ${cardError.message}`);
+                        }
                     }
                 }
                 console.log(`✅ Loaded ${cardCount} cards`);
+                if (errorCount > 0) {
+                    console.log(`⚠️  ${errorCount} cards failed to load`);
+                }
             } else {
                 // Fallback to filtered loading
                 for (const card of baseCards) {
@@ -268,7 +275,7 @@ class ProductionTCGLoader {
             let existingCard;
             try {
                 existingCard = await this.db.get(
-                    'SELECT id FROM cards WHERE card_id = ?',
+                    'SELECT id FROM cards WHERE api_id = ?',
                     [card.id]
                 );
             } catch (queryError) {
@@ -299,13 +306,13 @@ class ProductionTCGLoader {
 
                 await this.db.run(`
                     INSERT INTO cards (
-                        card_id, name, supertype, subtype, level, hp, 
+                        api_id, name, supertype, subtype, level, hp, 
                         rarity, artist, set_id, set_name, number, 
                         flavor_text, national_pokedex_number, image_url_small, 
                         image_url_large, tcgplayer_url, cardmarket_url,
                         variant_normal, variant_reverse, variant_holo, variant_first_edition, variant_promo,
                         created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `, [
                     card.id,
                     card.name || 'Unknown',
