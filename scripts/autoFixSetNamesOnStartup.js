@@ -152,12 +152,18 @@ async function autoFixSetNames(database) {
 
         // Update each set_id to set_name
         for (const [setId, setName] of Object.entries(SET_ID_TO_NAME)) {
-            const result = await database.run(
-                'UPDATE cards SET set_name = ? WHERE set_id = ? AND (set_name IS NULL OR set_name = "")',
-                [setName, setId]
-            );
-            if (result.changes > 0) {
-                updatedCount += result.changes;
+            try {
+                const result = await database.run(
+                    "UPDATE cards SET set_name = ? WHERE set_id = ? AND (set_name IS NULL OR set_name = '')",
+                    [setName, setId]
+                );
+                // PostgreSQL returns rowCount, SQLite returns changes
+                const changed = result.changes || result.rowCount || 0;
+                if (changed > 0) {
+                    updatedCount += changed;
+                }
+            } catch (error) {
+                console.error(`   ⚠️  Error updating ${setId}:`, error.message);
             }
         }
 
