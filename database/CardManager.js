@@ -35,15 +35,24 @@ class CardManager {
             return null;
         }
 
+        console.log(`🎴 ZAM DEBUG: Looking for sets: ${availableSets.join(', ')}`);
+
         // Prioritize cards with complete API data (proper images and numbers)
         let cards = await this.db.all(
             `SELECT * FROM cards 
              WHERE set_name IN (${availableSets.map(() => '?').join(',')})
              AND api_id IS NOT NULL
-             AND (image_large IS NOT NULL OR image_small IS NOT NULL)
+             AND (image_url_large IS NOT NULL OR image_url_small IS NOT NULL)
              ORDER BY RANDOM()`,
             availableSets
         );
+
+        console.log(`🎴 ZAM DEBUG: Found ${cards.length} cards with complete API data`);
+        
+        if (cards.length > 0) {
+            const sampleSets = [...new Set(cards.slice(0, 5).map(c => `${c.set_id}(${c.set_name})`))];
+            console.log(`🎴 ZAM DEBUG: Sample sets: ${sampleSets.join(', ')}`);
+        }
 
         // Fallback to cached cards if no complete ones found
         if (cards.length === 0) {
