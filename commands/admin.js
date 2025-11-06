@@ -110,6 +110,78 @@ module.exports = {
                 .setName('restore-database')
                 .setDescription('Restore user data from backup')
         )
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('addxp')
+                .setDescription('Add XP to a user (triggers level up if applicable)')
+                .addUserOption(option =>
+                    option.setName('user')
+                        .setDescription('The user to give XP to')
+                        .setRequired(true))
+                .addIntegerOption(option =>
+                    option.setName('amount')
+                        .setDescription('Amount of XP to add')
+                        .setRequired(true)
+                        .setMinValue(1)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('addgold')
+                .setDescription('Add gold to a user')
+                .addUserOption(option =>
+                    option.setName('user')
+                        .setDescription('The user to give gold to')
+                        .setRequired(true))
+                .addIntegerOption(option =>
+                    option.setName('amount')
+                        .setDescription('Amount of gold to add')
+                        .setRequired(true)
+                        .setMinValue(1)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('additem')
+                .setDescription('Add an item to a user\'s inventory')
+                .addUserOption(option =>
+                    option.setName('user')
+                        .setDescription('The user to give the item to')
+                        .setRequired(true))
+                .addStringOption(option =>
+                    option.setName('item')
+                        .setDescription('The item to add')
+                        .setRequired(true)
+                        .addChoices(
+                            { name: '🍀 Lucky Charm (Rare pull boost)', value: 'lucky_charm' },
+                            { name: '⚡ XP Boost (2x XP)', value: 'xp_boost' },
+                            { name: '💰 Gold Multiplier (1.5x gold)', value: 'gold_multiplier' },
+                            { name: '🎴 Card Magnet (More cards)', value: 'card_magnet' },
+                            { name: '✨ Master Charm (Premium boost)', value: 'master_charm' }
+                        ))
+                .addIntegerOption(option =>
+                    option.setName('uses')
+                        .setDescription('Number of uses (default: 10)')
+                        .setRequired(false)
+                        .setMinValue(1)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('setlevel')
+                .setDescription('Set a user\'s level directly')
+                .addUserOption(option =>
+                    option.setName('user')
+                        .setDescription('The user to set level for')
+                        .setRequired(true))
+                .addIntegerOption(option =>
+                    option.setName('level')
+                        .setDescription('The level to set')
+                        .setRequired(true)
+                        .setMinValue(1)
+                        .setMaxValue(200)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('viewuser')
+                .setDescription('View detailed user information')
+                .addUserOption(option =>
+                    option.setName('user')
+                        .setDescription('The user to view')
+                        .setRequired(true)))
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     
     async execute(interaction, { database, userManager, cardManager, questManager }) {
@@ -164,6 +236,21 @@ module.exports = {
                     break;
                 case 'restore-database':
                     await this.handleRestoreDatabase(interaction);
+                    break;
+                case 'addxp':
+                    await this.handleAddXP(interaction, userManager);
+                    break;
+                case 'addgold':
+                    await this.handleAddGold(interaction, userManager);
+                    break;
+                case 'additem':
+                    await this.handleAddItem(interaction, database);
+                    break;
+                case 'setlevel':
+                    await this.handleSetLevel(interaction, userManager);
+                    break;
+                case 'viewuser':
+                    await this.handleViewUser(interaction, userManager, database);
                     break;
             }
 
@@ -1137,6 +1224,349 @@ module.exports = {
                 embeds: [EmbedUtils.createErrorEmbed(
                     'Restore Failed',
                     `Failed to restore database backup.\n\n**Error**: ${error.message}`
+                )]
+            });
+        }
+    },
+
+    async handleAddXP(interaction, userManager) {
+        const targetUser = interaction.options.getUser('user');
+        const amount = interaction.options.getInteger('amount');
+        
+        await interaction.deferReply({ ephemeral: true });
+
+        try {
+            // Get or create user
+            let user = await userManager.getUser(targetUser.id);
+            if (!user) {
+                user = await userManager.createUser(targetUser.id, targetUser.username);
+            }
+
+            const oldLevel = user.level;
+            const oldXP = user.xp;
+
+            // Add XP and check for level up
+            await userManager.addXP(targetUser.id, amount);
+
+            // Get updated user data
+            const updatedUser = await userManager.getUser(targetUser.id);
+            const newLevel = updatedUser.level;
+            const leveledUp = newLevel > oldLevel;
+
+            let yamlContent = '```yaml\n';
+            yamlContent += '#═══════════════════════════════════════════════════\n';
+            yamlContent += '# 🔧 ADMIN: XP ADDED\n';
+            yamlContent += '#═══════════════════════════════════════════════════\n\n';
+            yamlContent += `target user        : "${targetUser.username}"\n`;
+            yamlContent += `xp added           : +${amount.toLocaleString()} ✨\n`;
+            yamlContent += `previous xp        : ${oldXP.toLocaleString()}\n`;
+            yamlContent += `new xp             : ${updatedUser.xp.toLocaleString()}\n`;
+            yamlContent += `previous level     : ${oldLevel}\n`;
+            yamlContent += `current level      : ${newLevel}\n`;
+            
+            if (leveledUp) {
+                const levelsGained = newLevel - oldLevel;
+                yamlContent += `\n🎉 LEVEL UP!       : +${levelsGained} level${levelsGained > 1 ? 's' : ''}\n`;
+            }
+            
+            yamlContent += '\n```';
+
+            await interaction.editReply({
+                embeds: [{
+                    title: '🔧 Admin Command: Add XP',
+                    description: yamlContent,
+                    color: leveledUp ? 0xffd700 : 0x00ff00,
+                    timestamp: new Date().toISOString()
+                }]
+            });
+
+            console.log(`[ADMIN] XP added by ${interaction.user.username}: ${targetUser.username} +${amount}XP (${oldLevel}→${newLevel})`);
+
+        } catch (error) {
+            console.error('Error adding XP:', error);
+            await interaction.editReply({
+                embeds: [EmbedUtils.createErrorEmbed(
+                    'Add XP Failed',
+                    `Failed to add XP to ${targetUser.username}.\n\n**Error**: ${error.message}`
+                )]
+            });
+        }
+    },
+
+    async handleAddGold(interaction, userManager) {
+        const targetUser = interaction.options.getUser('user');
+        const amount = interaction.options.getInteger('amount');
+        
+        await interaction.deferReply({ ephemeral: true });
+
+        try {
+            // Get or create user
+            let user = await userManager.getUser(targetUser.id);
+            if (!user) {
+                user = await userManager.createUser(targetUser.id, targetUser.username);
+            }
+
+            const oldGold = user.gold;
+            await userManager.addGold(targetUser.id, amount);
+            const updatedUser = await userManager.getUser(targetUser.id);
+
+            let yamlContent = '```yaml\n';
+            yamlContent += '#═══════════════════════════════════════════════════\n';
+            yamlContent += '# 💰 ADMIN: GOLD ADDED\n';
+            yamlContent += '#═══════════════════════════════════════════════════\n\n';
+            yamlContent += `target user        : "${targetUser.username}"\n`;
+            yamlContent += `gold added         : +${amount.toLocaleString()} 🪙\n`;
+            yamlContent += `previous gold      : ${oldGold.toLocaleString()}\n`;
+            yamlContent += `new gold           : ${updatedUser.gold.toLocaleString()}\n`;
+            yamlContent += '\n```';
+
+            await interaction.editReply({
+                embeds: [{
+                    title: '💰 Admin Command: Add Gold',
+                    description: yamlContent,
+                    color: 0xffd700,
+                    timestamp: new Date().toISOString()
+                }]
+            });
+
+            console.log(`[ADMIN] Gold added by ${interaction.user.username}: ${targetUser.username} +${amount} gold`);
+
+        } catch (error) {
+            console.error('Error adding gold:', error);
+            await interaction.editReply({
+                embeds: [EmbedUtils.createErrorEmbed(
+                    'Add Gold Failed',
+                    `Failed to add gold to ${targetUser.username}.\n\n**Error**: ${error.message}`
+                )]
+            });
+        }
+    },
+
+    async handleAddItem(interaction, database) {
+        const targetUser = interaction.options.getUser('user');
+        const itemType = interaction.options.getString('item');
+        const uses = interaction.options.getInteger('uses') || 10;
+
+        await interaction.deferReply({ ephemeral: true });
+
+        try {
+            // Get or create user
+            const existingUser = await database.get('SELECT id FROM users WHERE id = ?', [targetUser.id]);
+            if (!existingUser) {
+                await database.run(
+                    'INSERT INTO users (id, username, has_started, gold, xp, level) VALUES (?, ?, ?, ?, ?, ?)',
+                    [targetUser.id, targetUser.username, 1, 500, 0, 1]
+                );
+            }
+
+            // Item configurations
+            const itemConfigs = {
+                'lucky_charm': {
+                    name: 'Lucky Charm',
+                    emoji: '🍀',
+                    description: 'Increases rare card pull chance',
+                    duration: 3600 // 1 hour
+                },
+                'xp_boost': {
+                    name: 'XP Boost',
+                    emoji: '⚡',
+                    description: 'Doubles XP gain',
+                    duration: 3600
+                },
+                'gold_multiplier': {
+                    name: 'Gold Multiplier',
+                    emoji: '💰',
+                    description: 'Increases gold gain by 1.5x',
+                    duration: 3600
+                },
+                'card_magnet': {
+                    name: 'Card Magnet',
+                    emoji: '🎴',
+                    description: 'Increases card drop rate',
+                    duration: 3600
+                },
+                'master_charm': {
+                    name: 'Master Charm',
+                    emoji: '✨',
+                    description: 'Premium boost for all activities',
+                    duration: 7200
+                }
+            };
+
+            const item = itemConfigs[itemType];
+            const expiresAt = Math.floor(Date.now() / 1000) + item.duration;
+
+            // Add item as active effect
+            await database.run(`
+                INSERT INTO active_effects (
+                    user_id, effect_type, effect_value, 
+                    uses_remaining, expires_at, 
+                    created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            `, [
+                targetUser.id,
+                itemType,
+                1.0,
+                uses,
+                expiresAt,
+                Math.floor(Date.now() / 1000),
+                Math.floor(Date.now() / 1000)
+            ]);
+
+            let yamlContent = '```yaml\n';
+            yamlContent += '#═══════════════════════════════════════════════════\n';
+            yamlContent += '# 🎁 ADMIN: ITEM ADDED\n';
+            yamlContent += '#═══════════════════════════════════════════════════\n\n';
+            yamlContent += `target user        : "${targetUser.username}"\n`;
+            yamlContent += `item added         : ${item.emoji} ${item.name}\n`;
+            yamlContent += `description        : "${item.description}"\n`;
+            yamlContent += `uses               : ${uses}\n`;
+            yamlContent += `duration           : ${Math.floor(item.duration / 60)} minutes\n`;
+            yamlContent += '\n```';
+
+            await interaction.editReply({
+                embeds: [{
+                    title: '🎁 Admin Command: Add Item',
+                    description: yamlContent,
+                    color: 0x9b59b6,
+                    timestamp: new Date().toISOString()
+                }]
+            });
+
+            console.log(`[ADMIN] Item added by ${interaction.user.username}: ${targetUser.username} got ${item.name} x${uses}`);
+
+        } catch (error) {
+            console.error('Error adding item:', error);
+            await interaction.editReply({
+                embeds: [EmbedUtils.createErrorEmbed(
+                    'Add Item Failed',
+                    `Failed to add item to ${targetUser.username}.\n\n**Error**: ${error.message}`
+                )]
+            });
+        }
+    },
+
+    async handleSetLevel(interaction, userManager) {
+        const targetUser = interaction.options.getUser('user');
+        const level = interaction.options.getInteger('level');
+        
+        await interaction.deferReply({ ephemeral: true });
+
+        try {
+            // Get or create user
+            let user = await userManager.getUser(targetUser.id);
+            if (!user) {
+                user = await userManager.createUser(targetUser.id, targetUser.username);
+            }
+
+            const oldLevel = user.level;
+            await userManager.setLevel(targetUser.id, level);
+            const updatedUser = await userManager.getUser(targetUser.id);
+
+            let yamlContent = '```yaml\n';
+            yamlContent += '#═══════════════════════════════════════════════════\n';
+            yamlContent += '# 📊 ADMIN: LEVEL SET\n';
+            yamlContent += '#═══════════════════════════════════════════════════\n\n';
+            yamlContent += `target user        : "${targetUser.username}"\n`;
+            yamlContent += `previous level     : ${oldLevel}\n`;
+            yamlContent += `new level          : ${level}\n`;
+            yamlContent += `current xp         : ${updatedUser.xp.toLocaleString()}\n`;
+            yamlContent += '\n```';
+
+            await interaction.editReply({
+                embeds: [{
+                    title: '📊 Admin Command: Set Level',
+                    description: yamlContent,
+                    color: 0x3498db,
+                    timestamp: new Date().toISOString()
+                }]
+            });
+
+            console.log(`[ADMIN] Level set by ${interaction.user.username}: ${targetUser.username} ${oldLevel}→${level}`);
+
+        } catch (error) {
+            console.error('Error setting level:', error);
+            await interaction.editReply({
+                embeds: [EmbedUtils.createErrorEmbed(
+                    'Set Level Failed',
+                    `Failed to set level for ${targetUser.username}.\n\n**Error**: ${error.message}`
+                )]
+            });
+        }
+    },
+
+    async handleViewUser(interaction, userManager, database) {
+        const targetUser = interaction.options.getUser('user');
+        
+        await interaction.deferReply({ ephemeral: true });
+
+        try {
+            const user = await userManager.getUser(targetUser.id);
+            
+            if (!user) {
+                return await interaction.editReply({
+                    embeds: [EmbedUtils.createErrorEmbed(
+                        'User Not Found',
+                        `${targetUser.username} hasn't started their adventure yet.`
+                    )]
+                });
+            }
+
+            // Get active effects
+            const effects = await database.all(`
+                SELECT effect_type, uses_remaining, expires_at 
+                FROM active_effects 
+                WHERE user_id = ? 
+                AND (expires_at IS NULL OR expires_at > ?) 
+                AND (uses_remaining IS NULL OR uses_remaining > 0)
+            `, [targetUser.id, Math.floor(Date.now() / 1000)]);
+
+            // Get card count
+            const cardCount = await database.get(
+                'SELECT COUNT(DISTINCT card_id) as count FROM user_cards WHERE user_id = ?',
+                [targetUser.id]
+            );
+
+            let yamlContent = '```yaml\n';
+            yamlContent += '#═══════════════════════════════════════════════════\n';
+            yamlContent += `# 👤 USER INFO: ${targetUser.username.toUpperCase()}\n`;
+            yamlContent += '#═══════════════════════════════════════════════════\n\n';
+            yamlContent += `user id            : "${targetUser.id}"\n`;
+            yamlContent += `username           : "${user.username}"\n`;
+            yamlContent += `level              : ${user.level}\n`;
+            yamlContent += `xp                 : ${user.xp.toLocaleString()} ✨\n`;
+            yamlContent += `gold               : ${user.gold.toLocaleString()} 🪙\n`;
+            yamlContent += `cards collected    : ${cardCount.count.toLocaleString()} 🎴\n`;
+            yamlContent += `daily streak       : ${user.daily_streak || 0} 🔥\n`;
+            yamlContent += `has started        : ${user.has_started ? 'Yes' : 'No'}\n`;
+            
+            if (effects.length > 0) {
+                yamlContent += '\n# Active Effects:\n';
+                effects.forEach(effect => {
+                    const timeLeft = effect.expires_at ? Math.max(0, effect.expires_at - Math.floor(Date.now() / 1000)) : 'Permanent';
+                    yamlContent += `  - ${effect.effect_type}: ${effect.uses_remaining || '∞'} uses, `;
+                    yamlContent += typeof timeLeft === 'number' ? `${Math.floor(timeLeft / 60)}m left\n` : `${timeLeft}\n`;
+                });
+            }
+            
+            yamlContent += '\n```';
+
+            await interaction.editReply({
+                embeds: [{
+                    title: '👤 Admin Command: View User',
+                    description: yamlContent,
+                    color: 0xe74c3c,
+                    timestamp: new Date().toISOString(),
+                    thumbnail: { url: targetUser.displayAvatarURL() }
+                }]
+            });
+
+        } catch (error) {
+            console.error('Error viewing user:', error);
+            await interaction.editReply({
+                embeds: [EmbedUtils.createErrorEmbed(
+                    'View User Failed',
+                    `Failed to view ${targetUser.username}'s information.\n\n**Error**: ${error.message}`
                 )]
             });
         }
