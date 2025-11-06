@@ -31,14 +31,16 @@ Card Collection:
 
 Discovery & Tracking:
   /carddex-reg: Explore complete TCG database
-  /carddex-master: Track rare variant ownership
-  /quest: View daily challenges for rewards
 
 Strategic Gameplay:
   /shop: Purchase enhancement items
   /inventory: Manage your items and effects
   /use <item>: Activate items for bonuses
-  /active-boosts: Monitor your active effects\`\`\``,
+  /active-boosts: Monitor your active effects
+  
+Progression:
+  /quest: View daily challenges for rewards
+  /daily: Claim daily rewards and streaks\`\`\``,
                                     inline: false
                                 }
                             ])
@@ -138,10 +140,10 @@ Strategic Enhancement:
                         value: `\`\`\`yaml
 Collection Tracking:
   /carddex-reg: Explore all 101 TCG sets
-  /carddex-master: Track rare variants & completion
   
 Effect Management:
   /active-boosts: Monitor your active bonuses
+  /daily: Daily rewards and streaks
 \`\`\``,
                         inline: false
                     },
