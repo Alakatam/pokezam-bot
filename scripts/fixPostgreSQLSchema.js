@@ -101,6 +101,17 @@ class PostgreSQLSchemaFixer {
             
             console.log(`📋 Existing cards columns: ${existingColumns.length} found`);
             
+            // First, make api_id nullable if it exists (local JSON files don't have API IDs)
+            if (existingColumns.includes('api_id')) {
+                try {
+                    await this.db.run(`ALTER TABLE cards ALTER COLUMN api_id DROP NOT NULL`);
+                    console.log(`✅ Made api_id column nullable`);
+                    this.fixedColumns.push('cards.api_id (nullable)');
+                } catch (err) {
+                    console.log(`⚠️  Could not make api_id nullable: ${err.message}`);
+                }
+            }
+            
             // Define required columns for cards table
             const requiredColumns = [
                 { name: 'card_id', type: 'TEXT UNIQUE' },
