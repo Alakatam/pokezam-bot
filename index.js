@@ -121,6 +121,40 @@ class PokezamBot {
             const path = require('path');
             const forceReloadFlag = path.join(__dirname, '.force_reload_base_sets');
             
+            // AUTO-CHECK: Verify base1, base2, base3 exist - if not, clear migration and reload
+            const base123Check = await this.database.all(`
+                SELECT set_id, COUNT(*) as count 
+                FROM cards 
+                WHERE set_id IN ('base1', 'base2', 'base3')
+                GROUP BY set_id
+            `);
+            
+            const hasBase1 = base123Check.find(s => s.set_id === 'base1');
+            const hasBase2 = base123Check.find(s => s.set_id === 'base2');
+            const hasBase3 = base123Check.find(s => s.set_id === 'base3');
+            
+            console.log(`🔍 Base sets check: base1=${hasBase1?.count || 0}, base2=${hasBase2?.count || 0}, base3=${hasBase3?.count || 0}`);
+            
+            // If any base set is missing, trigger reload
+            if (!hasBase1 || !hasBase2 || !hasBase3) {
+                console.log('⚠️  Missing base sets detected - triggering automatic reload...');
+                
+                // Clear ALL base sets to ensure clean reload
+                try {
+                    await this.database.run(`DELETE FROM cards WHERE set_id IN ('base1', 'base2', 'base3')`);
+                    console.log('✅ Cleared existing base set cards');
+                    
+                    // Clear migration flag so it runs again after reload
+                    const migrationFlag = path.join(__dirname, '.set_name_migration_complete');
+                    if (fs.existsSync(migrationFlag)) {
+                        fs.unlinkSync(migrationFlag);
+                        console.log('🔄 Migration flag cleared - will re-run for new base sets');
+                    }
+                } catch (error) {
+                    console.error('⚠️ Failed to clear base sets:', error.message);
+                }
+            }
+            
             if (fs.existsSync(forceReloadFlag)) {
                 console.log('🔄 Force reload flag detected - clearing base sets...');
                 try {
