@@ -142,7 +142,7 @@ class CardManager {
             // 1. Original Series (Generation I) - Kanto Region  
             // EPISODE 112: FIXED TO USE ACTUAL PRODUCTION SET NAMES
             'Generation I': [
-                'base1', 'base4', 'base5'
+                'base1', 'base2', 'base3', 'base4', 'base5'
             ],
             
             // 2. Neo Series (Generation II) - Johto Region
@@ -414,10 +414,15 @@ class CardManager {
     determineVariant(card, packType = 'basic') {
         const rand = Math.random();
         
+        // SAFEGUARD: Vintage sets (pre-2002) should NEVER have reverse holos
+        const vintageSetIds = ['base1', 'base2', 'base3', 'base4', 'base5', 'gym1', 'gym2', 'neo1', 'neo2', 'neo3', 'neo4'];
+        const isVintageSet = vintageSetIds.includes(card.set_id);
+        
         // Check which variants are available for this card
         const availableVariants = [];
         if (card.variant_normal) availableVariants.push('normal');
-        if (card.variant_reverse) availableVariants.push('reverse');
+        // CRITICAL: Don't add reverse for vintage sets, even if database says it's available
+        if (card.variant_reverse && !isVintageSet) availableVariants.push('reverse');
         // NOTE: variant_holo is intentionally NOT checked - holo is a rarity, not a variant!
         // Only naturally holographic cards (Rare Holo rarity) should display as holo
         if (card.variant_first_edition) availableVariants.push('first_edition');
