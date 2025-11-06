@@ -7,16 +7,16 @@ class DebugManager {
     constructor() {
         // Enable/disable debugging per command
         this.debugConfig = {
-            zam: true,        // "No Cards Available" mystery
-            profile: true,    // Recently fixed star_level, check for more issues
-            daily: false,     // Working, but monitor
-            start: false,     // Working perfectly
-            shop: false,      // Working, but monitor
-            inventory: true,  // Not tested yet
-            use: true,        // Not tested yet  
-            leaderboard: true, // Not tested yet
-            quest: true,      // Quest command debugging
-            global: true      // Overall system debugging
+            zam: false,        // Disabled in production
+            profile: false,    // Disabled in production
+            daily: false,      // Disabled in production
+            start: false,      // Disabled in production
+            shop: false,       // Disabled in production
+            inventory: false,  // Disabled in production
+            use: false,        // Disabled in production
+            leaderboard: false, // Disabled in production
+            quest: false,      // Disabled in production
+            global: false      // Disabled in production
         };
     }
 

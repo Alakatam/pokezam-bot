@@ -6,13 +6,11 @@ class UserManager {
     }
 
     async getUser(userId) {
-        console.log('🔍 UserManager: Getting user:', userId);
         try {
             const result = await this.db.get('SELECT * FROM users WHERE id = ?', [userId]);
-            console.log('🔍 UserManager: User query result:', result ? 'Found user' : 'User not found');
             return result;
         } catch (error) {
-            console.error('🔍 UserManager: Error getting user:', error.message);
+            console.error('UserManager error getting user:', error.message);
             throw error;
         }
     }
