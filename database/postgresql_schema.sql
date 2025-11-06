@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS users (
 -- Cards table - Pokemon TCG card database
 CREATE TABLE IF NOT EXISTS cards (
     id SERIAL PRIMARY KEY,
-    api_id VARCHAR(50) UNIQUE NOT NULL,
+    api_id VARCHAR(50) UNIQUE,
     name VARCHAR(200) NOT NULL,
     set_id VARCHAR(50),
     set_name VARCHAR(200),
