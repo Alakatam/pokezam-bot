@@ -744,13 +744,23 @@ class Database {
 
     close() {
         if (this.db) {
-            this.db.close((err) => {
-                if (err) {
-                    console.error('Error closing database:', err);
-                } else {
+            if (this.dbType === 'postgresql') {
+                // PostgreSQL uses end() to close the connection
+                this.db.end().then(() => {
                     console.log('Database connection closed');
-                }
-            });
+                }).catch((err) => {
+                    console.error('Error closing database:', err);
+                });
+            } else {
+                // SQLite uses close()
+                this.db.close((err) => {
+                    if (err) {
+                        console.error('Error closing database:', err);
+                    } else {
+                        console.log('Database connection closed');
+                    }
+                });
+            }
         }
     }
 }

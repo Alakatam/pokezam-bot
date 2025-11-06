@@ -626,16 +626,15 @@ experience awaiting    : "Cards, quests, and adventure!"
             // Global showcase channel ID
             const GLOBAL_SHOWCASE_CHANNEL_ID = '1434216182017167480';
             
-            // Check if this card qualifies for global showcase (Holo Rare or above)
+            // Check if this card qualifies for global showcase (ONLY Holo rarity cards or higher)
             const rarity = detailedCard.rarity.toLowerCase();
             const isShowcaseWorthy = rarity.includes('holo') || 
                                    rarity.includes('ultra') || 
                                    rarity.includes('secret') ||
-                                   rarity.includes('legendary') ||
-                                   variant !== 'normal'; // Special variants also qualify
+                                   rarity.includes('legendary');
             
             if (!isShowcaseWorthy) {
-                return; // Not rare enough for showcase
+                return; // Not rare enough for showcase - must be actual holo rarity or higher
             }
 
             // Get the global showcase channel

@@ -25,12 +25,32 @@ class DatabaseBackupManager {
             const userItems = await database.all('SELECT * FROM user_items');
             const activeEffects = await database.all('SELECT * FROM active_effects');
             
-            // Get new feature data (achievements, set completion, titles)
-            const achievements = await database.all('SELECT * FROM achievements');
-            const userAchievements = await database.all('SELECT * FROM user_achievements');
-            const setCompletion = await database.all('SELECT * FROM set_completion');
-            const setRewards = await database.all('SELECT * FROM set_rewards');
-            const userTitles = await database.all('SELECT * FROM user_titles');
+            // Get new feature data (achievements, set completion, titles) - handle missing tables gracefully
+            let achievements = [];
+            let userAchievements = [];
+            let setCompletion = [];
+            let setRewards = [];
+            let userTitles = [];
+            
+            try {
+                achievements = await database.all('SELECT * FROM achievements');
+            } catch (e) { console.log('⚠️ achievements table not found, skipping...'); }
+            
+            try {
+                userAchievements = await database.all('SELECT * FROM user_achievements');
+            } catch (e) { console.log('⚠️ user_achievements table not found, skipping...'); }
+            
+            try {
+                setCompletion = await database.all('SELECT * FROM set_completion');
+            } catch (e) { console.log('⚠️ set_completion table not found, skipping...'); }
+            
+            try {
+                setRewards = await database.all('SELECT * FROM set_rewards');
+            } catch (e) { console.log('⚠️ set_rewards table not found, skipping...'); }
+            
+            try {
+                userTitles = await database.all('SELECT * FROM user_titles');
+            } catch (e) { console.log('⚠️ user_titles table not found, skipping...'); }
             
             const backup = {
                 timestamp: new Date().toISOString(),
