@@ -104,66 +104,30 @@ class ProductionTCGLoader {
     }
 
     async initialize() {
-        // Only initialize if database connection not provided
         if (!this.db) {
-            console.log('🔧 Initializing Production Database Connection...');
-            console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
-            console.log(`📡 Database URL: ${process.env.DATABASE_URL ? 'CONFIGURED ✅' : 'LOCAL SQLITE 🏠'}`);
-            
-            // Show database type detection
-            const dbType = process.env.DATABASE_URL ? 'PostgreSQL' : 'SQLite';
-            console.log(`🗃️ Detected database type: ${dbType}`);
-
             try {
                 this.db = new Database();
                 await this.db.connect();
                 await this.db.initialize();
                 this.createdConnection = true;
-                
-                console.log('✅ Database initialized successfully');
-            
-                // Verify connection by checking database type
-                if (this.db.dbType) {
-                    console.log(`🔗 Connected to: ${this.db.dbType.toUpperCase()}`);
-                }
-                
             } catch (error) {
                 console.error('❌ Database initialization failed:', error.message);
                 throw error;
             }
-        } else {
-            console.log('✅ Using existing database connection');
-            console.log(`🔗 Database type: ${this.db.dbType ? this.db.dbType.toUpperCase() : 'Unknown'}`);
         }
     }
 
     async loadBaseSetsOnly() {
-        console.log('🎯 PRODUCTION BASE SET LOADING');
-        console.log('================================');
-        console.log('📖 Loading Base Set 1, 2, and 3 for production...');
+        console.log('� Loading Base Sets 1, 2, and 3...');
 
-        // Load sets first
         const setsData = loadDataFromDirectory('../tcg-data/sets/en');
         const targetSets = ['base1', 'base2', 'base3'];
         
-        // Debug: Show sample sets structure
-        if (setsData.length > 0) {
-            console.log(`🔍 Sample sets structure:`, {
-                type: Array.isArray(setsData),
-                length: setsData.length,
-                firstItem: setsData[0]
-            });
-        }
-        
-        // Handle both individual set files and combined sets file
         let baseSets = [];
         if (Array.isArray(setsData) && setsData.length > 0) {
-            // If it's an array, filter for our target sets
             baseSets = setsData.filter(set => targetSets.includes(set.id));
             
-            // If no direct matches, maybe all sets are in a single structure
             if (baseSets.length === 0 && setsData[0] && typeof setsData[0] === 'object') {
-                // Check if the first item contains our sets
                 for (const setId of targetSets) {
                     if (setsData[0][setId]) {
                         baseSets.push({ id: setId, ...setsData[0][setId] });
@@ -172,28 +136,7 @@ class ProductionTCGLoader {
             }
         }
         
-        console.log(`\n🎴 Found ${baseSets.length} base sets to load`);
-        
-        // Load cards for base sets only
         const cardsData = loadDataFromDirectory('../tcg-data/cards/en');
-        
-        // Debug: Show sample card structure
-        if (cardsData.length > 0) {
-            console.log(`🔍 Sample card structure:`, {
-                id: cardsData[0].id,
-                name: cardsData[0].name,
-                set: cardsData[0].set,
-                setId: cardsData[0].set?.id,
-                allKeys: Object.keys(cardsData[0])
-            });
-            
-            // Show first few cards to understand structure
-            console.log(`🔍 First 3 cards:`, cardsData.slice(0, 3).map(card => ({
-                id: card.id,
-                name: card.name,
-                setId: card.set?.id
-            })));
-        }
         
         // Filter for base sets - check both set.id and infer from card ID patterns
         const baseCards = cardsData.filter(card => {
@@ -219,19 +162,12 @@ class ProductionTCGLoader {
 
         // Skip sets processing if no sets found, focus on cards
         if (baseSets.length > 0) {
-            console.log('\n🔄 Processing base sets...');
             for (const set of baseSets) {
                 await this.processSet(set);
             }
-        } else {
-            console.log('\n⏭️  No sets metadata found, focusing on cards...');
         }
 
-        // Process cards - ALWAYS try direct file approach since we know base1.json exists
-        console.log('\n🔄 Processing base set cards...');
-        console.log('🎯 Since we detected base files in logs, using direct file approach...');
-        
-        // Direct approach: Load base1.json directly since we saw it in the logs
+        // Process cards directly
         try {
             const fs = require('fs');
             const path = require('path');
@@ -242,73 +178,47 @@ class ProductionTCGLoader {
             for (const fileName of baseFiles) {
                 try {
                     const filePath = path.resolve(__dirname, '../tcg-data/cards/en', fileName);
-                    console.log(`📂 Attempting direct load: ${filePath}`);
                     
                     if (fs.existsSync(filePath)) {
                         const fileContent = fs.readFileSync(filePath, 'utf8');
                         const cards = JSON.parse(fileContent);
                         directCards.push(...cards);
-                        console.log(`✅ Loaded ${cards.length} cards from ${fileName}`);
-                    } else {
-                        console.log(`⚠️  File not found: ${filePath}`);
                     }
                 } catch (fileError) {
-                    console.log(`⚠️  Failed to load ${fileName}: ${fileError.message}`);
+                    // Silent fail
                 }
             }
             
-            console.log(`📊 Direct loading found ${directCards.length} cards`);
-            
-            // Process directly loaded cards
             if (directCards.length > 0) {
+                console.log(`📥 Processing ${directCards.length} base set cards...`);
                 let cardCount = 0;
                 for (const card of directCards) {
                     try {
                         await this.processCard(card);
                         cardCount++;
-                        
-                        if (cardCount % 50 === 0) {
-                            console.log(`   📊 Processed ${cardCount} cards...`);
-                        }
                     } catch (cardError) {
-                        console.log(`⚠️  Failed to process card ${card?.id}: ${cardError.message}`);
+                        // Silent fail on individual card errors
                     }
                 }
-                console.log(`✅ Processed ${cardCount} cards via direct loading`);
+                console.log(`✅ Loaded ${cardCount} cards`);
             } else {
-                console.log('⚠️  No cards found via direct loading, trying filtered approach...');
-                
                 // Fallback to filtered loading
-                let cardCount = 0;
                 for (const card of baseCards) {
                     await this.processCard(card);
-                    cardCount++;
-                    
-                    if (cardCount % 50 === 0) {
-                        console.log(`   📊 Processed ${cardCount} cards...`);
-                    }
                 }
             }
             
         } catch (directError) {
             console.error('❌ Direct loading failed:', directError.message);
         }
-
-        console.log('\n📊 BASE SET LOADING SUMMARY:');
-        console.log(`   Sets loaded: ${this.totalSetsAdded}`);
-        console.log(`   Cards loaded: ${this.totalCardsAdded}`);
-        console.log(`   Cards updated: ${this.totalCardsUpdated}`);
     }
 
     async processSet(set) {
         try {
-            // Validate set data
             if (!set || !set.id) {
-                console.log(`   ⚠️  Invalid set data, skipping`);
                 return;
             }
 
-            // Check if set exists using the proper method
             let existingSet;
             try {
                 existingSet = await this.db.get(
@@ -316,8 +226,6 @@ class ProductionTCGLoader {
                     [set.id]
                 );
             } catch (queryError) {
-                // If table doesn't exist, it will be created
-                console.log(`   📋 Sets table check: ${queryError.message}`);
                 existingSet = null;
             }
 
@@ -343,9 +251,8 @@ class ProductionTCGLoader {
                 ]);
 
                 this.totalSetsAdded++;
-                console.log(`   ✅ Added set: ${set.name || 'Unknown'} (${set.id})`);
             } else {
-                console.log(`   📋 Set already exists: ${set.name} (${set.id})`);
+                // Set already exists
             }
         } catch (error) {
             console.error(`   ❌ Error processing set ${set?.id || 'unknown'}:`, error.message);
@@ -354,13 +261,10 @@ class ProductionTCGLoader {
 
     async processCard(card) {
         try {
-            // Validate card data
             if (!card || !card.id) {
-                console.log(`   ⚠️  Invalid card data, skipping`);
                 return;
             }
 
-            // Check if card exists
             let existingCard;
             try {
                 existingCard = await this.db.get(
@@ -368,8 +272,6 @@ class ProductionTCGLoader {
                     [card.id]
                 );
             } catch (queryError) {
-                // Cards table might not exist yet
-                console.log(`   📋 Cards table check: ${queryError.message}`);
                 existingCard = null;
             }
 

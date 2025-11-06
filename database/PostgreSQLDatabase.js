@@ -193,124 +193,22 @@ class PostgreSQLDatabase {
         }
     }
 
-    // DEEP INVESTIGATION: Complete database mismatch analysis
+    // DEEP INVESTIGATION: Complete database mismatch analysis (DISABLED FOR PRODUCTION)
     async deepDatabaseInvestigation() {
-        console.log('🕵️ ===== DEEP DATABASE MISMATCH INVESTIGATION =====');
-        
-        // 1. SCHEMA STRUCTURE
-        await this.inspectActiveEffectsSchema();
-        
-        // 2. CONSTRAINTS ANALYSIS  
-        try {
-            console.log('\n🔒 CONSTRAINTS INVESTIGATION:');
-            const constraints = await this.pool.query(`
-                SELECT 
-                    tc.constraint_name,
-                    tc.constraint_type,
-                    kcu.column_name,
-                    cc.check_clause
-                FROM information_schema.table_constraints tc
-                LEFT JOIN information_schema.key_column_usage kcu 
-                    ON tc.constraint_name = kcu.constraint_name
-                LEFT JOIN information_schema.check_constraints cc 
-                    ON tc.constraint_name = cc.constraint_name
-                WHERE tc.table_name = 'active_effects'
-                ORDER BY tc.constraint_type, kcu.column_name
-            `);
-            constraints.rows.forEach(row => {
-                console.log(`  - ${row.constraint_type}: ${row.column_name} (${row.constraint_name})`);
-                if (row.check_clause) console.log(`    Check: ${row.check_clause}`);
-            });
-        } catch (error) {
-            console.error('❌ Constraint analysis failed:', error.message);
-        }
-        
-        // 3. SAMPLE DATA INSPECTION
-        try {
-            console.log('\n📊 SAMPLE DATA ANALYSIS:');
-            const sampleData = await this.pool.query('SELECT * FROM active_effects LIMIT 2');
-            if (sampleData.rows.length > 0) {
-                console.log('  Sample row structure:');
-                Object.keys(sampleData.rows[0]).forEach((key, index) => {
-                    console.log(`    ${index + 1}. ${key}: ${sampleData.rows[0][key]} (${typeof sampleData.rows[0][key]})`);
-                });
-            } else {
-                console.log('  No existing data found');
-            }
-        } catch (error) {
-            console.error('❌ Sample data analysis failed:', error.message);
-        }
-        
-        console.log('\n🕵️ ===== DEEP INVESTIGATION COMPLETE =====\n');
+        // Investigation logs disabled to reduce startup verbosity
+        // Uncomment for debugging: await this.inspectActiveEffectsSchema();
     }
 
-    // INVESTIGATE users table schema
     async investigateUsersSchema() {
-        console.log('🔍 INVESTIGATING: users table schema...');
-        try {
-            const result = await this.pool.query(`
-                SELECT column_name, data_type, is_nullable, column_default, ordinal_position
-                FROM information_schema.columns 
-                WHERE table_name = 'users' 
-                ORDER BY ordinal_position
-            `);
-            
-            console.log('🔍 PRODUCTION users SCHEMA:');
-            result.rows.forEach((row, index) => {
-                console.log(`  ${index + 1}. ${row.column_name} (${row.data_type}) - ${row.is_nullable === 'YES' ? 'NULL' : 'NOT NULL'} - Default: ${row.column_default || 'NONE'}`);
-            });
-            
-            return result.rows;
-        } catch (error) {
-            console.error('❌ Failed to inspect users schema:', error.message);
-            return [];
-        }
+        // Silent - investigation disabled
     }
 
-    // INVESTIGATE user_cards table schema
     async investigateUserCardsSchema() {
-        console.log('🔍 INVESTIGATING: user_cards table schema...');
-        try {
-            const result = await this.pool.query(`
-                SELECT column_name, data_type, is_nullable, column_default, ordinal_position
-                FROM information_schema.columns 
-                WHERE table_name = 'user_cards' 
-                ORDER BY ordinal_position
-            `);
-            
-            console.log('🔍 PRODUCTION user_cards SCHEMA:');
-            result.rows.forEach((row, index) => {
-                console.log(`  ${index + 1}. ${row.column_name} (${row.data_type}) - ${row.is_nullable === 'YES' ? 'NULL' : 'NOT NULL'} - Default: ${row.column_default || 'NONE'}`);
-            });
-            
-            return result.rows;
-        } catch (error) {
-            console.error('❌ Failed to inspect user_cards schema:', error.message);
-            return [];
-        }
+        // Silent - investigation disabled
     }
 
-    // INVESTIGATION: Inspect actual production database schema
     async inspectActiveEffectsSchema() {
-        console.log('🔍 INVESTIGATING: Actual active_effects table schema...');
-        try {
-            const result = await this.pool.query(`
-                SELECT column_name, data_type, is_nullable, column_default, ordinal_position
-                FROM information_schema.columns 
-                WHERE table_name = 'active_effects' 
-                ORDER BY ordinal_position
-            `);
-            
-            console.log('🔍 PRODUCTION active_effects SCHEMA:');
-            result.rows.forEach((row, index) => {
-                console.log(`  ${index + 1}. ${row.column_name} (${row.data_type}) - ${row.is_nullable === 'YES' ? 'NULL' : 'NOT NULL'} - Default: ${row.column_default || 'NONE'}`);
-            });
-            
-            return result.rows;
-        } catch (error) {
-            console.error('❌ Failed to inspect schema:', error.message);
-            return [];
-        }
+        // Silent - investigation disabled
     }
 
     // CRITICAL: Apply migration fixes for missing columns
