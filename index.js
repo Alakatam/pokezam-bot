@@ -900,13 +900,7 @@ class PokezamBot {
                     setTimeout(() => timestamps.delete(interaction.user.id), cooldownAmount);
                 }
 
-                // Ensure user exists in database
-                let user = await this.userManager.getUser(interaction.user.id);
-                if (!user) {
-                    user = await this.userManager.createUser(interaction.user.id, interaction.user.username);
-                }
-
-                // Execute command
+                // Execute command (user creation handled inside each command)
                 await command.execute(interaction, {
                     database: this.database,
                     userManager: this.userManager,
