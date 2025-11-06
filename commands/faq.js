@@ -237,22 +237,22 @@ command                : "/zam (5 second cooldown)"
 requirement            : "Must complete /start first"
 cost                   : "Free! No gold required"
 
+❓ "What is Global Spawn?"
+description            : "Ultra-rare cards get posted to global channel!"
+requirements:
+  rarity               : "Must be actual holographic rarity"
+  variants             : "Reverse holo, first edition, promo variants"
+  showcase             : "Shared with entire server automatically"
+visibility             : "Everyone sees your amazing pulls!"
+
 ❓ "What cards can I get?"
 total sets             : "101 TCG sets available"
 total cards            : "10,000+ unique cards"
-unlocks by generation:
-  level 1+             : "Generation I (Original/Base Sets)"
-  level 10+            : "Generation II (Neo Series)"
-  level 20+            : "Generation II e-Card Series"
-  level 35+            : "Generation III (EX Series)"
-  level 60+            : "Generation IV Diamond & Pearl"
-  level 80+            : "Generation IV Platinum"
-  level 90+            : "Generation IV HeartGold & SoulSilver"
-  level 110+           : "Generation V (Black & White)"
-  level 130+           : "Generation VI (XY Series)"
-  level 150+           : "Generation VII (Sun & Moon)"
-  level 170+           : "Generation VIII (Sword & Shield)"
-  level 200+           : "Generation IX (Scarlet & Violet)"
+current sets loaded:
+  base set (base1)     : "Original 102 cards - Level 1+"
+  jungle (base2)       : "64 cards - Level 10+"
+  fossil (base3)       : "62 cards - Level 10+"
+more sets coming       : "Future expansions in development"
 
 ❓ "What are the rarities?"
 card rarities:
@@ -288,17 +288,15 @@ card rarities:
     hyper rare         : "●●●●●● - Highest rarity tier"
 
 ❓ "How do variants work?"
-variant types:
-  normal               : "Standard card version"
-  reverse holo         : "Special foil pattern"
-  first edition        : "Special marking (older sets)"
-  promotional          : "Special promo versions"
+variant system         : "Currently in development"
+note                   : "Master Set variant tracking temporarily disabled"
+future features        : "Variant collection coming in future update"
 
 ❓ "Can I see my collection?"
 commands available:
   "/binder"            : "View your card binder"
   "/carddex-reg"       : "Regional Pokédex progress"
-  "/carddex-master"    : "Master collection tracker"
+note                   : "Master collection commands coming soon!"
 
 ❓ "What's the gold system?"
 earning gold:
@@ -494,7 +492,7 @@ efficient strategies:
 #═══════════════════════════════════════════════════
 
 ❓ "What commands are available?"
-total commands         : "18 slash commands"
+total commands         : "15 active slash commands"
 
 essential commands:
   "/start"             : "Begin your adventure (required first!)"
@@ -505,11 +503,11 @@ card & collection:
   "/zam"               : "Draw cards (5s cooldown)"
   "/binder"            : "View your card collection"
   "/carddex-reg"       : "Regional Pokédex progress"
-  "/carddex-master"    : "Master collection tracker"
 
 progression & stats:
   "/profile"           : "Your level, XP, and stats"
   "/quest"             : "Daily/Weekly/Monthly quests"
+  "/daily"             : "Daily rewards and streaks"
 
 economy & items:
   "/shop"              : "Item store (4 pages)"
@@ -519,10 +517,12 @@ economy & items:
 
 special features:
   "/sync"              : "Database synchronization"
-  "/master-collection" : "Complete collection view"
-  "/master-pack"       : "Special pack opening"
   "/premium-pack"      : "Premium pack opening"
   "/vintage-pack"      : "Vintage pack opening"
+
+coming soon:
+  master set system    : "Variant tracking & collection"
+  achievements         : "Challenge completion rewards"
 
 ❓ "What are pack commands?"
 pack types:

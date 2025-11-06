@@ -967,7 +967,16 @@ class PokezamBot {
         const commandsPath = path.join(__dirname, 'commands');
         const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
 
+        // Temporarily disabled Master Set commands (in development)
+        const disabledCommands = ['carddex-master.js', 'master-pack.js', 'master-collection.js'];
+
         for (const file of commandFiles) {
+            // Skip disabled Master Set commands
+            if (disabledCommands.includes(file)) {
+                console.log(`⏸️  Skipped (disabled): ${file.replace('.js', '')}`);
+                continue;
+            }
+
             const filePath = path.join(commandsPath, file);
             const command = require(filePath);
 
@@ -984,9 +993,18 @@ class PokezamBot {
         const commandsPath = path.join(__dirname, 'commands');
         const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
 
+        // Temporarily disabled Master Set commands (in development)
+        const disabledCommands = ['carddex-master.js', 'master-pack.js', 'master-collection.js'];
+
         const commands = [];
 
         for (const file of commandFiles) {
+            // Skip disabled Master Set commands
+            if (disabledCommands.includes(file)) {
+                console.log(`⏸️  Skipped (disabled): ${file.replace('.js', '')}`);
+                continue;
+            }
+
             const filePath = path.join(commandsPath, file);
             const command = require(filePath);
 
