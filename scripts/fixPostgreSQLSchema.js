@@ -112,6 +112,17 @@ class PostgreSQLSchemaFixer {
                 }
             }
             
+            // Fix variant_holo for all existing cards (holo is NOT a variant, it's a rarity)
+            // Only naturally holographic cards (Rare Holo, Holo Rare, etc.) should show holo display
+            // The variant system should not add "holographic" as a variant option
+            try {
+                const updateResult = await this.db.run(`UPDATE cards SET variant_holo = FALSE WHERE variant_holo = TRUE`);
+                console.log(`✅ Fixed variant_holo flags (holo is a rarity, not a variant)`);
+                this.fixedColumns.push('cards.variant_holo (corrected)');
+            } catch (err) {
+                console.log(`⚠️  Could not fix variant_holo: ${err.message}`);
+            }
+            
             // Define required columns for cards table
             const requiredColumns = [
                 { name: 'card_id', type: 'TEXT UNIQUE' },

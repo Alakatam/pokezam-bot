@@ -418,7 +418,8 @@ class CardManager {
         const availableVariants = [];
         if (card.variant_normal) availableVariants.push('normal');
         if (card.variant_reverse) availableVariants.push('reverse');
-        if (card.variant_holo) availableVariants.push('holo');
+        // NOTE: variant_holo is intentionally NOT checked - holo is a rarity, not a variant!
+        // Only naturally holographic cards (Rare Holo rarity) should display as holo
         if (card.variant_first_edition) availableVariants.push('first_edition');
         if (card.variant_promo) availableVariants.push('promo');
         
@@ -433,28 +434,24 @@ class CardManager {
         switch (packType) {
             case 'premium': // Premium Pack odds (better chances)
                 if (rand < 0.05 && card.variant_first_edition) targetVariant = 'first_edition';
-                else if (rand < 0.25 && card.variant_holo) targetVariant = 'holo';
                 else if (rand < 0.60 && card.variant_reverse) targetVariant = 'reverse';
                 else targetVariant = 'normal';
                 break;
                 
             case 'master': // Master Pack odds (guaranteed rare)
                 if (rand < 0.15 && card.variant_first_edition) targetVariant = 'first_edition';
-                else if (rand < 0.50 && card.variant_holo) targetVariant = 'holo';
                 else if (rand < 0.80 && card.variant_reverse) targetVariant = 'reverse';
                 else targetVariant = 'normal';
                 break;
                 
             case 'vintage': // Vintage Pack odds (1st Edition focus)
                 if (rand < 0.40 && card.variant_first_edition) targetVariant = 'first_edition';
-                else if (rand < 0.70 && card.variant_holo) targetVariant = 'holo';
                 else if (rand < 0.90 && card.variant_reverse) targetVariant = 'reverse';
                 else targetVariant = 'normal';
                 break;
                 
             default: // Basic draw odds
                 if (rand < 0.005 && card.variant_first_edition) targetVariant = 'first_edition';
-                else if (rand < 0.030 && card.variant_holo) targetVariant = 'holo';
                 else if (rand < 0.150 && card.variant_reverse) targetVariant = 'reverse';
                 else targetVariant = 'normal';
                 break;
