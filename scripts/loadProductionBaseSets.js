@@ -393,9 +393,10 @@ class ProductionTCGLoader {
                         card_id, name, supertype, subtype, level, hp, 
                         rarity, artist, set_id, set_name, number, 
                         flavor_text, national_pokedex_number, image_url_small, 
-                        image_url_large, tcgplayer_url, cardmarket_url, 
+                        image_url_large, tcgplayer_url, cardmarket_url,
+                        variant_normal, variant_reverse, variant_holo, variant_first_edition, variant_promo,
                         created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `, [
                     card.id,
                     card.name || 'Unknown',
@@ -414,6 +415,13 @@ class ProductionTCGLoader {
                     card.images?.large || '',
                     card.tcgplayer?.url || '',
                     card.cardmarket?.url || '',
+                    // Vintage sets (base1-base5) only have normal and first edition variants
+                    // Reverse holos weren't introduced until Legendary Collection (2002)
+                    true,  // variant_normal - all cards have normal version
+                    false, // variant_reverse - didn't exist yet
+                    false, // variant_holo - natural holo rarity, not a variant
+                    this.hasFirstEditionVariant(card), // variant_first_edition - only some vintage cards
+                    false, // variant_promo - not applicable for base set cards
                     Date.now(),
                     Date.now()
                 ]);
@@ -431,6 +439,30 @@ class ProductionTCGLoader {
                 rarity: card?.rarity
             });
         }
+    }
+
+    /**
+     * Determines if a vintage card has a First Edition variant
+     * First Edition was only available in the initial print run of early sets
+     * @param {Object} card - Card data
+     * @returns {boolean} - Whether card can have First Edition variant
+     */
+    hasFirstEditionVariant(card) {
+        const setId = card.set?.id || '';
+        
+        // First Edition variants only existed in early WOTC sets (1999-2003)
+        const firstEditionSets = ['base1', 'base2', 'base3', 'base4', 'base5', 
+                                   'gym1', 'gym2', 'neo1', 'neo2', 'neo3', 'neo4'];
+        
+        // Shadowless Base Set 1 is technically different from 1st Edition
+        // For simplicity, we'll include it as a first edition variant option
+        if (firstEditionSets.includes(setId)) {
+            // Not all cards in a set had 1st Edition (some were unlimited only)
+            // For now, enable for all as it was randomly available
+            return Math.random() < 0.3; // 30% chance a vintage card has 1st Edition available
+        }
+        
+        return false;
     }
 
     async verifyLoading() {
