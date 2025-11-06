@@ -93,6 +93,10 @@ class PokezamBot {
             // POSTGRESQL SCHEMA FIX: Ensure all columns exist (for Render PostgreSQL)
             await this.fixPostgreSQLSchema();
             
+            // AUTO-FIX SET NAMES: One-time migration to populate set_name from set_id
+            const autoFixSetNames = require('./scripts/autoFixSetNamesOnStartup');
+            await autoFixSetNames(this.database);
+            
             // AUTO-LOAD BASE SETS: Check and load Base Sets 1, 2, 3 if missing (for Render free tier)
             await this.ensureBaseSetsLoaded();
             
