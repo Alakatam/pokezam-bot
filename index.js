@@ -104,6 +104,23 @@ class PokezamBot {
             
             // AUTO-LOAD BASE SETS: Check and load Base Sets 1, 2, 3 if missing (for Render free tier)
             console.log('📦 Checking base sets availability...');
+            
+            // Check for force reload flag (used when base sets need manual reload)
+            const fs = require('fs');
+            const path = require('path');
+            const forceReloadFlag = path.join(__dirname, '.force_reload_base_sets');
+            
+            if (fs.existsSync(forceReloadFlag)) {
+                console.log('🔄 Force reload flag detected - clearing base sets...');
+                try {
+                    await this.database.run(`DELETE FROM cards WHERE set_id IN ('base1', 'base2', 'base3')`);
+                    console.log('✅ Base sets cleared - will reload from files');
+                    fs.unlinkSync(forceReloadFlag); // Remove flag after use
+                } catch (error) {
+                    console.error('⚠️ Failed to clear base sets:', error.message);
+                }
+            }
+            
             await this.ensureBaseSetsLoaded();
             console.log('✅ Base sets check complete');
             
