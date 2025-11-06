@@ -290,6 +290,13 @@ class ProductionTCGLoader {
                     level = isNaN(levelNum) ? null : levelNum;
                 }
 
+                // Extract set_id from card ID (e.g., "base1-1" -> "base1")
+                const setId = card.id ? card.id.split('-')[0] : (card.set?.id || '');
+                
+                // Don't set set_name here - let migration handle it
+                // This ensures proper name mapping (base2 -> "Jungle", etc.)
+                const setName = card.set?.name || '';
+
                 await this.db.run(`
                     INSERT INTO cards (
                         card_id, name, supertype, subtype, level, hp, 
@@ -308,8 +315,8 @@ class ProductionTCGLoader {
                     hp,
                     card.rarity || 'Common',
                     card.artist || '',
-                    card.set?.id || '',
-                    card.set?.name || '',
+                    setId,
+                    setName,
                     card.number || '',
                     card.flavorText || '',
                     card.nationalPokedexNumbers?.[0] || null,
