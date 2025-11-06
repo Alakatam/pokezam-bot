@@ -80,15 +80,20 @@ class PokezamBot {
             const QuestManager = require('./database/QuestManager');
             const AchievementManager = require('./database/AchievementManager');
             const SetCompletionManager = require('./database/SetCompletionManager');
+            const CollectorShopManager = require('./database/CollectorShopManager');
             
             this.userManager = new UserManager(this.database);
             this.cardManager = new CardManager(this.database);
             this.questManager = new QuestManager(this.database);
             this.achievementManager = new AchievementManager(this.database);
             this.setCompletionManager = new SetCompletionManager(this.database);
+            this.collectorShopManager = new CollectorShopManager(this.database);
             
             // Initialize default set rewards
             await this.setCompletionManager.initializeDefaultSetRewards();
+            
+            // Initialize collector shop tables
+            await this.collectorShopManager.initializeTables();
             
             // POSTGRESQL SCHEMA FIX: Ensure all columns exist (for Render PostgreSQL)
             await this.fixPostgreSQLSchema();
@@ -98,7 +103,9 @@ class PokezamBot {
             await autoFixSetNames(this.database);
             
             // AUTO-LOAD BASE SETS: Check and load Base Sets 1, 2, 3 if missing (for Render free tier)
+            console.log('📦 Checking base sets availability...');
             await this.ensureBaseSetsLoaded();
+            console.log('✅ Base sets check complete');
             
             // DEPLOYMENT FIX: Progressive card loading will happen AFTER bot is ready
             // Removed from startup sequence to prevent deployment timeouts
@@ -749,6 +756,49 @@ class PokezamBot {
                 return;
             }
 
+            // Handle button interactions for collector shop
+            if (interaction.isButton() && interaction.customId.startsWith('collector_')) {
+                try {
+                    const parts = interaction.customId.split('_');
+                    const action = parts[1]; // 'collect' or 'upgrade'
+                    const targetUserId = parts[2];
+                    
+                    // Only allow the target user to interact with their collector shop
+                    if (interaction.user.id !== targetUserId) {
+                        return await interaction.reply({
+                            content: 'You can only interact with your own collector shop!',
+                            ephemeral: true
+                        });
+                    }
+                    
+                    await interaction.deferUpdate();
+                    
+                    const collectorCommand = this.commands.get('collector');
+                    const user = await this.userManager.getUser(interaction.user.id);
+                    
+                    if (action === 'collect') {
+                        await collectorCommand.handleCollect(interaction, user, this.userManager, this.database, this.collectorShopManager);
+                    } else if (action === 'upgrade') {
+                        await collectorCommand.handleUpgrade(interaction, user, this.userManager, this.collectorShopManager);
+                    }
+                    
+                } catch (error) {
+                    console.error('Error handling collector shop button:', error);
+                    
+                    if (!interaction.replied && !interaction.deferred) {
+                        await interaction.reply({
+                            content: '❌ An error occurred. Please try again!',
+                            ephemeral: true
+                        });
+                    } else {
+                        await interaction.editReply({
+                            content: '❌ An error occurred. Please try again!'
+                        });
+                    }
+                }
+                return;
+            }
+
             // Handle button interactions for shop purchases
             if (interaction.isButton() && interaction.customId.startsWith('shop_buy_')) {
                 try {
@@ -897,7 +947,8 @@ class PokezamBot {
                     database: this.database,
                     userManager: this.userManager,
                     cardManager: this.cardManager,
-                    questManager: this.questManager
+                    questManager: this.questManager,
+                    collectorShopManager: this.collectorShopManager
                 });
 
             } catch (error) {
