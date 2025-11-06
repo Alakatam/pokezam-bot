@@ -210,19 +210,40 @@ async function autoFixSetNames(database) {
 
         console.log(`✅ Migration complete! Updated ${updatedCount} cards`);
 
-        // Verify Generation I cards
-        const genICards = await database.all(`
+        // Verify core base sets (base1, base2, base3)
+        const baseSets = await database.all(`
             SELECT COUNT(*) as count, set_name 
             FROM cards 
-            WHERE set_name IN ('Base Set', 'Jungle', 'Fossil', 'Base Set 2', 'Team Rocket')
+            WHERE set_name IN ('Base Set', 'Jungle', 'Fossil')
             GROUP BY set_name
-            ORDER BY set_name
+            ORDER BY 
+                CASE set_name
+                    WHEN 'Base Set' THEN 1
+                    WHEN 'Jungle' THEN 2
+                    WHEN 'Fossil' THEN 3
+                END
         `);
 
-        console.log('🎯 Generation I verification:');
-        genICards.forEach(row => {
+        console.log('🎯 Core Base Sets verification:');
+        baseSets.forEach(row => {
             console.log(`   ${row.set_name}: ${row.count} cards`);
         });
+        
+        // Also check what other sets exist
+        const allSets = await database.all(`
+            SELECT COUNT(*) as count, set_id, set_name 
+            FROM cards 
+            WHERE set_id IN ('base1', 'base2', 'base3', 'base4', 'base5')
+            GROUP BY set_id, set_name
+            ORDER BY set_id
+        `);
+        
+        if (allSets.length > 0) {
+            console.log('📊 All base-era sets in database:');
+            allSets.forEach(row => {
+                console.log(`   ${row.set_id} (${row.set_name}): ${row.count} cards`);
+            });
+        }
 
         // Create flag file to prevent re-running
         fs.writeFileSync(MIGRATION_FLAG_FILE, new Date().toISOString());
