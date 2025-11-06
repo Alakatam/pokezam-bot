@@ -1379,14 +1379,19 @@ class PokezamBot {
                         // Insert cards into database
                         for (const card of cards) {
                             try {
+                                // Vintage sets only have normal and first edition variants
+                                const isVintageSet = ['base1', 'base2', 'base3', 'base4', 'base5', 'gym1', 'gym2'].includes(fileName.replace('.json', ''));
+                                const hasFirstEdition = isVintageSet && Math.random() < 0.3; // 30% of vintage cards have 1st ed
+                                
                                 await this.database.run(`
                                     INSERT OR IGNORE INTO cards (
                                         card_id, name, supertype, subtype, level, hp, 
                                         rarity, artist, set_id, set_name, number, 
                                         flavor_text, national_pokedex_number, image_url_small, 
-                                        image_url_large, tcgplayer_url, cardmarket_url, 
+                                        image_url_large, tcgplayer_url, cardmarket_url,
+                                        variant_normal, variant_reverse, variant_holo, variant_first_edition, variant_promo,
                                         created_at, updated_at
-                                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                                 `, [
                                     card.id,
                                     card.name || 'Unknown',
@@ -1405,6 +1410,11 @@ class PokezamBot {
                                     card.images?.large || '',
                                     card.tcgplayer?.url || '',
                                     card.cardmarket?.url || '',
+                                    true,  // variant_normal
+                                    false, // variant_reverse (didn't exist in vintage sets)
+                                    false, // variant_holo (natural rarity, not a variant)
+                                    hasFirstEdition, // variant_first_edition
+                                    false, // variant_promo
                                     Date.now(),
                                     Date.now()
                                 ]);
