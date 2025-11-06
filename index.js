@@ -861,7 +861,7 @@ class PokezamBot {
             if (!command) return;
 
             try {
-                // Check cooldowns (with admin bypass capability)
+                // Check cooldowns
                 if (!this.cooldowns.has(command.data.name)) {
                     this.cooldowns.set(command.data.name, new Collection());
                 }
@@ -870,19 +870,9 @@ class PokezamBot {
                 const timestamps = this.cooldowns.get(command.data.name);
                 const cooldownAmount = (command.cooldown || 0) * 1000;
 
-                // Check if user has cooldown bypass enabled (admin feature)
-                let hasBypass = false;
-                try {
-                    const userBypassCheck = await this.database.get('SELECT cooldown_bypass FROM users WHERE id = ?', [interaction.user.id]);
-                    // Handle both PostgreSQL (true/false) and SQLite (1/0) formats
-                    hasBypass = userBypassCheck?.cooldown_bypass === true || userBypassCheck?.cooldown_bypass === 1;
-                } catch (error) {
-                    // If column doesn't exist or query fails, default to no bypass
-                    hasBypass = false;
-                }
-
-                // Only apply cooldowns if user doesn't have bypass enabled
-                if (!hasBypass && timestamps.has(interaction.user.id)) {
+                // Simple cooldown check (no database query for performance)
+                // Admin bypass can be handled inside commands if needed
+                if (timestamps.has(interaction.user.id)) {
                     const expirationTime = timestamps.get(interaction.user.id) + cooldownAmount;
 
                     if (now < expirationTime) {
@@ -894,11 +884,9 @@ class PokezamBot {
                     }
                 }
 
-                // Set cooldown timestamp (even for bypass users, for potential logging)
-                if (!hasBypass) {
-                    timestamps.set(interaction.user.id, now);
-                    setTimeout(() => timestamps.delete(interaction.user.id), cooldownAmount);
-                }
+                // Set cooldown timestamp
+                timestamps.set(interaction.user.id, now);
+                setTimeout(() => timestamps.delete(interaction.user.id), cooldownAmount);
 
                 // Execute command (user creation handled inside each command)
                 await command.execute(interaction, {
