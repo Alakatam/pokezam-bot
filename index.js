@@ -102,6 +102,21 @@ class PokezamBot {
             const autoFixSetNames = require('./scripts/autoFixSetNamesOnStartup');
             await autoFixSetNames(this.database);
             
+            // AUTO-ADD COOLDOWN BYPASS: One-time migration to add cooldown_bypass column
+            console.log('🔧 Checking cooldown_bypass column...');
+            try {
+                await this.database.run(`
+                    ALTER TABLE users 
+                    ADD COLUMN IF NOT EXISTS cooldown_bypass BOOLEAN DEFAULT FALSE
+                `);
+                console.log('✅ cooldown_bypass column verified/added');
+            } catch (error) {
+                // Column might already exist, that's fine
+                if (!error.message.includes('already exists')) {
+                    console.error('⚠️ Note: cooldown_bypass column check:', error.message);
+                }
+            }
+            
             // AUTO-LOAD BASE SETS: Check and load Base Sets 1, 2, 3 if missing (for Render free tier)
             console.log('📦 Checking base sets availability...');
             
@@ -948,9 +963,12 @@ class PokezamBot {
                 const timestamps = this.cooldowns.get(command.data.name);
                 const cooldownAmount = (command.cooldown || 0) * 1000;
 
-                // Simple cooldown check (no database query for performance)
-                // Admin bypass can be handled inside commands if needed
-                if (timestamps.has(interaction.user.id)) {
+                // Check for cooldown bypass (for admin users)
+                const user = await this.userManager.getUser(interaction.user.id);
+                const hasCooldownBypass = user && user.cooldown_bypass === true;
+
+                // Simple cooldown check (skip if user has bypass enabled)
+                if (!hasCooldownBypass && timestamps.has(interaction.user.id)) {
                     const expirationTime = timestamps.get(interaction.user.id) + cooldownAmount;
 
                     if (now < expirationTime) {

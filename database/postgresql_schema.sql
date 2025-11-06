@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS users (
     total_draws INTEGER DEFAULT 0,
     has_started BOOLEAN DEFAULT FALSE,
     created_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW()),
-    last_daily_claim BIGINT DEFAULT 0
+    last_daily_claim BIGINT DEFAULT 0,
+    cooldown_bypass BOOLEAN DEFAULT FALSE
 );
 
 -- Cards table - Pokemon TCG card database
