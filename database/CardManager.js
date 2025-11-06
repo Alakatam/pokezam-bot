@@ -21,27 +21,17 @@ class CardManager {
     }
 
     async getRandomCard(userLevel, guildLuckBonus = 0) {
-        console.log('\n🔍 ===== CARD SELECTION DEBUG =====');
-        console.log('🎯 User Level:', userLevel);
-        console.log('🎯 Guild Luck Bonus:', guildLuckBonus);
-        
         // Get available generations based on user level
         const availableGenerations = this.getAvailableGenerationsByLevel(userLevel);
-        console.log('🎯 Available Generations:', availableGenerations);
         
         // Convert generation names to set names that exist in our database
         const availableSets = [];
         for (const generation of availableGenerations) {
             const genSets = this.getSetsByGeneration(generation);
-            console.log(`🎯 Sets for ${generation}:`, genSets);
             availableSets.push(...genSets);
         }
-        console.log('🎯 Total Available Sets:', availableSets);
-        console.log('🎯 Available Sets Count:', availableSets.length);
 
         if (availableSets.length === 0) {
-            console.log('❌ NO AVAILABLE SETS! This is why no cards are found!');
-            console.log('===== CARD SELECTION DEBUG END =====\n');
             return null;
         }
 
@@ -54,11 +44,9 @@ class CardManager {
              ORDER BY RANDOM()`,
             availableSets
         );
-        console.log('🎯 Cards with complete API data:', cards.length);
 
         // Fallback to cached cards if no complete ones found
         if (cards.length === 0) {
-            console.log('🎯 No complete API cards, trying cached cards...');
             cards = await this.db.all(
                 `SELECT * FROM cards 
                  WHERE set_name IN (${availableSets.map(() => '?').join(',')})
@@ -66,47 +54,14 @@ class CardManager {
                  ORDER BY RANDOM()`,
                 availableSets
             );
-            console.log('🎯 Cached cards found:', cards.length);
         }
 
         // Final fallback - any cards from available sets
         if (cards.length === 0) {
-            console.log('🎯 No cached cards, trying ANY cards from available sets...');
             cards = await this.db.all(
                 `SELECT * FROM cards 
                  WHERE set_name IN (${availableSets.map(() => '?').join(',')})
                  ORDER BY RANDOM()`,
-                availableSets
-            );
-            console.log('🎯 Any cards found:', cards.length);
-        }
-        
-        console.log('🎯 Final card selection result:', cards.length > 0 ? `Found ${cards.length} cards` : 'NO CARDS FOUND');
-        
-        // INVESTIGATE: What set names actually exist in the database?
-        if (cards.length === 0) {
-            console.log('\n🔍 INVESTIGATING: Actual set names in database...');
-            try {
-                const actualSets = await this.db.all('SELECT DISTINCT set_name FROM cards ORDER BY set_name LIMIT 30');
-                console.log('🔍 First 30 actual set names in production:', actualSets.map(s => s.set_name));
-                
-                // Look for Generation I patterns (base, jungle, fossil, etc.)
-                const gen1Patterns = await this.db.all(`SELECT DISTINCT set_name FROM cards WHERE set_name LIKE 'base%' OR set_name LIKE '%jungle%' OR set_name LIKE '%fossil%' OR set_name LIKE '%rocket%' ORDER BY set_name`);
-                console.log('🔍 Potential Generation I sets found:', gen1Patterns.map(s => s.set_name));
-                
-                const setCount = await this.db.get('SELECT COUNT(DISTINCT set_name) as count FROM cards');
-                console.log('🔍 Total unique sets in database:', setCount.count);
-            } catch (error) {
-                console.error('❌ Failed to investigate actual sets:', error.message);
-            }
-        }
-        
-        console.log('===== CARD SELECTION DEBUG END =====\n');
-
-        // Final fallback to any available cards from unlocked sets
-        if (cards.length === 0) {
-            cards = await this.db.all(
-                `SELECT * FROM cards WHERE set_name IN (${availableSets.map(() => '?').join(',')})`,
                 availableSets
             );
         }
