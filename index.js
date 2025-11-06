@@ -116,6 +116,13 @@ class PokezamBot {
                     await this.database.run(`DELETE FROM cards WHERE set_id IN ('base1', 'base2', 'base3')`);
                     console.log('✅ Base sets cleared - will reload from files');
                     fs.unlinkSync(forceReloadFlag); // Remove flag after use
+                    
+                    // IMPORTANT: Delete migration flag so set_name gets fixed for newly loaded sets
+                    const migrationFlag = path.join(__dirname, '.set_name_migration_complete');
+                    if (fs.existsSync(migrationFlag)) {
+                        fs.unlinkSync(migrationFlag);
+                        console.log('🔄 Migration flag cleared - will re-run for new base sets');
+                    }
                 } catch (error) {
                     console.error('⚠️ Failed to clear base sets:', error.message);
                 }
