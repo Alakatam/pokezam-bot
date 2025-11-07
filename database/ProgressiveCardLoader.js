@@ -146,7 +146,7 @@ class ProgressiveCardLoader {
                                 api_id, name, set_id, set_name, set_series, number, rarity,
                                 supertype, subtypes, hp, types, attacks, weaknesses, resistances,
                                 retreat_cost, artist, flavor_text, national_pokedex_numbers,
-                                image_small, image_large, tcgplayer_url, cardmarket_url,
+                                image_url_small, image_url_large, tcgplayer_url, cardmarket_url,
                                 release_date, unlock_level, holo_chance, is_cached, last_updated,
                                 created_at, variant_normal, variant_reverse, variant_holo,
                                 variant_first_edition, variant_promo
