@@ -38,11 +38,12 @@ class CardManager {
         console.log(`🎴 ZAM DEBUG: Looking for sets: ${availableSets.join(', ')}`);
 
         // Prioritize cards with complete API data (proper images and numbers)
+        // Check both old (image_small/large) and new (image_url_small/large) column names for compatibility
         let cards = await this.db.all(
             `SELECT * FROM cards 
              WHERE set_name IN (${availableSets.map(() => '?').join(',')})
              AND api_id IS NOT NULL
-             AND (image_url_large IS NOT NULL OR image_url_small IS NOT NULL)
+             AND (image_url_large IS NOT NULL OR image_url_small IS NOT NULL OR image_large IS NOT NULL OR image_small IS NOT NULL)
              ORDER BY RANDOM()`,
             availableSets
         );
