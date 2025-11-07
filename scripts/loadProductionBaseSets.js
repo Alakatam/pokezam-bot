@@ -309,7 +309,7 @@ class ProductionTCGLoader {
                 const imageLarge = card.images?.large || '';
                 
                 // Debug first card
-                if (cardCount === 0) {
+                if (this.totalCardsAdded === 0) {
                     console.log(`📸 First card image check: ${card.name}`);
                     console.log(`   Small: ${imageSmall}`);
                     console.log(`   Large: ${imageLarge}`);
