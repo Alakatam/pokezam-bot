@@ -176,11 +176,11 @@ class EnhancedQuestManager {
                     );
 
                     if (!existing) {
-                        // Create new quest for user
+                        // Create new quest for user with milliseconds timestamp
                         await this.db.run(`
                             INSERT INTO user_quests (user_id, quest_id, progress, completed, assigned_date)
-                            VALUES (?, ?, 0, FALSE, EXTRACT(EPOCH FROM NOW()))
-                        `, [userId, dbQuest.id]);
+                            VALUES (?, ?, 0, FALSE, ?)
+                        `, [userId, dbQuest.id, Date.now()]);
                     }
                 }
             }
@@ -243,12 +243,12 @@ class EnhancedQuestManager {
                 const newProgress = quest.progress + progressAmount;
                 
                 if (newProgress >= quest.target_value && !quest.completed) {
-                    // Quest completed!
+                    // Quest completed! Use milliseconds timestamp
                     await this.db.run(`
                         UPDATE user_quests 
-                        SET progress = ?, completed = TRUE, completed_date = EXTRACT(EPOCH FROM NOW())
+                        SET progress = ?, completed = TRUE, completed_date = ?
                         WHERE id = ?
-                    `, [quest.target_value, quest.id]);
+                    `, [quest.target_value, Date.now(), quest.id]);
 
                     // Add rewards
                     if (quest.reward_gold > 0) {

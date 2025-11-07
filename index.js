@@ -123,6 +123,31 @@ class PokezamBot {
                 }
             }
             
+            // FIX QUEST TIMESTAMPS: Convert seconds to milliseconds and remove duplicates
+            if (this.database.dbType === 'postgresql') {
+                console.log('🔧 Checking quest timestamp format...');
+                try {
+                    // Check if any quests have timestamps in seconds (before year 2000 in millis)
+                    const checkQuest = await this.database.get(`
+                        SELECT assigned_date 
+                        FROM user_quests 
+                        WHERE assigned_date < 946684800000
+                        LIMIT 1
+                    `);
+                    
+                    if (checkQuest) {
+                        console.log('⚠️ Found quest timestamps in seconds - fixing...');
+                        const { fixQuestTimestamps } = require('./scripts/fixQuestTimestamps');
+                        await fixQuestTimestamps();
+                        console.log('✅ Quest timestamps fixed');
+                    } else {
+                        console.log('✅ Quest timestamps already in milliseconds');
+                    }
+                } catch (error) {
+                    console.log('ℹ️  Quest tables will use correct timestamp format');
+                }
+            }
+            
             // AUTO-ADD COOLDOWN BYPASS: One-time migration to add cooldown_bypass column
             console.log('🔧 Checking cooldown_bypass column...');
             try {
