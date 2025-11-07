@@ -150,21 +150,21 @@ module.exports = {
         if (itemConfig.category === 'multi_boost') {
             // Add gold boost effect
             await database.run(`
-                INSERT INTO active_effects (user_id, effect_type, category, multiplier, expires_at, uses_remaining, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            `, [userId, `${itemId}_gold`, 'gold_boost', itemConfig.goldMultiplier, expiresAt, usesRemaining, now]);
+                INSERT INTO active_effects (user_id, effect_name, effect_type, category, multiplier, expires_at, uses_remaining, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            `, [userId, `${itemConfig.name} (Gold)`, `${itemId}_gold`, 'gold_boost', itemConfig.goldMultiplier, expiresAt, usesRemaining, now]);
             
             // Add luck boost effect
             await database.run(`
-                INSERT INTO active_effects (user_id, effect_type, category, multiplier, expires_at, uses_remaining, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            `, [userId, `${itemId}_luck`, 'luck_boost', itemConfig.luckMultiplier, expiresAt, usesRemaining, now]);
+                INSERT INTO active_effects (user_id, effect_name, effect_type, category, multiplier, expires_at, uses_remaining, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            `, [userId, `${itemConfig.name} (Luck)`, `${itemId}_luck`, 'luck_boost', itemConfig.luckMultiplier, expiresAt, usesRemaining, now]);
         } else {
             // Add single effect to active_effects table
             await database.run(`
-                INSERT INTO active_effects (user_id, effect_type, category, multiplier, expires_at, uses_remaining, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            `, [userId, itemId, itemConfig.category, itemConfig.multiplier || itemConfig.goldMultiplier || 1.0, expiresAt, usesRemaining, now]);
+                INSERT INTO active_effects (user_id, effect_name, effect_type, category, multiplier, expires_at, uses_remaining, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            `, [userId, itemConfig.name, itemId, itemConfig.category, itemConfig.multiplier || itemConfig.goldMultiplier || 1.0, expiresAt, usesRemaining, now]);
         }
 
         return {

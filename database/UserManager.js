@@ -65,6 +65,28 @@ class UserManager {
         };
     }
 
+    async setLevel(userId, level) {
+        const user = await this.getUser(userId);
+        if (!user) return null;
+
+        // Calculate XP needed for the target level
+        const baseXP = 100;
+        const increment = 50;
+        
+        let totalXP = 0;
+        for (let i = 1; i < level; i++) {
+            totalXP += baseXP + (i - 1) * increment;
+        }
+
+        await this.updateUser(userId, { level: level, xp: totalXP });
+        
+        return {
+            oldLevel: user.level,
+            newLevel: level,
+            newXP: totalXP
+        };
+    }
+
     async spendGold(userId, amount) {
         const user = await this.getUser(userId);
         if (!user || user.gold < amount) return false;

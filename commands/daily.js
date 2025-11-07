@@ -32,7 +32,7 @@ module.exports = {
             const easternTime = new Date(now.toLocaleString("en-US", {timeZone: "America/New_York"}));
             
             // Calculate the last 20:00 ET reset time
-            const lastResetTime = new Date(easternTimeString);
+            const lastResetTime = new Date(easternTime);
             lastResetTime.setHours(20, 0, 0, 0);
             
             // If it's before 20:00 ET today, the reset was yesterday at 20:00 ET
@@ -45,7 +45,7 @@ module.exports = {
             
             if (lastClaimTimestamp > resetTimestamp) {
                 // Calculate next reset time (20:00 ET)
-                const nextReset = new Date(easternTimeString);
+                const nextReset = new Date(easternTime);
                 nextReset.setHours(20, 0, 0, 0);
                 
                 // If it's already past 20:00 ET today, next reset is tomorrow
