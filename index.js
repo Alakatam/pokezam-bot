@@ -1047,20 +1047,22 @@ class PokezamBot {
                 const timestamps = this.cooldowns.get(command.data.name);
                 const cooldownAmount = (command.cooldown || 0) * 1000;
 
-                // Check for cooldown bypass (for admin users)
-                const user = await this.userManager.getUser(interaction.user.id);
-                const hasCooldownBypass = user && user.cooldown_bypass === true;
-
-                // Simple cooldown check (skip if user has bypass enabled)
-                if (!hasCooldownBypass && timestamps.has(interaction.user.id)) {
+                // Simple cooldown check first (no database query)
+                if (timestamps.has(interaction.user.id)) {
                     const expirationTime = timestamps.get(interaction.user.id) + cooldownAmount;
 
                     if (now < expirationTime) {
-                        const timeLeft = (expirationTime - now) / 1000;
-                        return interaction.reply({
-                            content: `Please wait ${timeLeft.toFixed(1)} more seconds before using \`/${command.data.name}\` again.`,
-                            flags: 64 // ephemeral flag
-                        });
+                        // Check for cooldown bypass only if cooldown applies
+                        const user = await this.userManager.getUser(interaction.user.id);
+                        const hasCooldownBypass = user && user.cooldown_bypass === true;
+                        
+                        if (!hasCooldownBypass) {
+                            const timeLeft = (expirationTime - now) / 1000;
+                            return interaction.reply({
+                                content: `Please wait ${timeLeft.toFixed(1)} more seconds before using \`/${command.data.name}\` again.`,
+                                flags: 64 // ephemeral flag
+                            });
+                        }
                     }
                 }
 
