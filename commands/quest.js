@@ -330,61 +330,79 @@ error details          : "${showPageError.message}"
         
         let nextReset, frequency, resetDescription;
         
+        // Compute timezone offset between UTC and Eastern Time for the current instant
+        const etNowString = now.toLocaleString("en-US", { timeZone: "America/New_York" });
+        const etNow = new Date(etNowString);
+        const tzOffsetMillis = now.getTime() - etNow.getTime(); // millis to add to ET wall time to get UTC epoch
+
         if (questType === 'daily') {
             // Daily resets at 20:00 ET every day
-            // Create nextReset in Eastern Time context
-            const etString = now.toLocaleString("en-US", {timeZone: "America/New_York"});
-            nextReset = new Date(etString);
-            nextReset.setHours(20, 0, 0, 0);
-            
-            // If it's already past 20:00 today, set to tomorrow
-            if (easternTime.getHours() >= 20) {
-                nextReset.setDate(nextReset.getDate() + 1);
+            const currentET = etNow;
+
+            const year = currentET.getFullYear();
+            const month = currentET.getMonth();
+            const date = currentET.getDate();
+
+            // Build UTC epoch for ET 20:00 today
+            let nextResetEpoch = Date.UTC(year, month, date, 20, 0, 0, 0) + tzOffsetMillis;
+
+            // If it's already past 20:00 ET today, advance to tomorrow
+            if (currentET.getHours() >= 20) {
+                nextResetEpoch += 24 * 60 * 60 * 1000;
             }
-            
+
+            nextReset = new Date(nextResetEpoch);
             frequency = "Every day at 20:00 ET";
             resetDescription = "Daily";
-            
+
         } else if (questType === 'weekly') {
             // Weekly resets every Sunday at 20:00 ET
-            const etString = now.toLocaleString("en-US", {timeZone: "America/New_York"});
-            nextReset = new Date(etString);
-            const daysUntilSunday = (7 - easternTime.getDay()) % 7;
-            
-            if (daysUntilSunday === 0 && easternTime.getHours() < 20) {
-                // It's Sunday and before 20:00, reset today
-                nextReset.setHours(20, 0, 0, 0);
-            } else {
-                // Set to next Sunday
-                nextReset.setDate(nextReset.getDate() + (daysUntilSunday === 0 ? 7 : daysUntilSunday));
-                nextReset.setHours(20, 0, 0, 0);
-            }
-            
+            const currentET = etNow;
+            const year = currentET.getFullYear();
+            const month = currentET.getMonth();
+            const date = currentET.getDate();
+
+            const daysUntilSunday = (7 - currentET.getDay()) % 7;
+            let targetDate = date + (daysUntilSunday === 0 && currentET.getHours() < 20 ? 0 : (daysUntilSunday === 0 ? 7 : daysUntilSunday));
+
+            let nextResetEpoch = Date.UTC(year, month, targetDate, 20, 0, 0, 0) + tzOffsetMillis;
+            nextReset = new Date(nextResetEpoch);
+
             frequency = "Every Sunday at 20:00 ET";
             resetDescription = "Weekly";
-            
+
         } else if (questType === 'monthly') {
             // Monthly resets on the last day of the month at 20:00 ET
-            const etString = now.toLocaleString("en-US", {timeZone: "America/New_York"});
-            nextReset = new Date(etString);
-            const lastDayOfMonth = new Date(nextReset.getFullYear(), nextReset.getMonth() + 1, 0);
-            
-            if (easternTime.getDate() === lastDayOfMonth.getDate() && easternTime.getHours() < 20) {
-                // It's the last day and before 20:00, reset today
-                nextReset = new Date(lastDayOfMonth);
-                nextReset.setHours(20, 0, 0, 0);
+            const currentET = etNow;
+            const year = currentET.getFullYear();
+            const month = currentET.getMonth();
+            const lastDayOfMonth = new Date(year, month + 1, 0).getDate();
+
+            let targetYear = year;
+            let targetMonth = month;
+            let targetDay = lastDayOfMonth;
+
+            if (currentET.getDate() === lastDayOfMonth && currentET.getHours() < 20) {
+                // today at 20:00
             } else {
-                // Set to last day of next month
-                nextReset = new Date(nextReset.getFullYear(), nextReset.getMonth() + 1, 0);
-                nextReset.setHours(20, 0, 0, 0);
+                // last day of next month
+                targetMonth = month + 1;
+                if (targetMonth > 11) {
+                    targetMonth = 0;
+                    targetYear = year + 1;
+                }
+                targetDay = new Date(targetYear, targetMonth + 1, 0).getDate();
             }
-            
+
+            const nextResetEpoch = Date.UTC(targetYear, targetMonth, targetDay, 20, 0, 0, 0) + tzOffsetMillis;
+            nextReset = new Date(nextResetEpoch);
+
             frequency = "Last day of month at 20:00 ET";
             resetDescription = "Monthly";
         }
         
         // Calculate time until reset
-        const timeDiff = nextReset.getTime() - easternTime.getTime();
+        const timeDiff = nextReset.getTime() - now.getTime();
         const timeUntilReset = this.formatTimeDifference(timeDiff);
         
         // Format the next reset time (use consistent ET timezone display)
