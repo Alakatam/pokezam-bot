@@ -98,6 +98,31 @@ class PokezamBot {
             // POSTGRESQL SCHEMA FIX: Ensure all columns exist (for Render PostgreSQL)
             await this.fixPostgreSQLSchema();
             
+            // FIX COLLECTOR SHOP TIMESTAMPS: Ensure BIGINT columns for timestamps
+            if (this.database.dbType === 'postgresql') {
+                console.log('🔧 Checking collector shop timestamp columns...');
+                try {
+                    const checkResult = await this.database.get(`
+                        SELECT data_type 
+                        FROM information_schema.columns 
+                        WHERE table_name = 'collector_shops' 
+                        AND column_name = 'created_at'
+                        LIMIT 1
+                    `);
+                    
+                    if (checkResult && checkResult.data_type === 'integer') {
+                        console.log('⚠️ Found INTEGER timestamps - fixing to BIGINT...');
+                        const { fixTimestamps } = require('./scripts/fixCollectorShopTimestamps');
+                        await fixTimestamps();
+                        console.log('✅ Collector shop timestamps fixed');
+                    } else {
+                        console.log('✅ Collector shop timestamps already BIGINT');
+                    }
+                } catch (error) {
+                    console.log('ℹ️  Collector shop tables will be created with correct types');
+                }
+            }
+            
             // AUTO-ADD COOLDOWN BYPASS: One-time migration to add cooldown_bypass column
             console.log('🔧 Checking cooldown_bypass column...');
             try {
