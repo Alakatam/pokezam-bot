@@ -246,9 +246,11 @@ class CardManager {
         return await this.db.get(`
             SELECT 
                 c.*,
+                COALESCE(c.image_url_large, c.image_large) as image_large,
+                COALESCE(c.image_url_small, c.image_small) as image_small,
                 CASE 
-                    WHEN c.image_large IS NOT NULL THEN c.image_large
-                    WHEN c.image_small IS NOT NULL THEN c.image_small
+                    WHEN COALESCE(c.image_url_large, c.image_large) IS NOT NULL THEN COALESCE(c.image_url_large, c.image_large)
+                    WHEN COALESCE(c.image_url_small, c.image_small) IS NOT NULL THEN COALESCE(c.image_url_small, c.image_small)
                     ELSE NULL
                 END as primary_image
             FROM cards c
