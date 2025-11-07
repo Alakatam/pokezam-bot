@@ -303,6 +303,17 @@ class ProductionTCGLoader {
                 // Don't set set_name here - let migration handle it
                 // This ensures proper name mapping (base2 -> "Jungle", etc.)
                 const setName = card.set?.name || '';
+                
+                // Extract image URLs
+                const imageSmall = card.images?.small || '';
+                const imageLarge = card.images?.large || '';
+                
+                // Debug first card
+                if (cardCount === 0) {
+                    console.log(`📸 First card image check: ${card.name}`);
+                    console.log(`   Small: ${imageSmall}`);
+                    console.log(`   Large: ${imageLarge}`);
+                }
 
                 await this.db.run(`
                     INSERT INTO cards (
@@ -327,8 +338,8 @@ class ProductionTCGLoader {
                     card.number || '',
                     card.flavorText || '',
                     card.nationalPokedexNumbers?.[0] || null,
-                    card.images?.small || '',
-                    card.images?.large || '',
+                    imageSmall,
+                    imageLarge,
                     card.tcgplayer?.url || '',
                     card.cardmarket?.url || '',
                     // Vintage sets (base1-base5) only have normal and first edition variants
