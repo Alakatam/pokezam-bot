@@ -19,12 +19,23 @@ module.exports = {
             // Defer reply immediately to avoid timeout
             await interaction.deferReply();
             
-            let user = await userManager.getUser(userId);
+            // Parallelize all database queries
+            const [user, collectionStats, unlockedGenerations] = await Promise.all([
+                userManager.getUser(userId),
+                userManager.getCollectionStats(userId),
+                userManager.getUnlockedGenerations(userId)
+            ]);
             
             if (!user) {
                 if (targetUser.id === interaction.user.id) {
                     // Create profile for the user
-                    user = await userManager.createUser(userId, targetUser.username);
+                    const newUser = await userManager.createUser(userId, targetUser.username);
+                    // Requery stats after user creation
+                    const [newCollectionStats, newUnlockedGenerations] = await Promise.all([
+                        userManager.getCollectionStats(userId),
+                        userManager.getUnlockedGenerations(userId)
+                    ]);
+                    return await buildProfileEmbed(interaction, targetUser, newUser, newCollectionStats, newUnlockedGenerations);
                 } else {
                     return await interaction.editReply({
                         embeds: [EmbedUtils.createErrorEmbed(
@@ -34,10 +45,6 @@ module.exports = {
                     });
                 }
             }
-
-            // Get collection statistics
-            const collectionStats = await userManager.getCollectionStats(userId);
-            const unlockedGenerations = await userManager.getUnlockedGenerations(userId);
 
             // Create vertical profile embed
             const xpInfo = userManager.getXPForNextLevel(user.xp, user.level);
