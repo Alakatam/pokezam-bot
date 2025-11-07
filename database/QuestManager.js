@@ -92,7 +92,7 @@ class QuestManager {
         const lastDayOfMonth = new Date(easternTime.getFullYear(), easternTime.getMonth() + 1, 0).getDate();
         
         // Only reset at 20:00 (8 PM) Eastern Time
-        if (currentHour === 22) {
+        if (currentHour === 20) {
             // Get all user quests with their types
             const userQuests = await this.db.all(`
                 SELECT uq.*, q.quest_type
@@ -100,7 +100,7 @@ class QuestManager {
                 JOIN quests q ON uq.quest_id = q.id
             `);
 
-            const nowTimestamp = Math.floor(Date.now() / 1000);
+            const nowTimestamp = Date.now();
             let resetCount = 0;
 
             for (const quest of userQuests) {
@@ -109,7 +109,7 @@ class QuestManager {
                 // Check reset conditions based on quest type
                 if (quest.quest_type === 'daily') {
                     // Daily quests reset every day at 20:00 ET
-                    const assignedDate = new Date(quest.assigned_date * 1000);
+                    const assignedDate = new Date(quest.assigned_date); // Now in milliseconds
                     const assignedEastern = new Date(assignedDate.toLocaleString("en-US", {timeZone: "America/New_York"}));
                     
                     // Reset if it's been more than a day since assignment
@@ -121,8 +121,8 @@ class QuestManager {
                 } else if (quest.quest_type === 'weekly') {
                     // Weekly quests reset every Sunday at 20:00 ET
                     if (currentDay === 0) { // Sunday
-                        const assignedDate = new Date(quest.assigned_date * 1000);
-                        const daysSinceAssignment = Math.floor((nowTimestamp - quest.assigned_date) / (24 * 60 * 60));
+                        const assignedDate = new Date(quest.assigned_date); // Now in milliseconds
+                        const daysSinceAssignment = Math.floor((nowTimestamp - quest.assigned_date) / (24 * 60 * 60 * 1000));
                         
                         if (daysSinceAssignment >= 7) {
                             shouldReset = true;
@@ -131,7 +131,7 @@ class QuestManager {
                 } else if (quest.quest_type === 'monthly') {
                     // Monthly quests reset on last day of month at 20:00 ET
                     if (currentDate === lastDayOfMonth) {
-                        const assignedDate = new Date(quest.assigned_date * 1000);
+                        const assignedDate = new Date(quest.assigned_date); // Now in milliseconds
                         const assignedEastern = new Date(assignedDate.toLocaleString("en-US", {timeZone: "America/New_York"}));
                         
                         if (easternTime.getMonth() !== assignedEastern.getMonth() ||
