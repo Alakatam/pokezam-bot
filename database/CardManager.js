@@ -34,33 +34,51 @@ class CardManager {
             return null;
         }
 
-        // Step 1: Build the "dartboard" - get card counts per generation
-        const generationWeights = [];
-        let totalWeight = 0;
+        // Step 1: Build the "dartboard" - OPTIMIZED: Single GROUP BY query
+        const allSets = [];
+        const setToGeneration = new Map();
         
         for (const generation of availableGenerations) {
             const genSets = this.getSetsByGeneration(generation);
+            allSets.push(...genSets);
+            genSets.forEach(set => setToGeneration.set(set, generation));
+        }
+
+        // ONE query with GROUP BY instead of 12 separate queries
+        const setCounts = await this.db.all(
+            `SELECT set_name, COUNT(*) as count FROM cards 
+             WHERE set_name IN (${allSets.map(() => '?').join(',')})
+             AND api_id IS NOT NULL
+             AND (image_url_large IS NOT NULL OR image_url_small IS NOT NULL 
+                  OR image_large IS NOT NULL OR image_small IS NOT NULL)
+             GROUP BY set_name`,
+            allSets
+        );
+
+        // Aggregate counts by generation
+        const generationWeights = [];
+        let totalWeight = 0;
+        const generationMap = new Map();
+        
+        for (const { set_name, count } of setCounts) {
+            const generation = setToGeneration.get(set_name);
+            if (!generation) continue;
             
-            // Count cards in this generation (with image filter for quality)
-            const countResult = await this.db.get(
-                `SELECT COUNT(*) as count FROM cards 
-                 WHERE set_name IN (${genSets.map(() => '?').join(',')})
-                 AND api_id IS NOT NULL
-                 AND (image_url_large IS NOT NULL OR image_url_small IS NOT NULL 
-                      OR image_large IS NOT NULL OR image_small IS NOT NULL)`,
-                genSets
-            );
-            
-            const count = countResult?.count || 0;
-            if (count > 0) {
-                generationWeights.push({
-                    generation,
-                    sets: genSets,
-                    weight: count,
-                    cumulativeWeight: totalWeight + count
-                });
-                totalWeight += count;
+            let genData = generationMap.get(generation);
+            if (!genData) {
+                genData = { generation, sets: [], weight: 0 };
+                generationMap.set(generation, genData);
             }
+            genData.sets.push(set_name);
+            genData.weight += count;
+            totalWeight += count;
+        }
+
+        // Build array with cumulative weights
+        let cumulative = 0;
+        for (const genData of generationMap.values()) {
+            cumulative += genData.weight;
+            generationWeights.push({ ...genData, cumulativeWeight: cumulative });
         }
 
         if (totalWeight === 0 || generationWeights.length === 0) {
@@ -87,45 +105,63 @@ class CardManager {
 
         console.log(`🎯 Selected: ${selectedGeneration.generation} (${selectedGeneration.weight} cards)`);
 
-        // Step 3: The "Simple Roll" - pick one card from the selected generation
-        let cards = await this.db.all(
+        // Step 3: ULTRA FAST - Use OFFSET instead of ORDER BY RANDOM()
+        const randomOffset = Math.floor(Math.random() * selectedGeneration.weight);
+        
+        let card = await this.db.get(
             `SELECT * FROM cards 
              WHERE set_name IN (${selectedGeneration.sets.map(() => '?').join(',')})
              AND api_id IS NOT NULL
              AND (image_url_large IS NOT NULL OR image_url_small IS NOT NULL 
                   OR image_large IS NOT NULL OR image_small IS NOT NULL)
-             ORDER BY RANDOM()
-             LIMIT 100`,
-            selectedGeneration.sets
+             LIMIT 1 OFFSET ?`,
+            [...selectedGeneration.sets, randomOffset]
         );
 
         // Fallback to cached cards if no complete ones found
-        if (cards.length === 0) {
-            cards = await this.db.all(
-                `SELECT * FROM cards 
+        if (!card) {
+            const cachedCount = await this.db.get(
+                `SELECT COUNT(*) as count FROM cards 
                  WHERE set_name IN (${selectedGeneration.sets.map(() => '?').join(',')})
-                 AND is_cached = TRUE 
-                 ORDER BY RANDOM()
-                 LIMIT 100`,
+                 AND is_cached = TRUE`,
                 selectedGeneration.sets
             );
+            
+            if (cachedCount?.count > 0) {
+                const cachedOffset = Math.floor(Math.random() * cachedCount.count);
+                card = await this.db.get(
+                    `SELECT * FROM cards 
+                     WHERE set_name IN (${selectedGeneration.sets.map(() => '?').join(',')})
+                     AND is_cached = TRUE 
+                     LIMIT 1 OFFSET ?`,
+                    [...selectedGeneration.sets, cachedOffset]
+                );
+            }
         }
 
         // Final fallback - any cards from selected generation
-        if (cards.length === 0) {
-            cards = await this.db.all(
-                `SELECT * FROM cards 
-                 WHERE set_name IN (${selectedGeneration.sets.map(() => '?').join(',')})
-                 ORDER BY RANDOM()
-                 LIMIT 100`,
+        if (!card) {
+            const anyCount = await this.db.get(
+                `SELECT COUNT(*) as count FROM cards 
+                 WHERE set_name IN (${selectedGeneration.sets.map(() => '?').join(',')})`,
                 selectedGeneration.sets
             );
+            
+            if (anyCount?.count > 0) {
+                const anyOffset = Math.floor(Math.random() * anyCount.count);
+                card = await this.db.get(
+                    `SELECT * FROM cards 
+                     WHERE set_name IN (${selectedGeneration.sets.map(() => '?').join(',')})
+                     LIMIT 1 OFFSET ?`,
+                    [...selectedGeneration.sets, anyOffset]
+                );
+            }
         }
 
-        if (cards.length === 0) return null;
+        if (!card) return null;
 
         // Apply advanced rarity system with realistic odds
-        return this.selectCardWithRarityOdds(cards, guildLuckBonus);
+        return this.selectCardWithRarityOdds([card], guildLuckBonus);
     }
 
     getAvailableGenerationsByLevel(userLevel) {
