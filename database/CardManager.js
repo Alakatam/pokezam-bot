@@ -21,58 +21,104 @@ class CardManager {
     }
 
     async getRandomCard(userLevel, guildLuckBonus = 0) {
+        // 🎯 WEIGHTED GENERATION SELECTION OPTIMIZATION
+        // Instead of building one massive array of 15,000+ cards, we use a "dartboard" approach:
+        // 1. Count cards per generation (fast)
+        // 2. Pick a generation weighted by its card count (instant)
+        // 3. Pick a random card from only that generation (fast)
+        
         // Get available generations based on user level
         const availableGenerations = this.getAvailableGenerationsByLevel(userLevel);
         
-        // Convert generation names to set names that exist in our database
-        const availableSets = [];
-        for (const generation of availableGenerations) {
-            const genSets = this.getSetsByGeneration(generation);
-            availableSets.push(...genSets);
-        }
-
-        if (availableSets.length === 0) {
+        if (availableGenerations.length === 0) {
             return null;
         }
 
-        console.log(`🎴 ZAM DEBUG: Looking for sets: ${availableSets.join(', ')}`);
+        // Step 1: Build the "dartboard" - get card counts per generation
+        const generationWeights = [];
+        let totalWeight = 0;
+        
+        for (const generation of availableGenerations) {
+            const genSets = this.getSetsByGeneration(generation);
+            
+            // Count cards in this generation (with image filter for quality)
+            const countResult = await this.db.get(
+                `SELECT COUNT(*) as count FROM cards 
+                 WHERE set_name IN (${genSets.map(() => '?').join(',')})
+                 AND api_id IS NOT NULL
+                 AND (image_url_large IS NOT NULL OR image_url_small IS NOT NULL 
+                      OR image_large IS NOT NULL OR image_small IS NOT NULL)`,
+                genSets
+            );
+            
+            const count = countResult?.count || 0;
+            if (count > 0) {
+                generationWeights.push({
+                    generation,
+                    sets: genSets,
+                    weight: count,
+                    cumulativeWeight: totalWeight + count
+                });
+                totalWeight += count;
+            }
+        }
 
-        // Prioritize cards with complete API data (proper images and numbers)
-        // Check both old (image_small/large) and new (image_url_small/large) column names for compatibility
+        if (totalWeight === 0 || generationWeights.length === 0) {
+            return null; // No cards available
+        }
+
+        console.log(`� ZAM OPTIMIZATION: ${generationWeights.length} generations, ${totalWeight} total cards`);
+
+        // Step 2: The "Weighted Roll" - pick a generation
+        const roll = Math.floor(Math.random() * totalWeight) + 1;
+        let selectedGeneration = null;
+        
+        for (const genWeight of generationWeights) {
+            if (roll <= genWeight.cumulativeWeight) {
+                selectedGeneration = genWeight;
+                break;
+            }
+        }
+
+        if (!selectedGeneration) {
+            // Fallback to last generation if something goes wrong
+            selectedGeneration = generationWeights[generationWeights.length - 1];
+        }
+
+        console.log(`🎯 Selected: ${selectedGeneration.generation} (${selectedGeneration.weight} cards)`);
+
+        // Step 3: The "Simple Roll" - pick one card from the selected generation
         let cards = await this.db.all(
             `SELECT * FROM cards 
-             WHERE set_name IN (${availableSets.map(() => '?').join(',')})
+             WHERE set_name IN (${selectedGeneration.sets.map(() => '?').join(',')})
              AND api_id IS NOT NULL
-             AND (image_url_large IS NOT NULL OR image_url_small IS NOT NULL OR image_large IS NOT NULL OR image_small IS NOT NULL)
-             ORDER BY RANDOM()`,
-            availableSets
+             AND (image_url_large IS NOT NULL OR image_url_small IS NOT NULL 
+                  OR image_large IS NOT NULL OR image_small IS NOT NULL)
+             ORDER BY RANDOM()
+             LIMIT 100`,
+            selectedGeneration.sets
         );
-
-        console.log(`🎴 ZAM DEBUG: Found ${cards.length} cards with complete API data`);
-        
-        if (cards.length > 0) {
-            const sampleSets = [...new Set(cards.slice(0, 5).map(c => `${c.set_id}(${c.set_name})`))];
-            console.log(`🎴 ZAM DEBUG: Sample sets: ${sampleSets.join(', ')}`);
-        }
 
         // Fallback to cached cards if no complete ones found
         if (cards.length === 0) {
             cards = await this.db.all(
                 `SELECT * FROM cards 
-                 WHERE set_name IN (${availableSets.map(() => '?').join(',')})
+                 WHERE set_name IN (${selectedGeneration.sets.map(() => '?').join(',')})
                  AND is_cached = TRUE 
-                 ORDER BY RANDOM()`,
-                availableSets
+                 ORDER BY RANDOM()
+                 LIMIT 100`,
+                selectedGeneration.sets
             );
         }
 
-        // Final fallback - any cards from available sets
+        // Final fallback - any cards from selected generation
         if (cards.length === 0) {
             cards = await this.db.all(
                 `SELECT * FROM cards 
-                 WHERE set_name IN (${availableSets.map(() => '?').join(',')})
-                 ORDER BY RANDOM()`,
-                availableSets
+                 WHERE set_name IN (${selectedGeneration.sets.map(() => '?').join(',')})
+                 ORDER BY RANDOM()
+                 LIMIT 100`,
+                selectedGeneration.sets
             );
         }
 
