@@ -331,17 +331,25 @@ class EnhancedQuestManager {
     async cleanupCompletedQuests(userId, questType) {
         const resetTime = this.getResetTime(questType);
         
+        // Delete completed quests that are past their reset time
+        // Check both completed_date AND assigned_date (in case completed_date is null)
         await this.db.run(`
             DELETE FROM user_quests 
-            WHERE user_id = ? AND completed = TRUE 
+            WHERE user_id = ? 
+            AND completed = TRUE 
             AND quest_id IN (SELECT id FROM quests WHERE quest_type = ?)
-            AND completed_date < ?
-        `, [userId, questType, resetTime]);
+            AND (
+                completed_date < ? 
+                OR (completed_date IS NULL AND assigned_date < ?)
+            )
+        `, [userId, questType, resetTime, resetTime]);
+        
+        console.log(`🧹 Cleaned up completed ${questType} quests for user ${userId}`);
     }
 
     getResetTime(questType) {
-        const now = Math.floor(Date.now() / 1000); // Convert to integer seconds for PostgreSQL BIGINT
-        const day = 24 * 60 * 60;
+        const now = Date.now(); // Keep as milliseconds for consistency
+        const day = 24 * 60 * 60 * 1000; // milliseconds
         
         switch (questType) {
             case 'daily': return now - day;
