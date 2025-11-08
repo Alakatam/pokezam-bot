@@ -64,14 +64,17 @@ class CardManager {
             const generation = setToGeneration.get(set_name);
             if (!generation) continue;
             
+            // PostgreSQL returns COUNT as string for large numbers - parse it
+            const cardCount = parseInt(count, 10);
+            
             let genData = generationMap.get(generation);
             if (!genData) {
                 genData = { generation, sets: [], weight: 0 };
                 generationMap.set(generation, genData);
             }
             genData.sets.push(set_name);
-            genData.weight += count;
-            totalWeight += count;
+            genData.weight += cardCount;
+            totalWeight += cardCount;
         }
 
         // Build array with cumulative weights
@@ -106,6 +109,7 @@ class CardManager {
         console.log(`🎯 Selected: ${selectedGeneration.generation} (${selectedGeneration.weight} cards)`);
 
         // Step 3: ULTRA FAST - Use OFFSET instead of ORDER BY RANDOM()
+        // Ensure offset is a proper integer (not scientific notation)
         const randomOffset = Math.floor(Math.random() * selectedGeneration.weight);
         
         let card = await this.db.get(
