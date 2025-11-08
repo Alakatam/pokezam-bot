@@ -230,6 +230,12 @@ class PokezamBot {
             const autoFixSetNames = require('./scripts/autoFixSetNamesOnStartup');
             await autoFixSetNames(this.database);
             
+            // 🚀 APPLY PERFORMANCE INDEXES: Critical for 20+ concurrent users
+            const { applyZamIndexes } = require('./database/migrations/apply_zam_indexes');
+            applyZamIndexes(this.database).catch(err => {
+                console.error('⚠️  Index creation failed (non-fatal):', err.message);
+            });
+            
             // DEPLOYMENT FIX: Progressive card loading will happen AFTER bot is ready
             // Removed from startup sequence to prevent deployment timeouts
             
