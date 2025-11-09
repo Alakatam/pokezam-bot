@@ -148,6 +148,46 @@ class PokezamBot {
                 }
             }
             
+            // CLEANUP OLD COMPLETED QUESTS: Remove accumulated quests (one-time cleanup)
+            if (this.database.dbType === 'postgresql') {
+                console.log('🧹 Cleaning up old completed quests...');
+                try {
+                    const now = Date.now();
+                    const oneDayAgo = now - (24 * 60 * 60 * 1000);
+                    const oneWeekAgo = now - (7 * 24 * 60 * 60 * 1000);
+                    const oneMonthAgo = now - (30 * 24 * 60 * 60 * 1000);
+
+                    // Clean up old daily quests
+                    const dailyResult = await this.database.run(`
+                        DELETE FROM user_quests 
+                        WHERE completed = TRUE 
+                        AND quest_id IN (SELECT id FROM quests WHERE quest_type = 'daily')
+                        AND (completed_date < ? OR (completed_date IS NULL AND assigned_date < ?))
+                    `, [oneDayAgo, oneDayAgo]);
+                    
+                    // Clean up old weekly quests
+                    const weeklyResult = await this.database.run(`
+                        DELETE FROM user_quests 
+                        WHERE completed = TRUE 
+                        AND quest_id IN (SELECT id FROM quests WHERE quest_type = 'weekly')
+                        AND (completed_date < ? OR (completed_date IS NULL AND assigned_date < ?))
+                    `, [oneWeekAgo, oneWeekAgo]);
+                    
+                    // Clean up old monthly quests
+                    const monthlyResult = await this.database.run(`
+                        DELETE FROM user_quests 
+                        WHERE completed = TRUE 
+                        AND quest_id IN (SELECT id FROM quests WHERE quest_type = 'monthly')
+                        AND (completed_date < ? OR (completed_date IS NULL AND assigned_date < ?))
+                    `, [oneMonthAgo, oneMonthAgo]);
+                    
+                    const totalCleaned = (dailyResult.changes || 0) + (weeklyResult.changes || 0) + (monthlyResult.changes || 0);
+                    console.log(`✅ Cleaned up ${totalCleaned} old completed quests`);
+                } catch (error) {
+                    console.log('ℹ️  Quest cleanup skipped:', error.message);
+                }
+            }
+            
             // AUTO-ADD COOLDOWN BYPASS: One-time migration to add cooldown_bypass column
             console.log('🔧 Checking cooldown_bypass column...');
             try {
