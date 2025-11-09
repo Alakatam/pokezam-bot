@@ -88,7 +88,8 @@ class CardManager {
             return null; // No cards available
         }
 
-        console.log(`� ZAM OPTIMIZATION: ${generationWeights.length} generations, ${totalWeight} total cards`);
+        console.log(`🔧 ZAM OPTIMIZATION: ${generationWeights.length} generations, ${totalWeight} total cards`);
+        console.log(`📊 Generation breakdown:`, generationWeights.map(g => `${g.generation}:${g.weight}`).join(', '));
 
         // Step 2: The "Weighted Roll" - pick a generation
         const roll = Math.floor(Math.random() * totalWeight) + 1;
@@ -109,7 +110,13 @@ class CardManager {
         console.log(`🎯 Selected: ${selectedGeneration.generation} (${selectedGeneration.weight} cards)`);
 
         // Step 3: ULTRA FAST - Use OFFSET instead of ORDER BY RANDOM()
-        // Ensure offset is a proper integer (not scientific notation)
+        // Safety check: Ensure weight is a valid number
+        if (!Number.isFinite(selectedGeneration.weight) || selectedGeneration.weight <= 0) {
+            console.error(`❌ Invalid weight for ${selectedGeneration.generation}: ${selectedGeneration.weight}`);
+            return null;
+        }
+        
+        // Calculate offset - guaranteed to be a safe integer
         const randomOffset = Math.floor(Math.random() * selectedGeneration.weight);
         
         let card = await this.db.get(
