@@ -148,46 +148,25 @@ module.exports = {
 
         // Handle multi-effect items (add separate effects for gold and luck)
         if (itemConfig.category === 'multi_boost') {
-            // Add gold boost effect (use ON CONFLICT to handle UNIQUE constraint)
+            // Add gold boost effect - delete existing first to avoid duplicates
+            await database.run(`DELETE FROM active_effects WHERE user_id = ? AND effect_type = ?`, [userId, `${itemId}_gold`]);
             await database.run(`
                 INSERT INTO active_effects (user_id, effect_name, effect_type, category, multiplier, expires_at, uses_remaining, created_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT (user_id, effect_type) 
-                DO UPDATE SET 
-                    effect_name = EXCLUDED.effect_name,
-                    category = EXCLUDED.category,
-                    multiplier = EXCLUDED.multiplier,
-                    expires_at = EXCLUDED.expires_at,
-                    uses_remaining = EXCLUDED.uses_remaining,
-                    created_at = EXCLUDED.created_at
             `, [userId, `${itemConfig.name} (Gold)`, `${itemId}_gold`, 'gold_boost', itemConfig.goldMultiplier, expiresAt, usesRemaining, now]);
             
-            // Add luck boost effect (use ON CONFLICT to handle UNIQUE constraint)
+            // Add luck boost effect - delete existing first to avoid duplicates
+            await database.run(`DELETE FROM active_effects WHERE user_id = ? AND effect_type = ?`, [userId, `${itemId}_luck`]);
             await database.run(`
                 INSERT INTO active_effects (user_id, effect_name, effect_type, category, multiplier, expires_at, uses_remaining, created_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT (user_id, effect_type) 
-                DO UPDATE SET 
-                    effect_name = EXCLUDED.effect_name,
-                    category = EXCLUDED.category,
-                    multiplier = EXCLUDED.multiplier,
-                    expires_at = EXCLUDED.expires_at,
-                    uses_remaining = EXCLUDED.uses_remaining,
-                    created_at = EXCLUDED.created_at
             `, [userId, `${itemConfig.name} (Luck)`, `${itemId}_luck`, 'luck_boost', itemConfig.luckMultiplier, expiresAt, usesRemaining, now]);
         } else {
-            // Add single effect to active_effects table (use ON CONFLICT to handle UNIQUE constraint)
+            // Add single effect to active_effects table - delete existing first to avoid duplicates
+            await database.run(`DELETE FROM active_effects WHERE user_id = ? AND effect_type = ?`, [userId, itemId]);
             await database.run(`
                 INSERT INTO active_effects (user_id, effect_name, effect_type, category, multiplier, expires_at, uses_remaining, created_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT (user_id, effect_type) 
-                DO UPDATE SET 
-                    effect_name = EXCLUDED.effect_name,
-                    category = EXCLUDED.category,
-                    multiplier = EXCLUDED.multiplier,
-                    expires_at = EXCLUDED.expires_at,
-                    uses_remaining = EXCLUDED.uses_remaining,
-                    created_at = EXCLUDED.created_at
             `, [userId, itemConfig.name, itemId, itemConfig.category, itemConfig.multiplier || itemConfig.goldMultiplier || 1.0, expiresAt, usesRemaining, now]);
         }
 
