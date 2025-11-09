@@ -55,7 +55,8 @@ function loadDataFromDirectory(directory) {
         const files = fs.readdirSync(dataPath);
         const jsonFiles = files.filter(file => path.extname(file) === '.json');
 
-        console.log(`📁 Found ${jsonFiles.length} JSON files in ${dataPath}...`);
+        // Silenced: Reduced startup log spam
+        // console.log(`📁 Found ${jsonFiles.length} JSON files in ${dataPath}...`);
 
         for (const file of jsonFiles) {
             const filePath = path.join(dataPath, file);
@@ -65,7 +66,7 @@ function loadDataFromDirectory(directory) {
                 
                 // Handle empty files
                 if (!fileContent.trim()) {
-                    console.log(`   ⚠️  Empty file: ${file}`);
+                    // Silenced: console.log(`   ⚠️  Empty file: ${file}`);
                     continue;
                 }
                 
@@ -73,15 +74,15 @@ function loadDataFromDirectory(directory) {
 
                 if (Array.isArray(items)) {
                     allItems.push(...items);
-                    console.log(`   ✅ ${file}: ${items.length} items`);
+                    // Silenced: console.log(`   ✅ ${file}: ${items.length} items`);
                 } else if (items && typeof items === 'object') {
                     allItems.push(items);
-                    console.log(`   ✅ ${file}: 1 item`);
+                    // Silenced: console.log(`   ✅ ${file}: 1 item`);
                 } else {
-                    console.log(`   ⚠️  Invalid data structure in ${file}`);
+                    // Keep errors: console.log(`   ⚠️  Invalid data structure in ${file}`);
                 }
             } catch (fileError) {
-                console.log(`   ⚠️  Failed to parse ${file}: ${fileError.message}`);
+                // Keep errors: console.log(`   ⚠️  Failed to parse ${file}: ${fileError.message}`);
             }
         }
 

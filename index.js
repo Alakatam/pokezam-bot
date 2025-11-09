@@ -1179,6 +1179,7 @@ class PokezamBot {
 
         // Temporarily disabled Master Set commands (in development)
         const disabledCommands = ['carddex-master.js', 'master-pack.js', 'master-collection.js'];
+        let loadedCount = 0;
 
         for (const file of commandFiles) {
             // Skip disabled Master Set commands
@@ -1192,11 +1193,14 @@ class PokezamBot {
 
             if ('data' in command && 'execute' in command) {
                 this.commands.set(command.data.name, command);
-                console.log(`Loaded command: ${command.data.name}`);
+                loadedCount++;
+                // Silenced: console.log(`Loaded command: ${command.data.name}`);
             } else {
                 console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
             }
         }
+        
+        console.log(`✅ Loaded ${loadedCount} commands`);
     }
 
     async loadCommands() {
@@ -1207,6 +1211,7 @@ class PokezamBot {
         const disabledCommands = ['carddex-master.js', 'master-pack.js', 'master-collection.js'];
 
         const commands = [];
+        let loadedCount = 0;
 
         for (const file of commandFiles) {
             // Skip disabled Master Set commands
@@ -1221,11 +1226,14 @@ class PokezamBot {
             if ('data' in command && 'execute' in command) {
                 this.commands.set(command.data.name, command);
                 commands.push(command.data.toJSON());
-                console.log(`Loaded command: ${command.data.name}`);
+                loadedCount++;
+                // Silenced: console.log(`Loaded command: ${command.data.name}`);
             } else {
                 console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
             }
         }
+        
+        console.log(`✅ Loaded ${loadedCount} commands for registration`);
 
         // Register slash commands
         await this.registerCommands(commands);

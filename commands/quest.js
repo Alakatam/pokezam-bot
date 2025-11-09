@@ -236,70 +236,60 @@ error details          : "${showPageError.message}"
             'monthly': 'MONTHLY LEGENDS'
         };
 
-        let yamlContent = `\`\`\`yaml
-#═══════════════════════════════════════════════════
-# ${typeEmojis[questType]} ${username.toUpperCase()}'S ${typeTitles[questType]}
-#═══════════════════════════════════════════════════
-
-`;
+        // COMPACT VERSION - Limit quests to fit 4096 character limit
+        let yamlContent = `\`\`\`yaml\n#═══════════════════════════════════════════════════\n`;
+        yamlContent += `# ${typeEmojis[questType]} ${username.toUpperCase()}'S ${typeTitles[questType]}\n`;
+        yamlContent += `#═══════════════════════════════════════════════════\n\n`;
 
         // Add reset information for the current quest type
         const resetInfo = this.getNextResetInfo(questType);
         yamlContent += `⏰ ${questType.toUpperCase()} RESET SCHEDULE:\n`;
-        yamlContent += `   next reset time    : ${resetInfo.nextResetTime}\n`;
-        yamlContent += `   reset frequency    : ${resetInfo.frequency}\n`;
+        yamlContent += `   next reset         : ${resetInfo.nextResetTime}\n`;
+        yamlContent += `   frequency          : ${resetInfo.frequency}\n`;
         yamlContent += `   time until reset   : ${resetInfo.timeUntilReset}\n\n`;
         
-        // Add visual separator between reset info and quests
         yamlContent += `#───────────────────────────────────────────────────\n`;
-        yamlContent += `# 🎯 QUEST LIST\n`;
+        yamlContent += `# 🎯 QUEST LIST (${quests.length} total)\n`;
         yamlContent += `#───────────────────────────────────────────────────\n\n`;
 
-        quests.forEach((quest, index) => {
+        // Calculate character budget per quest to stay under 4096
+        const headerSize = yamlContent.length + 100; // 100 for closing
+        const maxQuestChars = 4090 - headerSize; // Leave 6 char buffer
+        const avgCharsPerQuest = 280; // Approximate
+        const maxQuests = Math.floor(maxQuestChars / avgCharsPerQuest);
+
+        // Show only first N quests to stay under limit
+        const displayQuests = quests.slice(0, Math.min(quests.length, maxQuests));
+        const hiddenCount = quests.length - displayQuests.length;
+
+        displayQuests.forEach((quest, index) => {
             const progressBar = this.createProgressBar(quest.progress, quest.target_value);
-            const status = quest.completed ? '✅ COMPLETE' : '⏳ IN PROGRESS';
+            const status = quest.completed ? '✅ COMPLETE' : '⏳ PROGRESS';
             const progressPercent = Math.round((quest.progress / quest.target_value) * 100);
-            const resetTime = questManager.getTimeUntilReset(quest.assigned_date, quest.reset_interval);
             
             yamlContent += `🎯 quest ${index + 1}:\n`;
-            yamlContent += `   title              : "${quest.name}"\n`;
-            yamlContent += `   description        : "${quest.description}"\n`;
-            yamlContent += `   status             : ${status}\n`;
-            yamlContent += `   progress           : ${progressBar} ${progressPercent}%\n`;
-            yamlContent += `   completion         : ${quest.progress.toLocaleString()} / ${quest.target_value.toLocaleString()}\n`;
-            yamlContent += `   reward gold        : ${quest.reward_gold.toLocaleString()} 🪙\n`;
-            yamlContent += `   reward xp          : ${(quest.reward_xp || 0).toLocaleString()} ✨\n`;
-            yamlContent += `   reset status       : ${quest.completed ? resetTime : 'Active'}\n`;
+            yamlContent += `   title      : "${quest.name}"\n`;
+            yamlContent += `   status     : ${status}\n`;
+            yamlContent += `   progress   : ${progressBar} ${progressPercent}%\n`;
+            yamlContent += `   completion : ${quest.progress} / ${quest.target_value}\n`;
+            yamlContent += `   rewards    : ${quest.reward_gold} 🪙 | ${quest.reward_xp || 0} ✨\n`;
             
-            // Add separator between quests (except for the last one)
-            if (index < quests.length - 1) {
+            if (index < displayQuests.length - 1) {
                 yamlContent += `\n# ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈\n\n`;
-            } else {
-                yamlContent += `\n\n`;
             }
         });
+
+        if (hiddenCount > 0) {
+            yamlContent += `\n\n# ... ${hiddenCount} more quests (use buttons to view)\n`;
+        }
         
-        yamlContent += `#═══════════════════════════════════════════════════
-\`\`\``;
+        yamlContent += `\n#═══════════════════════════════════════════════════\n\`\`\``;
 
         const typeColors = {
             'daily': '#00ff00',
             'weekly': '#0099ff',
             'monthly': '#ffd700'
         };
-
-        // Get current Eastern Time for footer
-        const now = new Date();
-        const easternTime = new Date(now.toLocaleString("en-US", {timeZone: "America/New_York"}));
-        const easternTimeString = easternTime.toLocaleString('en-US', {
-            timeZone: "America/New_York",
-            weekday: 'short',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-            timeZoneName: 'short'
-        });
 
         const embed = new EmbedBuilder()
             .setTitle(`${typeEmojis[questType]} ${typeTitles[questType]}`)
