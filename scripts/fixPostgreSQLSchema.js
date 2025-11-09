@@ -180,6 +180,69 @@ class PostgreSQLSchemaFixer {
         }
     }
 
+    async fixActiveEffectsTableSchema() {
+        try {
+            const result = await this.db.all(`
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name = 'active_effects' AND table_schema = 'public'
+            `);
+            const existingColumns = result.map(col => col.column_name);
+            
+            // Add effect_name column if missing
+            if (!existingColumns.includes('effect_name')) {
+                try {
+                    await this.db.run(`ALTER TABLE active_effects ADD COLUMN effect_name VARCHAR(100)`);
+                    this.fixedColumns.push('active_effects.effect_name');
+                    console.log('✅ Added effect_name column to active_effects');
+                } catch (err) {
+                    console.log('⚠️ effect_name column might already exist');
+                }
+            }
+            
+            // Backfill existing rows where effect_name is NULL
+            try {
+                const backfillResult = await this.db.run(`
+                    UPDATE active_effects 
+                    SET effect_name = effect_type 
+                    WHERE effect_name IS NULL
+                `);
+                if (backfillResult.changes > 0) {
+                    console.log(`✅ Backfilled ${backfillResult.changes} rows with effect_name`);
+                }
+            } catch (err) {
+                console.log('⚠️ Backfill skipped');
+            }
+            
+            // Make effect_name NOT NULL if it exists
+            if (existingColumns.includes('effect_name') || this.fixedColumns.includes('active_effects.effect_name')) {
+                try {
+                    // Check if column is already NOT NULL
+                    const colInfo = await this.db.get(`
+                        SELECT is_nullable 
+                        FROM information_schema.columns 
+                        WHERE table_name = 'active_effects' 
+                        AND column_name = 'effect_name'
+                    `);
+                    
+                    if (colInfo && colInfo.is_nullable === 'YES') {
+                        await this.db.run(`
+                            ALTER TABLE active_effects 
+                            ALTER COLUMN effect_name SET NOT NULL
+                        `);
+                        this.fixedColumns.push('active_effects.effect_name (NOT NULL)');
+                        console.log('✅ Set effect_name as NOT NULL');
+                    }
+                } catch (err) {
+                    console.log('⚠️ Could not set effect_name to NOT NULL:', err.message);
+                }
+            }
+            
+        } catch (error) {
+            console.error('❌ Active effects table schema fix failed:', error.message);
+        }
+    }
+
     async run() {
         const isPostgreSQL = await this.initialize();
         
@@ -193,6 +256,7 @@ class PostgreSQLSchemaFixer {
         await this.fixUsersTableSchema();
         await this.fixCardsTableSchema();
         await this.fixQuestsTableSchema();
+        await this.fixActiveEffectsTableSchema();
         await this.verifyCooldownBypass();
         
         if (this.fixedColumns.length > 0) {
@@ -229,6 +293,7 @@ async function fixPostgreSQLSchema() {
         await fixer.fixUsersTableSchema();
         await fixer.fixCardsTableSchema();
         await fixer.fixQuestsTableSchema();
+        await fixer.fixActiveEffectsTableSchema();
         await fixer.verifyFixes();
         
         console.log('\n🎉 PostgreSQL schema fixes complete!');
