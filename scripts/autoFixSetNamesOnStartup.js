@@ -201,16 +201,16 @@ async function autoFixSetNames(database) {
                 const changed = result.changes || result.rowCount || 0;
                 if (changed > 0) {
                     updatedCount += changed;
-                    console.log(`   ✅ ${setId} → ${setName}: ${changed} cards`);
+                    // Silenced per-set spam: console.log(`   ✅ ${setId} → ${setName}: ${changed} cards`);
                 }
             } catch (error) {
                 console.error(`   ⚠️  Error updating ${setId}:`, error.message);
             }
         }
 
-        console.log(`✅ Migration complete! Updated ${updatedCount} cards`);
+        console.log(`✅ Set name migration complete! Updated ${updatedCount} cards`);
 
-        // Verify core base sets (base1, base2, base3)
+        // Verify core base sets (base1, base2, base3) - silenced details
         const baseSets = await database.all(`
             SELECT COUNT(*) as count, set_name 
             FROM cards 
@@ -224,26 +224,26 @@ async function autoFixSetNames(database) {
                 END
         `);
 
-        console.log('🎯 Core Base Sets verification:');
-        baseSets.forEach(row => {
-            console.log(`   ${row.set_name}: ${row.count} cards`);
-        });
+        // Silenced: console.log('🎯 Core Base Sets verification:');
+        // baseSets.forEach(row => {
+        //     console.log(`   ${row.set_name}: ${row.count} cards`);
+        // });
         
-        // Also check what other sets exist
-        const allSets = await database.all(`
-            SELECT COUNT(*) as count, set_id, set_name 
-            FROM cards 
-            WHERE set_id IN ('base1', 'base2', 'base3', 'base4', 'base5')
-            GROUP BY set_id, set_name
-            ORDER BY set_id
-        `);
+        // Also check what other sets exist - silenced
+        // const allSets = await database.all(`
+        //     SELECT COUNT(*) as count, set_id, set_name 
+        //     FROM cards 
+        //     WHERE set_id IN ('base1', 'base2', 'base3', 'base4', 'base5')
+        //     GROUP BY set_id, set_name
+        //     ORDER BY set_id
+        // `);
         
-        if (allSets.length > 0) {
-            console.log('📊 All base-era sets in database:');
-            allSets.forEach(row => {
-                console.log(`   ${row.set_id} (${row.set_name}): ${row.count} cards`);
-            });
-        }
+        // if (allSets.length > 0) {
+        //     console.log('📊 All base-era sets in database:');
+        //     allSets.forEach(row => {
+        //         console.log(`   ${row.set_id} (${row.set_name}): ${row.count} cards`);
+        //     });
+        // }
 
         // Create flag file to prevent re-running
         fs.writeFileSync(MIGRATION_FLAG_FILE, new Date().toISOString());

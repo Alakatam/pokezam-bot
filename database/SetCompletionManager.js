@@ -33,7 +33,8 @@ class SetCompletionManager {
                 `, [reward.set_id, reward.set_name, reward.reward_type, reward.reward_value, 
                     reward.reward_description, reward.bonus_multiplier]);
             } catch (error) {
-                console.log(`Set reward ${reward.set_id} may already exist`);
+                // Silenced: Set rewards already exist (expected on startup)
+                // console.log(`Set reward ${reward.set_id} may already exist`);
             }
         }
     }
