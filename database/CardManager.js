@@ -92,11 +92,11 @@ class CardManager {
         console.log(`📊 Generation breakdown:`, generationWeights.map(g => `${g.generation}:${g.weight}`).join(', '));
 
         // Step 2: The "Weighted Roll" - pick a generation
-        const roll = Math.floor(Math.random() * totalWeight) + 1;
+        const generationRoll = Math.floor(Math.random() * totalWeight) + 1;
         let selectedGeneration = null;
         
         for (const genWeight of generationWeights) {
-            if (roll <= genWeight.cumulativeWeight) {
+            if (generationRoll <= genWeight.cumulativeWeight) {
                 selectedGeneration = genWeight;
                 break;
             }
@@ -109,25 +109,75 @@ class CardManager {
 
         console.log(`🎯 Selected: ${selectedGeneration.generation} (${selectedGeneration.weight} cards)`);
 
-        // Step 3: ULTRA FAST - Use OFFSET instead of ORDER BY RANDOM()
+        // Step 3: APPLY RARITY ODDS FIRST, then select card
         // Safety check: Ensure weight is a valid number
         if (!Number.isFinite(selectedGeneration.weight) || selectedGeneration.weight <= 0) {
             console.error(`❌ Invalid weight for ${selectedGeneration.generation}: ${selectedGeneration.weight}`);
             return null;
         }
+
+        // 🎲 ROLL FOR RARITY FIRST (before selecting card)
+        const rarityThresholds = [
+            { rarity: 'Secret Rare', threshold: 0.0154 + (guildLuckBonus * 0.01) },
+            { rarity: 'Ultra Rare', threshold: 0.0594 + (guildLuckBonus * 0.02) },
+            { rarity: 'Holo Rare', threshold: 0.2794 + (guildLuckBonus * 0.05) },
+            { rarity: 'Rare', threshold: 5.2794 + (guildLuckBonus * 0.5) },
+            { rarity: 'Uncommon', threshold: 25.2794 + (guildLuckBonus * 1.0) },
+            { rarity: 'Common', threshold: 100 }
+        ];
+
+        const roll = Math.random() * 100;
+        let targetRarity = 'Common';
         
-        // Calculate offset - guaranteed to be a safe integer
-        const randomOffset = Math.floor(Math.random() * selectedGeneration.weight);
-        
-        let card = await this.db.get(
-            `SELECT * FROM cards 
+        for (const { rarity, threshold } of rarityThresholds) {
+            if (roll <= threshold) {
+                targetRarity = rarity;
+                break;
+            }
+        }
+
+        console.log(`🎲 Rarity roll: ${roll.toFixed(2)}% → ${targetRarity}`);
+
+        // Try to get card of target rarity from selected generation
+        let card = null;
+        const rarityCount = await this.db.get(
+            `SELECT COUNT(*) as count FROM cards 
              WHERE set_name IN (${selectedGeneration.sets.map(() => '?').join(',')})
+             AND rarity = ?
              AND api_id IS NOT NULL
              AND (image_url_large IS NOT NULL OR image_url_small IS NOT NULL 
-                  OR image_large IS NOT NULL OR image_small IS NOT NULL)
-             LIMIT 1 OFFSET ?`,
-            [...selectedGeneration.sets, randomOffset]
+                  OR image_large IS NOT NULL OR image_small IS NOT NULL)`,
+            [...selectedGeneration.sets, targetRarity]
         );
+
+        if (rarityCount?.count > 0) {
+            const rarityOffset = Math.floor(Math.random() * parseInt(rarityCount.count, 10));
+            card = await this.db.get(
+                `SELECT * FROM cards 
+                 WHERE set_name IN (${selectedGeneration.sets.map(() => '?').join(',')})
+                 AND rarity = ?
+                 AND api_id IS NOT NULL
+                 AND (image_url_large IS NOT NULL OR image_url_small IS NOT NULL 
+                      OR image_large IS NOT NULL OR image_small IS NOT NULL)
+                 LIMIT 1 OFFSET ?`,
+                [...selectedGeneration.sets, targetRarity, rarityOffset]
+            );
+        }
+
+        // Fallback: Try any card from generation if rarity not found
+        if (!card) {
+            console.log(`⚠️ No ${targetRarity} cards found, falling back to random`);
+            const randomOffset = Math.floor(Math.random() * selectedGeneration.weight);
+            card = await this.db.get(
+                `SELECT * FROM cards 
+                 WHERE set_name IN (${selectedGeneration.sets.map(() => '?').join(',')})
+                 AND api_id IS NOT NULL
+                 AND (image_url_large IS NOT NULL OR image_url_small IS NOT NULL 
+                      OR image_large IS NOT NULL OR image_small IS NOT NULL)
+                 LIMIT 1 OFFSET ?`,
+                [...selectedGeneration.sets, randomOffset]
+            );
+        }
 
         // Fallback to cached cards if no complete ones found
         if (!card) {
@@ -139,7 +189,7 @@ class CardManager {
             );
             
             if (cachedCount?.count > 0) {
-                const cachedOffset = Math.floor(Math.random() * cachedCount.count);
+                const cachedOffset = Math.floor(Math.random() * parseInt(cachedCount.count, 10));
                 card = await this.db.get(
                     `SELECT * FROM cards 
                      WHERE set_name IN (${selectedGeneration.sets.map(() => '?').join(',')})
@@ -159,7 +209,7 @@ class CardManager {
             );
             
             if (anyCount?.count > 0) {
-                const anyOffset = Math.floor(Math.random() * anyCount.count);
+                const anyOffset = Math.floor(Math.random() * parseInt(anyCount.count, 10));
                 card = await this.db.get(
                     `SELECT * FROM cards 
                      WHERE set_name IN (${selectedGeneration.sets.map(() => '?').join(',')})
@@ -169,10 +219,7 @@ class CardManager {
             }
         }
 
-        if (!card) return null;
-
-        // Apply advanced rarity system with realistic odds
-        return this.selectCardWithRarityOdds([card], guildLuckBonus);
+        return card;
     }
 
     getAvailableGenerationsByLevel(userLevel) {
