@@ -89,6 +89,9 @@ class PokezamBot {
             this.setCompletionManager = new SetCompletionManager(this.database);
             this.collectorShopManager = new CollectorShopManager(this.database);
             
+            // Initialize quest system at startup (prevents command timeouts)
+            await this.questManager.ensureEnhancedQuestsInitialized();
+            
             // Initialize default set rewards
             await this.setCompletionManager.initializeDefaultSetRewards();
             

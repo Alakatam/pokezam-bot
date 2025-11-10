@@ -11,10 +11,8 @@ class QuestManager {
     }
 
     async autoAssignQuests(userId) {
-        // Check if enhanced quest system needs initialization
-        await this.ensureEnhancedQuestsInitialized();
-        
-        // Use enhanced quest assignment with daily rotation
+        // Enhanced quest assignment with daily rotation
+        // NOTE: Quest system initialization now happens at startup only (see index.js)
         return await this.enhancedManager.autoAssignDiverseQuests(userId);
     }
     
@@ -31,31 +29,18 @@ class QuestManager {
                 'SELECT COUNT(*) as count FROM quests WHERE target_type IS NOT NULL'
             );
             
-            console.log('🔍 QUEST: Enhanced quest result:', enhancedQuests);
-            console.log('🔍 QUEST: Enhanced quest count type:', typeof enhancedQuests[0]?.count);
-            console.log('🔍 QUEST: Enhanced quest count value:', enhancedQuests[0]?.count);
-            console.log('🔍 QUEST: Count === 0?', enhancedQuests[0]?.count === 0);
-            console.log('🔍 QUEST: Count == 0?', enhancedQuests[0]?.count == 0);
-            
             const count = parseInt(enhancedQuests[0]?.count) || 0; // Convert string to number for PostgreSQL
             if (count === 0) {
                 console.log('🚀 Initializing enhanced quest system...');
                 try {
                     await this.enhancedManager.initializeEnhancedQuests();
                     console.log('✅ Enhanced quest system initialized');
-                    
-                    // Verify initialization
-                    const verifyQuests = await this.db.all('SELECT COUNT(*) as count FROM quests');
-                    console.log('🔍 QUEST: Total quests after initialization:', verifyQuests[0]?.count || 0);
                 } catch (initError) {
                     console.error('🚨 QUEST: Quest initialization failed:', initError.message);
-                    console.error('🚨 QUEST: Full init error:', initError);
                 }
-            } else {
-                console.log('✅ Enhanced quest system already initialized (count:', count, ')');
             }
         } catch (error) {
-            console.log('Error checking enhanced quest initialization:', error.message);
+            console.error('Error checking enhanced quest initialization:', error.message);
             // Try to initialize anyway
             try {
                 await this.enhancedManager.initializeEnhancedQuests();
