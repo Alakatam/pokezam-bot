@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const EmbedUtils = require('../utils/EmbedUtils');
 
 module.exports = {
@@ -49,7 +49,7 @@ module.exports = {
                 return await interaction.editReply({
                     embeds: [EmbedUtils.createErrorEmbed(
                         '🚫 Adventure Not Started',
-                        'You must start your adventure with `/start` before making deals with Vex!'
+                        'You must start your adventure with /start before making deals with Vex!'
                     )]
                 });
             }
@@ -60,7 +60,7 @@ module.exports = {
                 return await interaction.editReply({
                     embeds: [EmbedUtils.createErrorEmbed(
                         '❌ Invalid Card Format',
-                        'Please use the format: **set-number** (e.g., `base1-4`, `xy1-10`)\n\nCheck your `/binder` for card IDs!'
+                        'Please use the format: **set-number** (e.g., base1-4, xy1-10)'
                     )]
                 });
             }
@@ -78,7 +78,7 @@ module.exports = {
                 return await interaction.editReply({
                     embeds: [EmbedUtils.createErrorEmbed(
                         '❌ Card Not Found',
-                        `No card found with ID: **${cardInput}**\n\nCheck your `/binder` for valid card IDs!`
+                        'No card found with that ID!'
                     )]
                 });
             }
@@ -93,50 +93,92 @@ module.exports = {
                 return await interaction.editReply({
                     embeds: [EmbedUtils.createErrorEmbed(
                         '🚫 Card Not Owned',
-                        `You don't own **${card.name}** from **${card.set_name}**!\n\nYou can only gamble cards you own.`
+                        'You don\'t own this card!'
                     )]
                 });
             }
 
-            // Check if user has duplicates (recommended for safety)
-            const warningText = userCard.quantity === 1 
-                ? '\n\n⚠️ **WARNING**: This is your only copy! You could lose it forever!'
-                : `\n\n✅ You have **${userCard.quantity} copies** of this card.`;
-
-            // Show initial Vex introduction with confirmation
-            const initialEmbed = new EmbedBuilder()
+            // STEP 1: Show Vex preparing the deal
+            const preparingEmbed = new EmbedBuilder()
                 .setTitle('🎲 Vex the Gamble-Broker')
                 .setDescription(
-                    `*Vex emerges from the shadows, shuffling a deck of unmarked cards...*\n\n` +
-                    `"Feeling lucky? Show me what you'll risk. Remember... **all trades are final.**"\n\n` +
-                    `╔═══════════════════════════════╗\n` +
-                    `║  **Your Offered Card:**\n` +
-                    `║  ${card.name}\n` +
-                    `║  Set: ${card.set_name}\n` +
-                    `║  Rarity: ${card.rarity}\n` +
-                    `║  ID: ${setId}-${cardNumber}\n` +
-                    `╚═══════════════════════════════╝` +
-                    warningText
+                    `*Vex emerges from the shadows, eyeing your card...*\n\n` +
+                    `**Your Card:** ${card.name}\n` +
+                    `**Rarity:** ${card.rarity}\n` +
+                    `**Set:** ${card.set_name}\n\n` +
+                    `"Let's see what fate has in store for you..."`
                 )
-                .setColor('#8B0000')
-                .setFooter({ text: '⚠️ All trades are permanent and cannot be undone!' });
+                .setColor('#8B0000');
 
-            const confirmButton = new ButtonBuilder()
-                .setCustomId(`vex_confirm_${userId}_${card.id}`)
-                .setLabel('🎲 Accept the Gamble')
-                .setStyle(ButtonStyle.Danger);
+            await interaction.editReply({ embeds: [preparingEmbed] });
 
-            const cancelButton = new ButtonBuilder()
-                .setCustomId(`vex_cancel_${userId}`)
-                .setLabel('🚶 Walk Away')
-                .setStyle(ButtonStyle.Secondary);
+            // STEP 2: Wait 1 second, then execute the gamble
+            await new Promise(resolve => setTimeout(resolve, 1000));
 
-            const row = new ActionRowBuilder().addComponents(confirmButton, cancelButton);
+            // EXECUTE THE GAMBLE
+            const probTable = this.rarityProbabilities[card.rarity] || this.rarityProbabilities['Rare'];
+            const outcome = this.rollOutcome(card.rarity);
+            const newCard = await this.getNewCard(database, card, outcome, probTable);
 
-            await interaction.editReply({
-                embeds: [initialEmbed],
-                components: [row]
-            });
+            if (!newCard) {
+                throw new Error('Could not find replacement card');
+            }
+
+            // Remove original card
+            if (userCard.quantity === 1) {
+                await database.run(
+                    'DELETE FROM user_cards WHERE user_id = ? AND card_id = ?',
+                    [userId, card.id]
+                );
+            } else {
+                await database.run(
+                    'UPDATE user_cards SET quantity = quantity - 1 WHERE user_id = ? AND card_id = ?',
+                    [userId, card.id]
+                );
+            }
+
+            // Add new card
+            await cardManager.addCardToUser(userId, newCard.id, 1);
+
+            // STEP 3: Show compact result with card image
+            const newCardImage = newCard.image_url_large || newCard.image_url_small || 
+                                newCard.image_large || newCard.image_small;
+
+            let resultEmbed;
+            if (outcome === 'win') {
+                resultEmbed = new EmbedBuilder()
+                    .setTitle('📈 WONDROUS TRADE!')
+                    .setDescription(
+                        `\`\`\`diff\n- GAVE: ${card.name} [${card.rarity}]\n+ GOT:  ${newCard.name} [${newCard.rarity}]\n\`\`\`\n` +
+                        `*"Fortune favors you today!"* 🎉`
+                    )
+                    .setColor('#00FF00')
+                    .setFooter({ text: `🎲 WIN (${probTable.win}% chance)` });
+            } else if (outcome === 'draw') {
+                resultEmbed = new EmbedBuilder()
+                    .setTitle('😐 FAIR EXCHANGE')
+                    .setDescription(
+                        `\`\`\`yaml\nGAVE: ${card.name} [${card.rarity}]\nGOT:  ${newCard.name} [${newCard.rarity}]\n\`\`\`\n` +
+                        `*"A fair trade, I suppose. Boring."*`
+                    )
+                    .setColor('#FFAA00')
+                    .setFooter({ text: `🎲 DRAW (${probTable.draw}% chance)` });
+            } else {
+                resultEmbed = new EmbedBuilder()
+                    .setTitle('📉 BAD DEAL!')
+                    .setDescription(
+                        `\`\`\`diff\n- GAVE: ${card.name} [${card.rarity}]\n- GOT:  ${newCard.name} [${newCard.rarity}]\n\`\`\`\n` +
+                        `*"You should have walked away, fool!"* 💸`
+                    )
+                    .setColor('#FF0000')
+                    .setFooter({ text: `🎲 LOSS (${probTable.loss}% chance)` });
+            }
+
+            if (newCardImage) {
+                resultEmbed.setImage(newCardImage);
+            }
+
+            await interaction.editReply({ embeds: [resultEmbed] });
 
         } catch (error) {
             console.error('Error in risky_deal command:', error);
