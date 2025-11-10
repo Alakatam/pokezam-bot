@@ -202,7 +202,8 @@ module.exports = {
         }
 
         // Add ordering and pagination
-        query += ` ORDER BY c.set_id, CAST(c.number AS INTEGER) ASC, c.name LIMIT ${cardsPerPage} OFFSET ${offset}`;
+        // NOTE: Can't CAST number as INTEGER because some cards have alphanumeric IDs (e.g., "RC17")
+        query += ` ORDER BY c.set_id, c.name LIMIT ${cardsPerPage} OFFSET ${offset}`;
 
         // Execute queries
         const cards = await database.all(query, params);
