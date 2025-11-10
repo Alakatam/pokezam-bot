@@ -232,6 +232,8 @@ module.exports = {
             targetRarity = originalCard.rarity;
         }
 
+        console.log(`🎲 Risky Deal: Looking for ${targetRarity} card (outcome: ${outcome}, original: ${originalCard.rarity})`);
+
         // Query for a random card of target rarity (exclude the original card)
         const cardCount = await database.get(`
             SELECT COUNT(*) as count FROM cards 
@@ -240,10 +242,23 @@ module.exports = {
             AND (image_url_large IS NOT NULL OR image_url_small IS NOT NULL)
         `, [targetRarity, originalCard.id]);
 
+        console.log(`📊 Found ${cardCount?.count || 0} cards with rarity: ${targetRarity}`);
+
         if (!cardCount || cardCount.count === 0) {
-            // Fallback: Try to find ANY card with different rarity (broader search)
-            console.log(`⚠️ No cards found for rarity: ${targetRarity}, trying fallback...`);
+            // Log available rarities for debugging
+            const availableRarities = await database.all(`
+                SELECT DISTINCT rarity, COUNT(*) as count 
+                FROM cards 
+                WHERE api_id IS NOT NULL 
+                AND (image_url_large IS NOT NULL OR image_url_small IS NOT NULL)
+                GROUP BY rarity
+                ORDER BY count DESC
+            `);
             
+            console.log(`⚠️ No cards found for rarity: "${targetRarity}"`);
+            console.log(`📋 Available rarities in database:`, availableRarities.map(r => `${r.rarity} (${r.count})`).join(', '));
+            
+            // Fallback: Try to find ANY card with different rarity (broader search)
             const fallbackCard = await database.get(`
                 SELECT * FROM cards 
                 WHERE id != ? 
@@ -254,9 +269,10 @@ module.exports = {
             `, [originalCard.id]);
             
             if (!fallbackCard) {
-                throw new Error(`No suitable replacement cards found in database`);
+                throw new Error(`No suitable replacement cards found in database for rarity: ${targetRarity}`);
             }
             
+            console.log(`✅ Using fallback card: ${fallbackCard.name} (${fallbackCard.rarity})`);
             return fallbackCard;
         }
 
