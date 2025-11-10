@@ -184,8 +184,10 @@ module.exports = {
             countQuery += additionalWhere;
         }
 
-        // Add ordering and pagination - sort by set, then by card number ascending, then by name
-        baseQuery += ` ORDER BY c.set_name, CAST(c.number AS INTEGER) ASC, c.name LIMIT ${cardsPerPage} OFFSET ${offset}`;
+        // Add ordering and pagination
+        // NOTE: Can't CAST number as INTEGER because some cards have alphanumeric IDs (e.g., "RC17")
+        // Sort by set name, then by card name as fallback
+        baseQuery += ` ORDER BY c.set_name, c.name LIMIT ${cardsPerPage} OFFSET ${offset}`;
 
         // Execute queries
         const cards = await database.all(baseQuery, params);
