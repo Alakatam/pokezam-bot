@@ -1156,46 +1156,126 @@ class PokezamBot {
                         // 2. Add new card (quantity = 1)
                         await this.cardManager.addCardToUser(targetUserId, newCard.id, 1);
 
-                        // BUILD RESULT MESSAGE
-                        let resultEmbed;
+                        // BUILD RESULT MESSAGE WITH YAML FORMAT
                         const { EmbedBuilder } = require('discord.js');
+                        
+                        // Get card image (prefer large, fallback to small)
+                        const newCardImage = newCard.image_url_large || newCard.image_url_small || 
+                                            newCard.image_large || newCard.image_small;
+
+                        let yamlContent, embedTitle, embedColor;
 
                         if (outcome === 'win') {
-                            resultEmbed = new EmbedBuilder()
-                                .setTitle('📈 A Wondrous Trade!')
-                                .setDescription(
-                                    `*Vex's eyes widen in surprise...*\n\n` +
-                                    `"Fortune favors you today!"\n\n` +
-                                    `He snatches your **[${originalCard.rarity}] ${originalCard.name}** ` +
-                                    `and slides you a shimmering **[${newCard.rarity}] ${newCard.name}**!\n\n` +
-                                    `"Now get out of my sight."`
-                                )
-                                .setColor('#00FF00')
-                                .setFooter({ text: `🎲 You rolled: ${outcome.toUpperCase()} (${probTable.win}% chance)` });
+                            embedTitle = '📈 A WONDROUS TRADE!';
+                            embedColor = '#00FF00';
+                            yamlContent = `\`\`\`yaml
+#═══════════════════════════════════════════════════
+# 📈 VEX'S GAMBLE - FORTUNE FAVORS YOU!
+#═══════════════════════════════════════════════════
+
+outcome            : "WIN - You got an upgrade!"
+roll result        : "${outcome.toUpperCase()} (${probTable.win}% chance)"
+
+# ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+
+🎴 YOU GAVE UP:
+   card            : "${originalCard.name}"
+   rarity          : "${originalCard.rarity}"
+   set             : "${originalCard.set_name}"
+
+# ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+
+✨ YOU RECEIVED:
+   card            : "${newCard.name}"
+   rarity          : "${newCard.rarity}"
+   set             : "${newCard.set_name}"
+
+# ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+
+💬 VEX SAYS:
+   "Fortune favors you today! He snatches your card
+    and slides you a shimmering ${newCard.rarity}!"
+   "Now get out of my sight."
+
+#═══════════════════════════════════════════════════
+\`\`\``;
                         } else if (outcome === 'draw') {
-                            resultEmbed = new EmbedBuilder()
-                                .setTitle('😐 A Fair Exchange')
-                                .setDescription(
-                                    `*Vex yawns...*\n\n` +
-                                    `"A fair trade, I suppose. Boring."\n\n` +
-                                    `He takes your **[${originalCard.rarity}] ${originalCard.name}** ` +
-                                    `and deals you a **[${newCard.rarity}] ${newCard.name}**.\n\n` +
-                                    `"Don't waste my time again."`
-                                )
-                                .setColor('#FFAA00')
-                                .setFooter({ text: `🎲 You rolled: ${outcome.toUpperCase()} (${probTable.draw}% chance)` });
+                            embedTitle = '😐 A FAIR EXCHANGE';
+                            embedColor = '#FFAA00';
+                            yamlContent = `\`\`\`yaml
+#═══════════════════════════════════════════════════
+# 😐 VEX'S GAMBLE - A FAIR TRADE
+#═══════════════════════════════════════════════════
+
+outcome            : "DRAW - Same rarity trade"
+roll result        : "${outcome.toUpperCase()} (${probTable.draw}% chance)"
+
+# ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+
+🎴 YOU GAVE UP:
+   card            : "${originalCard.name}"
+   rarity          : "${originalCard.rarity}"
+   set             : "${originalCard.set_name}"
+
+# ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+
+🔄 YOU RECEIVED:
+   card            : "${newCard.name}"
+   rarity          : "${newCard.rarity}"
+   set             : "${newCard.set_name}"
+
+# ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+
+💬 VEX SAYS:
+   "A fair trade, I suppose. Boring."
+   "Don't waste my time again."
+
+#═══════════════════════════════════════════════════
+\`\`\``;
                         } else { // loss
-                            resultEmbed = new EmbedBuilder()
-                                .setTitle('📉 A Bad Deal!')
-                                .setDescription(
-                                    `*Vex cackles with glee...*\n\n` +
-                                    `"You should have walked away, fool!"\n\n` +
-                                    `He pockets your **[${originalCard.rarity}] ${originalCard.name}** ` +
-                                    `and flicks you a worthless **[${newCard.rarity}] ${newCard.name}**.\n\n` +
-                                    `"Better luck next time... or not."`
-                                )
-                                .setColor('#FF0000')
-                                .setFooter({ text: `🎲 You rolled: ${outcome.toUpperCase()} (${probTable.loss}% chance)` });
+                            embedTitle = '📉 A BAD DEAL!';
+                            embedColor = '#FF0000';
+                            yamlContent = `\`\`\`yaml
+#═══════════════════════════════════════════════════
+# 📉 VEX'S GAMBLE - YOU GOT SCAMMED!
+#═══════════════════════════════════════════════════
+
+outcome            : "LOSS - You got downgraded!"
+roll result        : "${outcome.toUpperCase()} (${probTable.loss}% chance)"
+
+# ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+
+🎴 YOU GAVE UP:
+   card            : "${originalCard.name}"
+   rarity          : "${originalCard.rarity}"
+   set             : "${originalCard.set_name}"
+
+# ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+
+💸 YOU RECEIVED:
+   card            : "${newCard.name}"
+   rarity          : "${newCard.rarity}"
+   set             : "${newCard.set_name}"
+
+# ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+
+💬 VEX SAYS:
+   "You should have walked away, fool!"
+   "Better luck next time... or not."
+
+#═══════════════════════════════════════════════════
+\`\`\``;
+                        }
+
+                        const resultEmbed = new EmbedBuilder()
+                            .setTitle(embedTitle)
+                            .setDescription(yamlContent)
+                            .setColor(embedColor)
+                            .setTimestamp();
+
+                        // Add card image if available
+                        if (newCardImage) {
+                            resultEmbed.setImage(newCardImage);
                         }
 
                         await interaction.editReply({
