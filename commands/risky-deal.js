@@ -12,14 +12,15 @@ module.exports = {
         ),
     cooldown: 10, // 10 seconds cooldown
 
-    // RARITY CATEGORIES - Groups similar rarities together
+    // RARITY CATEGORIES - Groups similar rarities together (based on Pokemon TCG API)
     rarityCategories: {
         'COMMON': ['Common'],
         'UNCOMMON': ['Uncommon'],
         'RARE': ['Rare'],
-        'RARE_HOLO': ['Rare Holo', 'Rare Holo EX', 'Rare Holo GX', 'Rare Holo V', 'Rare Holo VMAX'],
-        'ULTRA': ['Ultra Rare', 'Rare Ultra', 'Double Rare', 'Hyper Rare'],
-        'SECRET': ['Rare Secret', 'Rare Rainbow', 'Special Illustration Rare', 'Illustration Rare', 'Rare BREAK'],
+        'RARE_HOLO': ['Rare Holo', 'Rare Holo EX', 'Rare Holo GX', 'Rare Holo V', 'Rare Holo VMAX', 'Rare Holo LV.X', 'Rare Holo Star'],
+        'ULTRA': ['Rare Ultra', 'Ultra Rare'],
+        'SECRET': ['Rare Secret', 'Rare Rainbow', 'Rare ACE', 'Rare BREAK', 'LEGEND'],
+        'SPECIAL': ['Rare Shiny', 'Rare Shiny GX', 'Amazing Rare', 'Radiant Rare'],
         'PROMO': ['Promo', 'Rare Promo']
     },
 
@@ -31,7 +32,8 @@ module.exports = {
         'RARE_HOLO': { loss: 35, draw: 55, win: 10, downgrade: 'RARE', upgrade: 'ULTRA' },
         'ULTRA': { loss: 40, draw: 55, win: 5, downgrade: 'RARE_HOLO', upgrade: 'SECRET' },
         'SECRET': { loss: 30, draw: 70, win: 0, downgrade: 'ULTRA', upgrade: null },
-        'PROMO': { loss: 30, draw: 70, win: 0, downgrade: 'ULTRA', upgrade: null }
+        'SPECIAL': { loss: 30, draw: 70, win: 0, downgrade: 'ULTRA', upgrade: null },
+        'PROMO': { loss: 30, draw: 70, win: 0, downgrade: 'RARE_HOLO', upgrade: null }
     },
 
     // Helper: Get category for a specific rarity
@@ -155,8 +157,7 @@ module.exports = {
                         `> *"Hehehehe... Fortune favors the bold today! Your luck runs deep, mortal."* 🎉\n\n` +
                         `**Roll Result:** WIN ✨ (${probTable.win}% chance)`
                     )
-                    .setColor('#00FF00')
-                    .setThumbnail('https://i.imgur.com/8ZqKQNJ.png');
+                    .setColor('#00FF00');
             } else if (outcome === 'draw') {
                 resultEmbed = new EmbedBuilder()
                     .setTitle('🎰 VEX\'S GAMBLE HOUSE')
@@ -170,8 +171,7 @@ module.exports = {
                         `> *"A fair trade. Boring, but balanced. The cards mock us both."* 🃏\n\n` +
                         `**Roll Result:** DRAW ⚖️ (${probTable.draw}% chance)`
                     )
-                    .setColor('#FFAA00')
-                    .setThumbnail('https://i.imgur.com/8ZqKQNJ.png');
+                    .setColor('#FFAA00');
             } else {
                 resultEmbed = new EmbedBuilder()
                     .setTitle('🎰 VEX\'S GAMBLE HOUSE')
@@ -185,8 +185,7 @@ module.exports = {
                         `> *"BAHAHAHA! You should have walked away, fool! The house always wins!"* 💸\n\n` +
                         `**Roll Result:** LOSS 💀 (${probTable.loss}% chance)`
                     )
-                    .setColor('#FF0000')
-                    .setThumbnail('https://i.imgur.com/8ZqKQNJ.png');
+                    .setColor('#FF0000');
             }
 
             if (newCardImage) {
