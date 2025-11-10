@@ -681,7 +681,7 @@ experience awaiting    : "Cards, quests, and adventure!"
             
             // Update showcase count for achievement tracking
             try {
-                await interaction.client.database.run(`
+                await database.run(`
                     UPDATE users SET showcase_count = COALESCE(showcase_count, 0) + 1 WHERE id = ?
                 `, [interaction.user.id]);
             } catch (error) {
@@ -719,7 +719,7 @@ experience awaiting    : "Cards, quests, and adventure!"
             if (rarity.includes('rare')) {
                 // Get current rare card count
                 const rareCount = await managers.database.get(`
-                    SELECT COUNT(DISTINCT card_id) as count FROM user_cards uc
+                    SELECT COUNT(DISTINCT uc.card_id) as count FROM user_cards uc
                     JOIN cards c ON uc.card_id = c.id 
                     WHERE uc.user_id = ? AND (c.rarity LIKE '%rare%' OR c.rarity LIKE '%ultra%' OR c.rarity LIKE '%secret%')
                 `, [userId]);
@@ -729,7 +729,7 @@ experience awaiting    : "Cards, quests, and adventure!"
             
             if (rarity.includes('holo')) {
                 const holoCount = await managers.database.get(`
-                    SELECT COUNT(DISTINCT card_id) as count FROM user_cards uc
+                    SELECT COUNT(DISTINCT uc.card_id) as count FROM user_cards uc
                     JOIN cards c ON uc.card_id = c.id 
                     WHERE uc.user_id = ? AND c.rarity LIKE '%holo%'
                 `, [userId]);
