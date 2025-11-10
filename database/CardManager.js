@@ -116,38 +116,99 @@ class CardManager {
             return null;
         }
 
-        // 🎲 ROLL FOR RARITY FIRST (before selecting card)
-        const rarityThresholds = [
-            { rarity: 'Secret Rare', threshold: 0.0154 + (guildLuckBonus * 0.01) },
-            { rarity: 'Ultra Rare', threshold: 0.0594 + (guildLuckBonus * 0.02) },
-            { rarity: 'Holo Rare', threshold: 0.2794 + (guildLuckBonus * 0.05) },
-            { rarity: 'Rare', threshold: 5.2794 + (guildLuckBonus * 0.5) },
-            { rarity: 'Uncommon', threshold: 25.2794 + (guildLuckBonus * 1.0) },
-            { rarity: 'Common', threshold: 100 }
+        // 🎲 ROLL FOR RARITY TIER FIRST (before selecting card)
+        // NEW ODDS: Much more generous pull rates!
+        const rarityTiers = [
+            { 
+                name: 'Promo', 
+                threshold: 0.5,
+                rarities: ['Promo'],
+                pattern: "rarity = 'Promo'"
+            },
+            { 
+                name: 'Ultra Legendary', 
+                threshold: 0.5 + 1.0,
+                rarities: ['Rare Shining', 'Rare Holo Star', 'Rare BREAK', 'Special Illustration Rare', 'Radiant Rare', 'Rare Holo VSTAR'],
+                pattern: "rarity IN ('Rare Shining', 'Rare Holo Star', 'Rare BREAK', 'Special Illustration Rare', 'Radiant Rare', 'Rare Holo VSTAR')"
+            },
+            { 
+                name: 'Amazing Rare', 
+                threshold: 0.5 + 1.0 + 1.5,
+                rarities: ['Amazing Rare'],
+                pattern: "rarity = 'Amazing Rare'"
+            },
+            { 
+                name: 'Crown Rare', 
+                threshold: 0.5 + 1.0 + 1.5 + 2.0,
+                rarities: ['Rare Rainbow'], // Crown = Rainbow in TCG
+                pattern: "rarity = 'Rare Rainbow'"
+            },
+            { 
+                name: 'Secret Rare', 
+                threshold: 0.5 + 1.0 + 1.5 + 2.0 + 2.0,
+                rarities: ['Rare Secret'],
+                pattern: "rarity = 'Rare Secret'"
+            },
+            { 
+                name: 'Illustration Rare', 
+                threshold: 0.5 + 1.0 + 1.5 + 2.0 + 2.0 + 3.0,
+                rarities: ['Illustration Rare'],
+                pattern: "rarity = 'Illustration Rare'"
+            },
+            { 
+                name: 'Hyper Rare', 
+                threshold: 0.5 + 1.0 + 1.5 + 2.0 + 2.0 + 3.0 + 4.0,
+                rarities: ['Rare Ultra', 'Hyper Rare', 'LEGEND', 'Rare Holo VMAX'],
+                pattern: "rarity IN ('Rare Ultra', 'Hyper Rare', 'LEGEND', 'Rare Holo VMAX', 'Ultra Rare')"
+            },
+            { 
+                name: 'Premium Holo', 
+                threshold: 0.5 + 1.0 + 1.5 + 2.0 + 2.0 + 3.0 + 4.0 + 7.0,
+                rarities: ['Rare Holo', 'Rare ACE', 'Rare Holo EX', 'Rare Holo GX', 'Rare Holo LV.X', 'Rare Prime', 'Rare Prism Star', 'Rare Holo V', 'ACE SPEC Rare'],
+                pattern: "rarity IN ('Rare Holo', 'Rare ACE', 'Rare Holo EX', 'Rare Holo GX', 'Rare Holo LV.X', 'Rare Prime', 'Rare Prism Star', 'Rare Holo V', 'ACE SPEC Rare')"
+            },
+            { 
+                name: 'Rare', 
+                threshold: 0.5 + 1.0 + 1.5 + 2.0 + 2.0 + 3.0 + 4.0 + 7.0 + 15.0,
+                rarities: ['Rare', 'Double Rare'],
+                pattern: "rarity IN ('Rare', 'Double Rare')"
+            },
+            { 
+                name: 'Uncommon', 
+                threshold: 0.5 + 1.0 + 1.5 + 2.0 + 2.0 + 3.0 + 4.0 + 7.0 + 15.0 + 25.0,
+                rarities: ['Uncommon'],
+                pattern: "rarity = 'Uncommon'"
+            },
+            { 
+                name: 'Common', 
+                threshold: 100,
+                rarities: ['Common'],
+                pattern: "rarity = 'Common'"
+            }
         ];
 
         const roll = Math.random() * 100;
-        let targetRarity = 'Common';
+        let selectedTier = rarityTiers[rarityTiers.length - 1]; // Default to Common
         
-        for (const { rarity, threshold } of rarityThresholds) {
-            if (roll <= threshold) {
-                targetRarity = rarity;
+        for (const tier of rarityTiers) {
+            if (roll <= tier.threshold) {
+                selectedTier = tier;
                 break;
             }
         }
 
-        console.log(`🎲 Rarity roll: ${roll.toFixed(2)}% → ${targetRarity}`);
+        console.log(`🎲 Rarity roll: ${roll.toFixed(2)}% → ${selectedTier.name} (${selectedTier.threshold}% threshold)`);
 
-        // Try to get card of target rarity from selected generation
+        // Try to get card of target rarity tier from selected generation
         let card = null;
         const rarityCount = await this.db.get(
             `SELECT COUNT(*) as count FROM cards 
              WHERE set_name IN (${selectedGeneration.sets.map(() => '?').join(',')})
-             AND rarity = ?
+             AND (${selectedTier.pattern})
              AND api_id IS NOT NULL
              AND (image_url_large IS NOT NULL OR image_url_small IS NOT NULL 
                   OR image_large IS NOT NULL OR image_small IS NOT NULL)`,
-            [...selectedGeneration.sets, targetRarity]
+            selectedGeneration.sets
         );
 
         if (rarityCount?.count > 0) {
@@ -155,18 +216,22 @@ class CardManager {
             card = await this.db.get(
                 `SELECT * FROM cards 
                  WHERE set_name IN (${selectedGeneration.sets.map(() => '?').join(',')})
-                 AND rarity = ?
+                 AND (${selectedTier.pattern})
                  AND api_id IS NOT NULL
                  AND (image_url_large IS NOT NULL OR image_url_small IS NOT NULL 
                       OR image_large IS NOT NULL OR image_small IS NOT NULL)
                  LIMIT 1 OFFSET ?`,
-                [...selectedGeneration.sets, targetRarity, rarityOffset]
+                [...selectedGeneration.sets, rarityOffset]
             );
+            
+            if (card) {
+                console.log(`✅ Found ${selectedTier.name}: ${card.name} (${card.rarity})`);
+            }
         }
 
-        // Fallback: Try any card from generation if rarity not found
+        // Fallback: Try any card from generation if rarity tier not found
         if (!card) {
-            console.log(`⚠️ No ${targetRarity} cards found, falling back to random`);
+            console.log(`⚠️ No ${selectedTier.name} cards found, falling back to random`);
             const randomOffset = Math.floor(Math.random() * selectedGeneration.weight);
             card = await this.db.get(
                 `SELECT * FROM cards 
