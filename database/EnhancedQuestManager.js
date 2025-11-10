@@ -75,10 +75,10 @@ class EnhancedQuestManager {
         // For daily quests, rotate based on day of year
         if (questType === 'daily') {
             const dayOfYear = Math.floor((Date.now() / (1000 * 60 * 60 * 24)) % 365);
-            const questsPerDay = 3; // Assign 3 daily quests
+            const questsPerDay = 5; // Assign 5 daily quests (changed from 3)
             const startIndex = (dayOfYear * questsPerDay) % quests.length;
             
-            // Get 3 quests with rotation
+            // Get 5 quests with rotation
             const selectedQuests = [];
             for (let i = 0; i < questsPerDay; i++) {
                 selectedQuests.push(quests[(startIndex + i) % quests.length]);
@@ -150,13 +150,24 @@ class EnhancedQuestManager {
         }
     }
 
-    // Auto-assign quests with daily rotation
+    // Auto-assign quests with daily rotation and automatic reset at 20:00 ET
     async autoAssignDiverseQuests(userId) {
+        // Check if it's time for daily reset (20:00 ET = midnight UTC)
+        const shouldResetDaily = await this.shouldResetDailyQuests(userId);
+        
+        if (shouldResetDaily) {
+            console.log(`🔄 Daily reset triggered for user ${userId} - deleting all quests`);
+            // Delete ALL user quests at daily reset
+            await this.db.run(`DELETE FROM user_quests WHERE user_id = ?`, [userId]);
+        }
+        
         const questTypes = ['daily', 'weekly', 'monthly'];
         
         for (const type of questTypes) {
-            // Remove old completed quests for this type
-            await this.cleanupCompletedQuests(userId, type);
+            // Remove old completed quests for this type (if not already deleted by reset)
+            if (!shouldResetDaily || type !== 'daily') {
+                await this.cleanupCompletedQuests(userId, type);
+            }
             
             // Get available quests for this type (with rotation)
             const availableQuests = await this.getAvailableQuests(type);
@@ -185,6 +196,63 @@ class EnhancedQuestManager {
                 }
             }
         }
+    }
+
+    // Check if daily quests should be reset (20:00 ET)
+    async shouldResetDailyQuests(userId) {
+        try {
+            // Get the last daily quest assignment time
+            const lastQuest = await this.db.get(`
+                SELECT MAX(assigned_date) as last_assigned
+                FROM user_quests uq
+                JOIN quests q ON uq.quest_id = q.id
+                WHERE uq.user_id = ? AND q.quest_type = 'daily'
+            `, [userId]);
+            
+            if (!lastQuest || !lastQuest.last_assigned) {
+                // No daily quests yet, don't reset
+                return false;
+            }
+            
+            // Get current time in ET (UTC-5 or UTC-4 depending on DST)
+            const now = new Date();
+            const etOffset = this.isDST(now) ? -4 : -5; // ET is UTC-4 during DST, UTC-5 otherwise
+            const etTime = new Date(now.getTime() + (etOffset * 60 * 60 * 1000));
+            
+            // Get last assigned time in ET
+            const lastAssigned = new Date(lastQuest.last_assigned);
+            const lastAssignedET = new Date(lastAssigned.getTime() + (etOffset * 60 * 60 * 1000));
+            
+            // Calculate today's reset time (20:00 ET)
+            const todayReset = new Date(etTime);
+            todayReset.setHours(20, 0, 0, 0);
+            
+            // Calculate yesterday's reset time
+            const yesterdayReset = new Date(todayReset);
+            yesterdayReset.setDate(yesterdayReset.getDate() - 1);
+            
+            // If last assigned was before today's 20:00 ET and we're now past 20:00 ET, reset
+            if (lastAssignedET < todayReset && etTime >= todayReset) {
+                return true;
+            }
+            
+            // If last assigned was before yesterday's 20:00 ET, definitely reset
+            if (lastAssignedET < yesterdayReset) {
+                return true;
+            }
+            
+            return false;
+        } catch (error) {
+            console.error('Error checking daily quest reset:', error);
+            return false;
+        }
+    }
+
+    // Check if a date is during Daylight Saving Time (EST vs EDT)
+    isDST(date) {
+        const jan = new Date(date.getFullYear(), 0, 1);
+        const jul = new Date(date.getFullYear(), 6, 1);
+        return date.getTimezoneOffset() < Math.max(jan.getTimezoneOffset(), jul.getTimezoneOffset());
     }
 
     // Enhanced quest progress update with type checking
