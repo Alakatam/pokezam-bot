@@ -268,6 +268,7 @@ error details          : "${showPageError.message}"
             
             yamlContent += `🎯 quest ${index + 1}:\n`;
             yamlContent += `   title      : "${quest.name}"\n`;
+            yamlContent += `   goal       : "${quest.description || 'Complete the objective'}"\n`;
             yamlContent += `   progress   : ${progressBar} ${progressPercent}%\n`;
             yamlContent += `   completion : ${quest.progress} / ${quest.target_value}\n`;
             yamlContent += `   rewards    : ${quest.reward_gold} 🪙 | ${quest.reward_xp || 0} ✨\n`;
