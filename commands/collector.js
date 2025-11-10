@@ -66,8 +66,11 @@ module.exports = {
 
             const subcommand = interaction.options.getSubcommand();
             
-            // Run auto-unlock in background (don't await - prevents timeout)
-            if (subcommand === 'status') {
+            // Run auto-unlock for ALL commands (await for upgrade-dept to ensure departments are unlocked)
+            if (subcommand === 'upgrade-dept' || subcommand === 'collect') {
+                await this.autoUnlockDepartments(interaction.user.id, collectorShopManager);
+            } else if (subcommand === 'status') {
+                // Background unlock for status (don't block response)
                 this.autoUnlockDepartments(interaction.user.id, collectorShopManager).catch(err => 
                     console.error('Background auto-unlock error:', err)
                 );
