@@ -99,18 +99,11 @@ class PokezamBot {
             // Initialize collector shop tables
             await this.collectorShopManager.initializeTables();
             
-            console.log('🔍 ABOUT TO CHECK COLLECTOR SHOP TIMESTAMPS...');
-            
             // POSTGRESQL SCHEMA FIX: Ensure all columns exist (for Render PostgreSQL)
             await this.fixPostgreSQLSchema();
             
-            console.log('🔍 NOW CHECKING COLLECTOR SHOP TIMESTAMPS...');
-            console.log('🔍 Database type:', this.database.dbType);
-            console.log('🔍 Is PostgreSQL?:', this.database.dbType?.toLowerCase() === 'postgresql');
-            
             // FIX COLLECTOR SHOP TIMESTAMPS: Ensure BIGINT columns for timestamps
             if (this.database.dbType && this.database.dbType.toLowerCase() === 'postgresql') {
-                console.log('🔧 Checking collector shop timestamp columns...');
                 try {
                     // First check if tables exist
                     const tableExists = await this.database.get(`
@@ -134,16 +127,12 @@ class PokezamBot {
                         
                         // Fix if column is INTEGER instead of BIGINT
                         if (checkResult && checkResult.data_type === 'integer') {
-                            console.log('⚠️ ⚠️ ⚠️  CRITICAL: Found INTEGER timestamps - MUST MIGRATE TO BIGINT NOW!');
-                            console.log('⚠️ This will drop and recreate collector shop tables with backed up data!');
-                            console.log('⚠️ Starting migration in 3 seconds...');
-                            await new Promise(resolve => setTimeout(resolve, 3000));
-                            
+                            console.log('⚠️ CRITICAL: Running collector shop BIGINT migration...');
                             const { fixTimestamps } = require('./scripts/fixCollectorShopTimestamps');
                             await fixTimestamps();
-                            console.log('✅ ✅ ✅  Collector shop timestamps migrated to BIGINT successfully');
+                            console.log('✅ Collector shop timestamps migrated to BIGINT');
                         } else if (checkResult) {
-                            console.log(`✅ Collector shop timestamps already correct (${checkResult.data_type})`);
+                            console.log(`✅ Collector shop timestamps correct (${checkResult.data_type})`);
                         }
                     }
                 } catch (error) {
