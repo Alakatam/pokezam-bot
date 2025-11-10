@@ -128,18 +128,22 @@ class PokezamBot {
                         
                         // Fix if column is INTEGER instead of BIGINT
                         if (checkResult && checkResult.data_type === 'integer') {
-                            console.log('⚠️ Found INTEGER timestamps - running migration to BIGINT...');
-                            console.log('⚠️ This will drop and recreate collector shop tables!');
+                            console.log('⚠️ ⚠️ ⚠️  CRITICAL: Found INTEGER timestamps - MUST MIGRATE TO BIGINT NOW!');
+                            console.log('⚠️ This will drop and recreate collector shop tables with backed up data!');
+                            console.log('⚠️ Starting migration in 3 seconds...');
+                            await new Promise(resolve => setTimeout(resolve, 3000));
+                            
                             const { fixTimestamps } = require('./scripts/fixCollectorShopTimestamps');
                             await fixTimestamps();
-                            console.log('✅ Collector shop timestamps migrated to BIGINT successfully');
+                            console.log('✅ ✅ ✅  Collector shop timestamps migrated to BIGINT successfully');
                         } else if (checkResult) {
                             console.log(`✅ Collector shop timestamps already correct (${checkResult.data_type})`);
                         }
                     }
                 } catch (error) {
                     console.error('⚠️ Error checking collector shop timestamps:', error.message);
-                    console.log('ℹ️  Migration will be skipped - tables will be created with correct types on first use');
+                    console.error('⚠️ Stack:', error.stack);
+                    console.log('⚠️ Migration failed - collector shop may not work until this is fixed!');
                 }
             }
             
