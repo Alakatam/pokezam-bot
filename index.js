@@ -1052,6 +1052,173 @@ class PokezamBot {
             }
 
             // Handle button interactions for start command
+            // Handle Vex's Risky Deal buttons
+            if (interaction.isButton() && interaction.customId.startsWith('vex_')) {
+                try {
+                    const parts = interaction.customId.split('_');
+                    const action = parts[1]; // 'confirm' or 'cancel'
+                    const targetUserId = parts[2];
+                    const cardId = parts[3]; // only for confirm
+
+                    // Security check: Only the user who initiated can interact
+                    if (interaction.user.id !== targetUserId) {
+                        return await interaction.reply({
+                            content: '🚫 This isn\'t your gamble! Use `/risky_deal` to make your own.',
+                            ephemeral: true
+                        });
+                    }
+
+                    if (action === 'cancel') {
+                        // User walked away
+                        const cancelEmbed = new EmbedBuilder()
+                            .setTitle('🚶 You Walked Away')
+                            .setDescription(
+                                `*Vex scowls as you turn away...*\n\n` +
+                                `"Coward. Come back when you have the guts to gamble."\n\n` +
+                                `*He vanishes into the shadows with a mocking laugh.*`
+                            )
+                            .setColor('#555555');
+
+                        return await interaction.update({
+                            embeds: [cancelEmbed],
+                            components: []
+                        });
+                    }
+
+                    if (action === 'confirm') {
+                        await interaction.deferUpdate();
+
+                        // Get the risky_deal command for its helper methods
+                        const riskyDealCommand = this.commands.get('risky_deal');
+                        if (!riskyDealCommand) {
+                            throw new Error('Risky deal command not found');
+                        }
+
+                        // Get the original card
+                        const originalCard = await this.database.get(
+                            'SELECT * FROM cards WHERE id = ?',
+                            [parseInt(cardId)]
+                        );
+
+                        if (!originalCard) {
+                            throw new Error('Card not found');
+                        }
+
+                        // Check user still owns the card
+                        const userCard = await this.database.get(
+                            'SELECT * FROM user_cards WHERE user_id = ? AND card_id = ?',
+                            [targetUserId, cardId]
+                        );
+
+                        if (!userCard || userCard.quantity < 1) {
+                            return await interaction.editReply({
+                                embeds: [EmbedUtils.createErrorEmbed(
+                                    '🚫 Card No Longer Owned',
+                                    'You don\'t own this card anymore! The deal is off.'
+                                )],
+                                components: []
+                            });
+                        }
+
+                        // ROLL FOR OUTCOME
+                        const probTable = riskyDealCommand.rarityProbabilities[originalCard.rarity];
+                        const outcome = riskyDealCommand.rollOutcome(originalCard.rarity);
+                        const newCard = await riskyDealCommand.getNewCard(
+                            this.database, 
+                            originalCard, 
+                            outcome, 
+                            probTable
+                        );
+
+                        if (!newCard) {
+                            throw new Error('Could not find replacement card');
+                        }
+
+                        // EXECUTE THE TRADE
+                        // 1. Remove original card
+                        if (userCard.quantity === 1) {
+                            await this.database.run(
+                                'DELETE FROM user_cards WHERE user_id = ? AND card_id = ?',
+                                [targetUserId, cardId]
+                            );
+                        } else {
+                            await this.database.run(
+                                'UPDATE user_cards SET quantity = quantity - 1 WHERE user_id = ? AND card_id = ?',
+                                [targetUserId, cardId]
+                            );
+                        }
+
+                        // 2. Add new card
+                        await this.cardManager.addCardToUser(targetUserId, newCard.id, 0);
+
+                        // BUILD RESULT MESSAGE
+                        let resultEmbed;
+                        const { EmbedBuilder } = require('discord.js');
+
+                        if (outcome === 'win') {
+                            resultEmbed = new EmbedBuilder()
+                                .setTitle('📈 A Wondrous Trade!')
+                                .setDescription(
+                                    `*Vex's eyes widen in surprise...*\n\n` +
+                                    `"Fortune favors you today!"\n\n` +
+                                    `He snatches your **[${originalCard.rarity}] ${originalCard.name}** ` +
+                                    `and slides you a shimmering **[${newCard.rarity}] ${newCard.name}**!\n\n` +
+                                    `"Now get out of my sight."`
+                                )
+                                .setColor('#00FF00')
+                                .setFooter({ text: `🎲 You rolled: ${outcome.toUpperCase()} (${probTable.win}% chance)` });
+                        } else if (outcome === 'draw') {
+                            resultEmbed = new EmbedBuilder()
+                                .setTitle('😐 A Fair Exchange')
+                                .setDescription(
+                                    `*Vex yawns...*\n\n` +
+                                    `"A fair trade, I suppose. Boring."\n\n` +
+                                    `He takes your **[${originalCard.rarity}] ${originalCard.name}** ` +
+                                    `and deals you a **[${newCard.rarity}] ${newCard.name}**.\n\n` +
+                                    `"Don't waste my time again."`
+                                )
+                                .setColor('#FFAA00')
+                                .setFooter({ text: `🎲 You rolled: ${outcome.toUpperCase()} (${probTable.draw}% chance)` });
+                        } else { // loss
+                            resultEmbed = new EmbedBuilder()
+                                .setTitle('📉 A Bad Deal!')
+                                .setDescription(
+                                    `*Vex cackles with glee...*\n\n` +
+                                    `"You should have walked away, fool!"\n\n` +
+                                    `He pockets your **[${originalCard.rarity}] ${originalCard.name}** ` +
+                                    `and flicks you a worthless **[${newCard.rarity}] ${newCard.name}**.\n\n` +
+                                    `"Better luck next time... or not."`
+                                )
+                                .setColor('#FF0000')
+                                .setFooter({ text: `🎲 You rolled: ${outcome.toUpperCase()} (${probTable.loss}% chance)` });
+                        }
+
+                        await interaction.editReply({
+                            embeds: [resultEmbed],
+                            components: []
+                        });
+                    }
+
+                } catch (error) {
+                    console.error('Error handling Vex button interaction:', error);
+                    
+                    const errorResponse = {
+                        embeds: [EmbedUtils.createErrorEmbed(
+                            'Gamble Error',
+                            'Vex has disappeared into the shadows. Try again later!'
+                        )],
+                        components: []
+                    };
+
+                    if (!interaction.replied && !interaction.deferred) {
+                        await interaction.reply(errorResponse);
+                    } else {
+                        await interaction.editReply(errorResponse);
+                    }
+                }
+                return;
+            }
+
             if (interaction.isButton() && interaction.customId.startsWith('start_')) {
                 try {
                     const parts = interaction.customId.split('_');
