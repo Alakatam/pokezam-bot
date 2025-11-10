@@ -47,8 +47,11 @@ module.exports = {
     },
 
     async execute(interaction, { database, userManager, cardManager }) {
+        let deferred = false;
         try {
+            // Defer immediately to prevent timeout
             await interaction.deferReply();
+            deferred = true;
 
             const userId = interaction.user.id;
             const cardInput = interaction.options.getString('card').toLowerCase();
@@ -198,12 +201,28 @@ module.exports = {
 
         } catch (error) {
             console.error('Error in risky_deal command:', error);
-            await interaction.editReply({
-                embeds: [EmbedUtils.createErrorEmbed(
-                    'Gamble Error',
-                    'Vex has disappeared into the shadows. Try again later!'
-                )]
-            });
+            
+            // Only try to respond if we haven't deferred yet or if the interaction is still valid
+            try {
+                if (deferred) {
+                    await interaction.editReply({
+                        embeds: [EmbedUtils.createErrorEmbed(
+                            'Gamble Error',
+                            'Vex has disappeared into the shadows. Try again later!'
+                        )]
+                    });
+                } else {
+                    await interaction.reply({
+                        embeds: [EmbedUtils.createErrorEmbed(
+                            'Gamble Error',
+                            'Vex has disappeared into the shadows. Try again later!'
+                        )],
+                        ephemeral: true
+                    });
+                }
+            } catch (replyError) {
+                console.error('Failed to send error message:', replyError);
+            }
         }
     },
 
@@ -271,8 +290,27 @@ module.exports = {
             console.log(`⚠️ No cards found for category: "${targetCategory}"`);
             console.log(`📋 Available rarities:`, availableRarities.map(r => `${r.rarity} (${r.count})`).join(', '));
             
-            // Fallback: Return any random card
-            const fallbackCard = await database.get(`
+            // Fallback strategy: Try progressively wider searches
+            console.log(`🔄 Attempting fallback strategies...`);
+            
+            // Strategy 1: Try the original category
+            let fallbackCard = await database.get(`
+                SELECT * FROM cards 
+                WHERE rarity IN (${this.rarityCategories[originalCategory].map(r => `'${r}'`).join(',')})
+                AND id != ? 
+                AND api_id IS NOT NULL
+                AND (image_url_large IS NOT NULL OR image_url_small IS NOT NULL)
+                ORDER BY RANDOM()
+                LIMIT 1
+            `, [originalCard.id]);
+            
+            if (fallbackCard) {
+                console.log(`✅ Fallback: Found card in original category (${originalCategory})`);
+                return fallbackCard;
+            }
+            
+            // Strategy 2: Try any card from the database
+            fallbackCard = await database.get(`
                 SELECT * FROM cards 
                 WHERE id != ? 
                 AND api_id IS NOT NULL
@@ -281,12 +319,14 @@ module.exports = {
                 LIMIT 1
             `, [originalCard.id]);
             
-            if (!fallbackCard) {
-                throw new Error(`No suitable replacement cards found in database`);
+            if (fallbackCard) {
+                console.log(`✅ Fallback: Using random card - ${fallbackCard.name} (${fallbackCard.rarity})`);
+                return fallbackCard;
             }
             
-            console.log(`✅ Using fallback: ${fallbackCard.name} (${fallbackCard.rarity})`);
-            return fallbackCard;
+            // Strategy 3: Last resort - return the original card
+            console.log(`⚠️ All fallbacks failed, returning original card`);
+            return originalCard;
         }
 
         const offset = Math.floor(Math.random() * cardCount.count);
