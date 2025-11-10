@@ -17,9 +17,9 @@ module.exports = {
         'COMMON': ['Common'],
         'UNCOMMON': ['Uncommon'],
         'RARE': ['Rare'],
-        'RARE_HOLO': ['Rare Holo', 'Rare Holo EX', 'Rare Holo GX', 'Rare Holo V', 'Rare Holo VMAX', 'Rare BREAK'],
+        'RARE_HOLO': ['Rare Holo', 'Rare Holo EX', 'Rare Holo GX', 'Rare Holo V', 'Rare Holo VMAX'],
         'ULTRA': ['Ultra Rare', 'Rare Ultra', 'Double Rare', 'Hyper Rare'],
-        'SECRET': ['Rare Secret', 'Rare Rainbow', 'Special Illustration Rare', 'Illustration Rare'],
+        'SECRET': ['Rare Secret', 'Rare Rainbow', 'Special Illustration Rare', 'Illustration Rare', 'Rare BREAK'],
         'PROMO': ['Promo', 'Rare Promo']
     },
 
