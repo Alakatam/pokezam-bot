@@ -182,14 +182,14 @@ error details          : "${showPageError.message}"
             });
         }
 
-        // Filter quests by type
-        const filteredQuests = userQuests.filter(q => q.quest_type === questType);
+        // Filter quests by type AND exclude completed quests
+        const filteredQuests = userQuests.filter(q => q.quest_type === questType && !q.completed);
         
         if (filteredQuests.length === 0) {
             return await interaction.editReply({
                 embeds: [EmbedUtils.createInfoEmbed(
                     `No ${questType.charAt(0).toUpperCase() + questType.slice(1)} Quests`,
-                    `No ${questType} quests are currently available!`
+                    `All ${questType} quests completed! Check back after reset.`
                 )]
             });
         }
@@ -264,12 +264,10 @@ error details          : "${showPageError.message}"
 
         displayQuests.forEach((quest, index) => {
             const progressBar = this.createProgressBar(quest.progress, quest.target_value);
-            const status = quest.completed ? '✅ COMPLETE' : '⏳ PROGRESS';
             const progressPercent = Math.round((quest.progress / quest.target_value) * 100);
             
             yamlContent += `🎯 quest ${index + 1}:\n`;
             yamlContent += `   title      : "${quest.name}"\n`;
-            yamlContent += `   status     : ${status}\n`;
             yamlContent += `   progress   : ${progressBar} ${progressPercent}%\n`;
             yamlContent += `   completion : ${quest.progress} / ${quest.target_value}\n`;
             yamlContent += `   rewards    : ${quest.reward_gold} 🪙 | ${quest.reward_xp || 0} ✨\n`;
