@@ -229,13 +229,19 @@ class EnhancedQuestManager {
                 return false;
             }
             
+            // Validate last_assigned is a valid timestamp
+            const lastAssigned = new Date(lastQuest.last_assigned);
+            if (isNaN(lastAssigned.getTime())) {
+                console.log(`⚠️ Invalid last_assigned timestamp for user ${userId} - treating as no quests`);
+                return false;
+            }
+            
             // Get current time in ET (UTC-5 or UTC-4 depending on DST)
             const now = new Date();
             const etOffset = this.isDST(now) ? -4 : -5; // ET is UTC-4 during DST, UTC-5 otherwise
             const etTime = new Date(now.getTime() + (etOffset * 60 * 60 * 1000));
             
             // Get last assigned time in ET
-            const lastAssigned = new Date(lastQuest.last_assigned);
             const lastAssignedET = new Date(lastAssigned.getTime() + (etOffset * 60 * 60 * 1000));
             
             // Calculate today's reset time (20:00 ET)
