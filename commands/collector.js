@@ -100,6 +100,10 @@ module.exports = {
     async handleStatus(interaction, user, collectorShopManager) {
         try {
             const shop = await collectorShopManager.getOrCreateShop(interaction.user.id);
+            
+            // AUTO-UNLOCK: Check if any departments should be unlocked based on current shop level
+            await this.autoUnlockDepartments(interaction.user.id, shop.shop_level, collectorShopManager);
+            
             const departments = await collectorShopManager.getUserDepartments(interaction.user.id);
 
             const nextUpgradeCost = collectorShopManager.getGlobalUpgradeCost(shop.shop_level);
@@ -488,6 +492,36 @@ module.exports = {
         } catch (error) {
             console.error('Error in handleUpgradeDept:', error);
             await interaction.editReply({ content: '❌ Error upgrading department!' });
+        }
+    },
+
+    /**
+     * Auto-unlock departments that should be available based on shop level
+     * (Retroactive fix for users who upgraded before migration)
+     */
+    async autoUnlockDepartments(userId, shopLevel, collectorShopManager) {
+        try {
+            const departments = await collectorShopManager.getUserDepartments(userId);
+            const existingDeptIds = new Set(departments.filter(d => d.level > 0).map(d => d.department_id));
+
+            for (const [deptId, config] of Object.entries(collectorShopManager.departments)) {
+                // If department should be unlocked but isn't yet
+                if (config.unlockLevel <= shopLevel && !existingDeptIds.has(deptId)) {
+                    console.log(`🔓 Auto-unlocking ${config.name} for user ${userId} (Shop Level ${shopLevel})`);
+                    
+                    await collectorShopManager.db.run(`
+                        INSERT OR IGNORE INTO collector_departments (user_id, department_id, level, last_collected_at)
+                        VALUES (?, ?, 1, ?)
+                    `, [userId, deptId, Date.now()]);
+
+                    await collectorShopManager.db.run(`
+                        INSERT OR IGNORE INTO collector_storage (user_id, department_id, last_generation_at)
+                        VALUES (?, ?, ?)
+                    `, [userId, deptId, Date.now()]);
+                }
+            }
+        } catch (error) {
+            console.error('Error auto-unlocking departments:', error);
         }
     }
 };
