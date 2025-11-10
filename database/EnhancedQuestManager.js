@@ -155,17 +155,32 @@ class EnhancedQuestManager {
         // Check if it's time for daily reset (20:00 ET = midnight UTC)
         const shouldResetDaily = await this.shouldResetDailyQuests(userId);
         
-        if (shouldResetDaily) {
-            console.log(`🔄 Daily reset triggered for user ${userId} - deleting all quests`);
+        // Also check if there are too many daily quests (indicates stuck state)
+        const dailyQuestCount = await this.db.get(`
+            SELECT COUNT(*) as count
+            FROM user_quests uq
+            JOIN quests q ON uq.quest_id = q.id
+            WHERE uq.user_id = ? AND q.quest_type = 'daily'
+        `, [userId]);
+        
+        const hasTooManyQuests = dailyQuestCount && dailyQuestCount.count > 5;
+        
+        if (shouldResetDaily || hasTooManyQuests) {
+            if (shouldResetDaily) {
+                console.log(`🔄 Daily reset triggered for user ${userId} (past 20:00 ET) - deleting all quests`);
+            } else {
+                console.log(`🔄 Force reset for user ${userId} (${dailyQuestCount.count} daily quests > 5) - deleting all quests`);
+            }
             // Delete ALL user quests at daily reset
-            await this.db.run(`DELETE FROM user_quests WHERE user_id = ?`, [userId]);
+            const deleteResult = await this.db.run(`DELETE FROM user_quests WHERE user_id = ?`, [userId]);
+            console.log(`✅ Deleted ${deleteResult.changes || 'all'} quests for user ${userId}`);
         }
         
         const questTypes = ['daily', 'weekly', 'monthly'];
         
         for (const type of questTypes) {
             // Remove old completed quests for this type (if not already deleted by reset)
-            if (!shouldResetDaily || type !== 'daily') {
+            if (!shouldResetDaily && !hasTooManyQuests) {
                 await this.cleanupCompletedQuests(userId, type);
             }
             
@@ -210,7 +225,7 @@ class EnhancedQuestManager {
             `, [userId]);
             
             if (!lastQuest || !lastQuest.last_assigned) {
-                // No daily quests yet, don't reset
+                console.log(`📋 No daily quests found for user ${userId} - no reset needed`);
                 return false;
             }
             
@@ -231,16 +246,25 @@ class EnhancedQuestManager {
             const yesterdayReset = new Date(todayReset);
             yesterdayReset.setDate(yesterdayReset.getDate() - 1);
             
+            console.log(`⏰ Reset check for user ${userId}:`);
+            console.log(`   Current ET time: ${etTime.toISOString()}`);
+            console.log(`   Last assigned: ${lastAssignedET.toISOString()}`);
+            console.log(`   Today's reset: ${todayReset.toISOString()}`);
+            console.log(`   Yesterday's reset: ${yesterdayReset.toISOString()}`);
+            
             // If last assigned was before today's 20:00 ET and we're now past 20:00 ET, reset
             if (lastAssignedET < todayReset && etTime >= todayReset) {
+                console.log(`✅ Reset condition met: Last assigned before today's 20:00 ET AND now past 20:00 ET`);
                 return true;
             }
             
             // If last assigned was before yesterday's 20:00 ET, definitely reset
             if (lastAssignedET < yesterdayReset) {
+                console.log(`✅ Reset condition met: Last assigned before yesterday's 20:00 ET`);
                 return true;
             }
             
+            console.log(`❌ Reset conditions not met - quests are current`);
             return false;
         } catch (error) {
             console.error('Error checking daily quest reset:', error);
