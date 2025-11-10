@@ -241,13 +241,23 @@ module.exports = {
         `, [targetRarity, originalCard.id]);
 
         if (!cardCount || cardCount.count === 0) {
-            // Fallback: Return any random card (shouldn't happen)
-            return await database.get(`
+            // Fallback: Try to find ANY card with different rarity (broader search)
+            console.log(`⚠️ No cards found for rarity: ${targetRarity}, trying fallback...`);
+            
+            const fallbackCard = await database.get(`
                 SELECT * FROM cards 
                 WHERE id != ? 
                 AND api_id IS NOT NULL
+                AND (image_url_large IS NOT NULL OR image_url_small IS NOT NULL)
+                ORDER BY RANDOM()
                 LIMIT 1
             `, [originalCard.id]);
+            
+            if (!fallbackCard) {
+                throw new Error(`No suitable replacement cards found in database`);
+            }
+            
+            return fallbackCard;
         }
 
         const offset = Math.floor(Math.random() * cardCount.count);
