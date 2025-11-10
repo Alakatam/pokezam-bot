@@ -117,65 +117,65 @@ class CardManager {
         }
 
         // 🎲 ROLL FOR RARITY TIER FIRST (before selecting card)
-        // NEW ODDS: Much more generous pull rates!
+        // HARDENED ODDS: More rewarding rare pulls!
         const rarityTiers = [
             { 
                 name: 'Promo', 
-                threshold: 0.5,
+                threshold: 0.35,
                 rarities: ['Promo'],
                 pattern: "rarity = 'Promo'"
             },
             { 
                 name: 'Ultra Legendary', 
-                threshold: 0.5 + 1.0,
+                threshold: 0.35 + 0.50,
                 rarities: ['Rare Shining', 'Rare Holo Star', 'Rare BREAK', 'Special Illustration Rare', 'Radiant Rare', 'Rare Holo VSTAR'],
                 pattern: "rarity IN ('Rare Shining', 'Rare Holo Star', 'Rare BREAK', 'Special Illustration Rare', 'Radiant Rare', 'Rare Holo VSTAR')"
             },
             { 
                 name: 'Amazing Rare', 
-                threshold: 0.5 + 1.0 + 1.5,
+                threshold: 0.35 + 0.50 + 0.75,
                 rarities: ['Amazing Rare'],
                 pattern: "rarity = 'Amazing Rare'"
             },
             { 
                 name: 'Crown Rare', 
-                threshold: 0.5 + 1.0 + 1.5 + 2.0,
+                threshold: 0.35 + 0.50 + 0.75 + 0.90,
                 rarities: ['Rare Rainbow'], // Crown = Rainbow in TCG
                 pattern: "rarity = 'Rare Rainbow'"
             },
             { 
                 name: 'Secret Rare', 
-                threshold: 0.5 + 1.0 + 1.5 + 2.0 + 2.0,
+                threshold: 0.35 + 0.50 + 0.75 + 0.90 + 0.90,
                 rarities: ['Rare Secret'],
                 pattern: "rarity = 'Rare Secret'"
             },
             { 
                 name: 'Illustration Rare', 
-                threshold: 0.5 + 1.0 + 1.5 + 2.0 + 2.0 + 3.0,
+                threshold: 0.35 + 0.50 + 0.75 + 0.90 + 0.90 + 1.0,
                 rarities: ['Illustration Rare'],
                 pattern: "rarity = 'Illustration Rare'"
             },
             { 
                 name: 'Hyper Rare', 
-                threshold: 0.5 + 1.0 + 1.5 + 2.0 + 2.0 + 3.0 + 4.0,
+                threshold: 0.35 + 0.50 + 0.75 + 0.90 + 0.90 + 1.0 + 2.0,
                 rarities: ['Rare Ultra', 'Hyper Rare', 'LEGEND', 'Rare Holo VMAX'],
                 pattern: "rarity IN ('Rare Ultra', 'Hyper Rare', 'LEGEND', 'Rare Holo VMAX', 'Ultra Rare')"
             },
             { 
                 name: 'Premium Holo', 
-                threshold: 0.5 + 1.0 + 1.5 + 2.0 + 2.0 + 3.0 + 4.0 + 7.0,
+                threshold: 0.35 + 0.50 + 0.75 + 0.90 + 0.90 + 1.0 + 2.0 + 3.0,
                 rarities: ['Rare Holo', 'Rare ACE', 'Rare Holo EX', 'Rare Holo GX', 'Rare Holo LV.X', 'Rare Prime', 'Rare Prism Star', 'Rare Holo V', 'ACE SPEC Rare'],
                 pattern: "rarity IN ('Rare Holo', 'Rare ACE', 'Rare Holo EX', 'Rare Holo GX', 'Rare Holo LV.X', 'Rare Prime', 'Rare Prism Star', 'Rare Holo V', 'ACE SPEC Rare')"
             },
             { 
                 name: 'Rare', 
-                threshold: 0.5 + 1.0 + 1.5 + 2.0 + 2.0 + 3.0 + 4.0 + 7.0 + 15.0,
+                threshold: 0.35 + 0.50 + 0.75 + 0.90 + 0.90 + 1.0 + 2.0 + 3.0 + 10.0,
                 rarities: ['Rare', 'Double Rare'],
                 pattern: "rarity IN ('Rare', 'Double Rare')"
             },
             { 
                 name: 'Uncommon', 
-                threshold: 0.5 + 1.0 + 1.5 + 2.0 + 2.0 + 3.0 + 4.0 + 7.0 + 15.0 + 25.0,
+                threshold: 0.35 + 0.50 + 0.75 + 0.90 + 0.90 + 1.0 + 2.0 + 3.0 + 10.0 + 35.0,
                 rarities: ['Uncommon'],
                 pattern: "rarity = 'Uncommon'"
             },
