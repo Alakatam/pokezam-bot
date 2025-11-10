@@ -440,44 +440,25 @@ experience awaiting    : "Cards, quests, and adventure!"
             // Update set completion progress and check for new completions
             await this.checkSetCompletion(userId, detailedCard, interaction);
 
-            // Notify about completed quests
+            // Notify about completed quests (simplified)
             if (completedQuests.length > 0) {
                 // Get user's daily quests to find the correct quest positions
                 const dailyQuests = await questManager.getUserQuests(userId);
                 const dailyQuestList = dailyQuests.filter(q => q.quest_type === 'daily');
                 
-                let yamlDescription = '```yaml\n';
-                yamlDescription += '#═══════════════════════════════════════════════════\n';
-                yamlDescription += '# 🎯 QUEST REWARDS EARNED\n';
-                yamlDescription += '#═══════════════════════════════════════════════════\n\n';
+                let completionText = '';
                 
                 completedQuests.forEach((q, index) => {
                     // Find the actual position of this quest in the daily quest list
                     const questPosition = dailyQuestList.findIndex(dailyQuest => dailyQuest.name === q.name) + 1;
-                    const displayPosition = questPosition > 0 ? questPosition : index + 1; // Fallback to array index if not found
+                    const displayPosition = questPosition > 0 ? questPosition : index + 1;
                     
-                    yamlDescription += `🎉 QUEST ${displayPosition} COMPLETED:\n`;
-                    yamlDescription += `   Name               : "${q.name}"\n`;
-                    yamlDescription += `   Gold Reward        : ${q.reward_gold.toLocaleString()} 🪙\n`;
-                    yamlDescription += `   XP Reward          : ${q.reward_xp} ✨\n`;
-                    
-                    // Add level up information if available
-                    if (q.levelUp) {
-                        yamlDescription += `   Level Up           : ${q.levelUp.oldLevel} → ${q.levelUp.newLevel} 🎉\n`;
-                    }
-                    
-                    if (index < completedQuests.length - 1) {
-                        yamlDescription += '\n';
-                    }
+                    completionText += `✅ Quest ${displayPosition} completed!\n`;
                 });
-                
-                yamlDescription += '\n#═══════════════════════════════════════════════════\n';
-                yamlDescription += '```';
 
                 const questEmbed = new EmbedBuilder()
-                    .setTitle('🎉 Quest Completed!')
-                    .setDescription(yamlDescription)
-                    .setColor('#ffd700')
+                    .setDescription(completionText.trim())
+                    .setColor('#00ff00')
                     .setTimestamp();
                 
                 setTimeout(async () => {
