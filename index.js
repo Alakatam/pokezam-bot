@@ -105,6 +105,8 @@ class PokezamBot {
             await this.fixPostgreSQLSchema();
             
             console.log('🔍 NOW CHECKING COLLECTOR SHOP TIMESTAMPS...');
+            console.log('🔍 Database type:', this.database.dbType);
+            console.log('🔍 Is PostgreSQL?:', this.database.dbType === 'postgresql');
             
             // FIX COLLECTOR SHOP TIMESTAMPS: Ensure BIGINT columns for timestamps
             if (this.database.dbType === 'postgresql') {
