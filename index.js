@@ -106,10 +106,10 @@ class PokezamBot {
             
             console.log('🔍 NOW CHECKING COLLECTOR SHOP TIMESTAMPS...');
             console.log('🔍 Database type:', this.database.dbType);
-            console.log('🔍 Is PostgreSQL?:', this.database.dbType === 'postgresql');
+            console.log('🔍 Is PostgreSQL?:', this.database.dbType?.toLowerCase() === 'postgresql');
             
             // FIX COLLECTOR SHOP TIMESTAMPS: Ensure BIGINT columns for timestamps
-            if (this.database.dbType === 'postgresql') {
+            if (this.database.dbType && this.database.dbType.toLowerCase() === 'postgresql') {
                 console.log('🔧 Checking collector shop timestamp columns...');
                 try {
                     // First check if tables exist
@@ -154,7 +154,7 @@ class PokezamBot {
             }
             
             // FIX QUEST TIMESTAMPS: Convert seconds to milliseconds and remove duplicates
-            if (this.database.dbType === 'postgresql') {
+            if (this.database.dbType && this.database.dbType.toLowerCase() === 'postgresql') {
                 console.log('🔧 Checking quest timestamp format...');
                 try {
                     // Check if any quests have timestamps in seconds (before year 2000 in millis)
@@ -179,7 +179,7 @@ class PokezamBot {
             }
             
             // CLEANUP OLD COMPLETED QUESTS: Remove accumulated quests (one-time cleanup)
-            if (this.database.dbType === 'postgresql') {
+            if (this.database.dbType && this.database.dbType.toLowerCase() === 'postgresql') {
                 console.log('🧹 Cleaning up old completed quests...');
                 try {
                     const now = Date.now();
@@ -1682,7 +1682,7 @@ roll result        : "${outcome.toUpperCase()} (${probTable.loss}% chance)"
 
     // POSTGRESQL SCHEMA FIX: Ensure all required columns exist
     async fixPostgreSQLSchema() {
-        if (this.databaseManager.dbType === 'postgresql') {
+        if (this.databaseManager.dbType && this.databaseManager.dbType.toLowerCase() === 'postgresql') {
             try {
                 const { fixPostgreSQLSchema } = require('./scripts/fixPostgreSQLSchema');
                 const { PostgreSQLSchemaFixer } = require('./scripts/fixPostgreSQLSchema');
