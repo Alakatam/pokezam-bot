@@ -428,7 +428,7 @@ experience awaiting    : "Cards, quests, and adventure!"
                     );
 
                     // Post to Global showcase channel for rare cards (Holo Rare or above)
-                    await this.checkAndPostToGlobalShowcase(interaction, detailedCard, variant, variantInfo, rarityInfo);
+                    await this.checkAndPostToGlobalShowcase(interaction, detailedCard, variant, variantInfo, rarityInfo, database);
 
                     // Check for achievements (now runs async after Discord response!)
                     await this.checkCardDrawAchievements(userId, drawnCard, updatedUser, { database, userManager, cardManager, questManager });
@@ -602,7 +602,7 @@ experience awaiting    : "Cards, quests, and adventure!"
         return nextMilestone ? `${nextMilestone} draws` : 'Max milestone reached!';
     },
 
-    async checkAndPostToGlobalShowcase(interaction, detailedCard, variant, variantInfo, rarityInfo) {
+    async checkAndPostToGlobalShowcase(interaction, detailedCard, variant, variantInfo, rarityInfo, database) {
         try {
             // Global showcase channel ID
             const GLOBAL_SHOWCASE_CHANNEL_ID = '1434216182017167480';
@@ -739,7 +739,7 @@ experience awaiting    : "Cards, quests, and adventure!"
             
             if (rarity.includes('ultra')) {
                 const ultraCount = await managers.database.get(`
-                    SELECT COUNT(DISTINCT card_id) as count FROM user_cards uc
+                    SELECT COUNT(DISTINCT uc.card_id) as count FROM user_cards uc
                     JOIN cards c ON uc.card_id = c.id 
                     WHERE uc.user_id = ? AND c.rarity LIKE '%ultra%'
                 `, [userId]);
@@ -749,7 +749,7 @@ experience awaiting    : "Cards, quests, and adventure!"
             
             if (rarity.includes('secret')) {
                 const secretCount = await managers.database.get(`
-                    SELECT COUNT(DISTINCT card_id) as count FROM user_cards uc
+                    SELECT COUNT(DISTINCT uc.card_id) as count FROM user_cards uc
                     JOIN cards c ON uc.card_id = c.id 
                     WHERE uc.user_id = ? AND c.rarity LIKE '%secret%'
                 `, [userId]);
