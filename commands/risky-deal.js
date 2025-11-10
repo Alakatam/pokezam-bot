@@ -98,24 +98,7 @@ module.exports = {
                 });
             }
 
-            // STEP 1: Show Vex preparing the deal
-            const preparingEmbed = new EmbedBuilder()
-                .setTitle('🎲 Vex the Gamble-Broker')
-                .setDescription(
-                    `*Vex emerges from the shadows, eyeing your card...*\n\n` +
-                    `**Your Card:** ${card.name}\n` +
-                    `**Rarity:** ${card.rarity}\n` +
-                    `**Set:** ${card.set_name}\n\n` +
-                    `"Let's see what fate has in store for you..."`
-                )
-                .setColor('#8B0000');
-
-            await interaction.editReply({ embeds: [preparingEmbed] });
-
-            // STEP 2: Wait 1 second, then execute the gamble
-            await new Promise(resolve => setTimeout(resolve, 1000));
-
-            // EXECUTE THE GAMBLE
+            // EXECUTE THE GAMBLE IMMEDIATELY
             const probTable = this.rarityProbabilities[card.rarity] || this.rarityProbabilities['Rare'];
             const outcome = this.rollOutcome(card.rarity);
             const newCard = await this.getNewCard(database, card, outcome, probTable);
@@ -140,43 +123,63 @@ module.exports = {
             // Add new card
             await cardManager.addCardToUser(userId, newCard.id, 1);
 
-            // STEP 3: Show compact result with card image
+            // Show enhanced result with card image
             const newCardImage = newCard.image_url_large || newCard.image_url_small || 
                                 newCard.image_large || newCard.image_small;
 
             let resultEmbed;
             if (outcome === 'win') {
                 resultEmbed = new EmbedBuilder()
-                    .setTitle('📈 WONDROUS TRADE!')
+                    .setTitle('🎰 VEX\'S GAMBLE HOUSE')
                     .setDescription(
-                        `\`\`\`diff\n- GAVE: ${card.name} [${card.rarity}]\n+ GOT:  ${newCard.name} [${newCard.rarity}]\n\`\`\`\n` +
-                        `*"Fortune favors you today!"* 🎉`
+                        `## 📈 WONDROUS TRADE!\n\n` +
+                        `### Your Gamble:\n` +
+                        `\`\`\`diff\n` +
+                        `- You Risked: ${card.name} [${card.rarity}]\n` +
+                        `+ You Won:    ${newCard.name} [${newCard.rarity}]\n` +
+                        `\`\`\`\n` +
+                        `> *"Hehehehe... Fortune favors the bold today! Your luck runs deep, mortal."* 🎉\n\n` +
+                        `**Roll Result:** WIN ✨ (${probTable.win}% chance)`
                     )
                     .setColor('#00FF00')
-                    .setFooter({ text: `🎲 WIN (${probTable.win}% chance)` });
+                    .setThumbnail('https://i.imgur.com/8ZqKQNJ.png');
             } else if (outcome === 'draw') {
                 resultEmbed = new EmbedBuilder()
-                    .setTitle('😐 FAIR EXCHANGE')
+                    .setTitle('🎰 VEX\'S GAMBLE HOUSE')
                     .setDescription(
-                        `\`\`\`yaml\nGAVE: ${card.name} [${card.rarity}]\nGOT:  ${newCard.name} [${newCard.rarity}]\n\`\`\`\n` +
-                        `*"A fair trade, I suppose. Boring."*`
+                        `## 😐 FAIR EXCHANGE\n\n` +
+                        `### Your Gamble:\n` +
+                        `\`\`\`yaml\n` +
+                        `You Risked: ${card.name} [${card.rarity}]\n` +
+                        `You Got:    ${newCard.name} [${newCard.rarity}]\n` +
+                        `\`\`\`\n` +
+                        `> *"A fair trade. Boring, but balanced. The cards mock us both."* 🃏\n\n` +
+                        `**Roll Result:** DRAW ⚖️ (${probTable.draw}% chance)`
                     )
                     .setColor('#FFAA00')
-                    .setFooter({ text: `🎲 DRAW (${probTable.draw}% chance)` });
+                    .setThumbnail('https://i.imgur.com/8ZqKQNJ.png');
             } else {
                 resultEmbed = new EmbedBuilder()
-                    .setTitle('📉 BAD DEAL!')
+                    .setTitle('🎰 VEX\'S GAMBLE HOUSE')
                     .setDescription(
-                        `\`\`\`diff\n- GAVE: ${card.name} [${card.rarity}]\n- GOT:  ${newCard.name} [${newCard.rarity}]\n\`\`\`\n` +
-                        `*"You should have walked away, fool!"* 💸`
+                        `## 📉 UNLUCKY TRADE!\n\n` +
+                        `### Your Gamble:\n` +
+                        `\`\`\`diff\n` +
+                        `- You Risked: ${card.name} [${card.rarity}]\n` +
+                        `- You Got:    ${newCard.name} [${newCard.rarity}]\n` +
+                        `\`\`\`\n` +
+                        `> *"BAHAHAHA! You should have walked away, fool! The house always wins!"* 💸\n\n` +
+                        `**Roll Result:** LOSS 💀 (${probTable.loss}% chance)`
                     )
                     .setColor('#FF0000')
-                    .setFooter({ text: `🎲 LOSS (${probTable.loss}% chance)` });
+                    .setThumbnail('https://i.imgur.com/8ZqKQNJ.png');
             }
 
             if (newCardImage) {
                 resultEmbed.setImage(newCardImage);
             }
+
+            resultEmbed.setFooter({ text: `🎲 All trades are final • Gambled: ${card.set_id}-${card.number}` });
 
             await interaction.editReply({ embeds: [resultEmbed] });
 
