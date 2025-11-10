@@ -106,28 +106,40 @@ class PokezamBot {
             if (this.database.dbType === 'postgresql') {
                 console.log('🔧 Checking collector shop timestamp columns...');
                 try {
-                    const checkResult = await this.database.get(`
-                        SELECT data_type 
-                        FROM information_schema.columns 
-                        WHERE table_name = 'collector_shops' 
-                        AND column_name = 'created_at'
-                        LIMIT 1
+                    // First check if tables exist
+                    const tableExists = await this.database.get(`
+                        SELECT EXISTS (
+                            SELECT FROM information_schema.tables 
+                            WHERE table_name = 'collector_shops'
+                        ) as exists
                     `);
                     
-                    // Fix if column is INTEGER instead of BIGINT
-                    if (checkResult && checkResult.data_type === 'integer') {
-                        console.log('⚠️ Found INTEGER timestamps - fixing to BIGINT...');
-                        const { fixTimestamps } = require('./scripts/fixCollectorShopTimestamps');
-                        await fixTimestamps();
-                        console.log('✅ Collector shop timestamps fixed to BIGINT');
-                    } else if (checkResult) {
-                        console.log(`✅ Collector shop timestamps already correct (${checkResult.data_type})`);
-                    } else {
+                    if (!tableExists || !tableExists.exists) {
                         console.log('ℹ️  Collector shop tables don\'t exist yet - will be created with BIGINT');
+                    } else {
+                        // Check column type
+                        const checkResult = await this.database.get(`
+                            SELECT data_type 
+                            FROM information_schema.columns 
+                            WHERE table_name = 'collector_shops' 
+                            AND column_name = 'created_at'
+                            LIMIT 1
+                        `);
+                        
+                        // Fix if column is INTEGER instead of BIGINT
+                        if (checkResult && checkResult.data_type === 'integer') {
+                            console.log('⚠️ Found INTEGER timestamps - running migration to BIGINT...');
+                            console.log('⚠️ This will drop and recreate collector shop tables!');
+                            const { fixTimestamps } = require('./scripts/fixCollectorShopTimestamps');
+                            await fixTimestamps();
+                            console.log('✅ Collector shop timestamps migrated to BIGINT successfully');
+                        } else if (checkResult) {
+                            console.log(`✅ Collector shop timestamps already correct (${checkResult.data_type})`);
+                        }
                     }
                 } catch (error) {
                     console.error('⚠️ Error checking collector shop timestamps:', error.message);
-                    console.log('ℹ️  Collector shop tables will be created with correct BIGINT types');
+                    console.log('ℹ️  Migration will be skipped - tables will be created with correct types on first use');
                 }
             }
             
