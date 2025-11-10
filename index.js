@@ -8,6 +8,7 @@ const UserManager = require('./database/UserManager');
 const CardManager = require('./database/CardManager');
 const QuestManager = require('./database/QuestManager');
 const DatabaseBackupManager = require('./database/DatabaseBackupManager');
+const EmbedUtils = require('./utils/EmbedUtils');
 
 class PokezamBot {
     constructor() {
@@ -1148,8 +1149,8 @@ class PokezamBot {
                             );
                         }
 
-                        // 2. Add new card
-                        await this.cardManager.addCardToUser(targetUserId, newCard.id, 0);
+                        // 2. Add new card (quantity = 1)
+                        await this.cardManager.addCardToUser(targetUserId, newCard.id, 1);
 
                         // BUILD RESULT MESSAGE
                         let resultEmbed;

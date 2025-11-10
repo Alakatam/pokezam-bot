@@ -423,10 +423,14 @@ class CardManager {
     }
 
     async addCardToUser(userId, cardId, quantity = 1, starLevel = 0) {
+        // PostgreSQL uses is_holo (boolean), SQLite uses star_level (integer)
+        // For compatibility: starLevel > 0 means is_holo = true
+        const isHolo = starLevel > 0;
+        
         // Check if user already has this card
         const existing = await this.db.get(
-            'SELECT * FROM user_cards WHERE user_id = ? AND card_id = ? AND star_level = ?',
-            [userId, cardId, starLevel]
+            'SELECT * FROM user_cards WHERE user_id = ? AND card_id = ?',
+            [userId, cardId]
         );
 
         if (existing) {
@@ -437,10 +441,22 @@ class CardManager {
             );
         } else {
             // Create new entry
-            return await this.db.run(
-                'INSERT INTO user_cards (user_id, card_id, quantity, star_level) VALUES (?, ?, ?, ?)',
-                [userId, cardId, quantity, starLevel]
-            );
+            // Try PostgreSQL schema first (is_holo), fallback to SQLite schema (star_level)
+            try {
+                return await this.db.run(
+                    'INSERT INTO user_cards (user_id, card_id, quantity, is_holo) VALUES (?, ?, ?, ?)',
+                    [userId, cardId, quantity, isHolo]
+                );
+            } catch (error) {
+                if (error.message.includes('is_holo')) {
+                    // Fallback to SQLite schema with star_level
+                    return await this.db.run(
+                        'INSERT INTO user_cards (user_id, card_id, quantity, star_level) VALUES (?, ?, ?, ?)',
+                        [userId, cardId, quantity, starLevel]
+                    );
+                }
+                throw error;
+            }
         }
     }
 
