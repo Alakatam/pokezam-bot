@@ -65,6 +65,13 @@ module.exports = {
             }
 
             const subcommand = interaction.options.getSubcommand();
+            
+            // Run auto-unlock in background (don't await - prevents timeout)
+            if (subcommand === 'status') {
+                this.autoUnlockDepartments(interaction.user.id, collectorShopManager).catch(err => 
+                    console.error('Background auto-unlock error:', err)
+                );
+            }
 
             switch (subcommand) {
                 case 'status':
@@ -100,10 +107,6 @@ module.exports = {
     async handleStatus(interaction, user, collectorShopManager) {
         try {
             const shop = await collectorShopManager.getOrCreateShop(interaction.user.id);
-            
-            // AUTO-UNLOCK: Check if any departments should be unlocked based on current shop level
-            await this.autoUnlockDepartments(interaction.user.id, shop.shop_level, collectorShopManager);
-            
             const departments = await collectorShopManager.getUserDepartments(interaction.user.id);
 
             const nextUpgradeCost = collectorShopManager.getGlobalUpgradeCost(shop.shop_level);
@@ -200,21 +203,7 @@ module.exports = {
                     iconURL: interaction.user.displayAvatarURL({ dynamic: true })
                 });
 
-            // Add action buttons
-            const row = new ActionRowBuilder()
-                .addComponents(
-                    new ButtonBuilder()
-                        .setCustomId(`collector_collect_${interaction.user.id}`)
-                        .setLabel('💰 Collect All')
-                        .setStyle(ButtonStyle.Success),
-                    new ButtonBuilder()
-                        .setCustomId(`collector_upgrade_${interaction.user.id}`)
-                        .setLabel(`⬆️ Shop (${nextUpgradeCost.toLocaleString()}g)`)
-                        .setStyle(user.gold >= nextUpgradeCost ? ButtonStyle.Primary : ButtonStyle.Secondary)
-                        .setDisabled(user.gold < nextUpgradeCost)
-                );
-
-            await interaction.editReply({ embeds: [embed], components: [row] });
+            await interaction.editReply({ embeds: [embed] });
 
         } catch (error) {
             console.error('Error in handleStatus:', error);
@@ -499,15 +488,16 @@ module.exports = {
      * Auto-unlock departments that should be available based on shop level
      * (Retroactive fix for users who upgraded before migration)
      */
-    async autoUnlockDepartments(userId, shopLevel, collectorShopManager) {
+    async autoUnlockDepartments(userId, collectorShopManager) {
         try {
+            const shop = await collectorShopManager.getOrCreateShop(userId);
             const departments = await collectorShopManager.getUserDepartments(userId);
             const existingDeptIds = new Set(departments.filter(d => d.level > 0).map(d => d.department_id));
 
             for (const [deptId, config] of Object.entries(collectorShopManager.departments)) {
                 // If department should be unlocked but isn't yet
-                if (config.unlockLevel <= shopLevel && !existingDeptIds.has(deptId)) {
-                    console.log(`🔓 Auto-unlocking ${config.name} for user ${userId} (Shop Level ${shopLevel})`);
+                if (config.unlockLevel <= shop.shop_level && !existingDeptIds.has(deptId)) {
+                    console.log(`🔓 Auto-unlocking ${config.name} for user ${userId} (Shop Level ${shop.shop_level})`);
                     
                     await collectorShopManager.db.run(`
                         INSERT OR IGNORE INTO collector_departments (user_id, department_id, level, last_collected_at)
