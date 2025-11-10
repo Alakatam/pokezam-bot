@@ -99,8 +99,12 @@ class PokezamBot {
             // Initialize collector shop tables
             await this.collectorShopManager.initializeTables();
             
+            console.log('🔍 ABOUT TO CHECK COLLECTOR SHOP TIMESTAMPS...');
+            
             // POSTGRESQL SCHEMA FIX: Ensure all columns exist (for Render PostgreSQL)
             await this.fixPostgreSQLSchema();
+            
+            console.log('🔍 NOW CHECKING COLLECTOR SHOP TIMESTAMPS...');
             
             // FIX COLLECTOR SHOP TIMESTAMPS: Ensure BIGINT columns for timestamps
             if (this.database.dbType === 'postgresql') {
