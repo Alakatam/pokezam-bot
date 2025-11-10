@@ -12,23 +12,36 @@ module.exports = {
         ),
     cooldown: 10, // 10 seconds cooldown
 
+    // RARITY CATEGORIES - Groups similar rarities together
+    rarityCategories: {
+        'COMMON': ['Common'],
+        'UNCOMMON': ['Uncommon'],
+        'RARE': ['Rare'],
+        'RARE_HOLO': ['Rare Holo', 'Rare Holo EX', 'Rare Holo GX', 'Rare Holo V', 'Rare Holo VMAX', 'Rare BREAK'],
+        'ULTRA': ['Ultra Rare', 'Rare Ultra', 'Double Rare', 'Hyper Rare'],
+        'SECRET': ['Rare Secret', 'Rare Rainbow', 'Special Illustration Rare', 'Illustration Rare'],
+        'PROMO': ['Promo', 'Rare Promo']
+    },
+
     // PROBABILITY TABLE - The Core of the Risky Deal System
-    // Format: [lossChance, drawChance, winChance]
     rarityProbabilities: {
-        'Common': { loss: 0, draw: 90, win: 10, downgrade: null, upgrade: 'Uncommon' },
-        'Uncommon': { loss: 25, draw: 65, win: 10, downgrade: 'Common', upgrade: 'Rare' },
-        'Rare': { loss: 25, draw: 65, win: 10, downgrade: 'Uncommon', upgrade: ['Rare Holo', 'Rare ACE', 'Rare Holo EX'] },
-        'Rare Holo': { loss: 35, draw: 55, win: 10, downgrade: 'Rare', upgrade: ['Rare Ultra', 'Hyper Rare', 'Ultra Rare'] },
-        'Rare Holo EX': { loss: 35, draw: 55, win: 10, downgrade: 'Rare', upgrade: ['Rare Ultra', 'Hyper Rare'] },
-        'Rare Holo GX': { loss: 35, draw: 55, win: 10, downgrade: 'Rare', upgrade: ['Rare Ultra', 'Hyper Rare'] },
-        'Rare Holo V': { loss: 35, draw: 55, win: 10, downgrade: 'Rare', upgrade: ['Rare Ultra', 'Hyper Rare'] },
-        'Rare Holo VMAX': { loss: 40, draw: 55, win: 5, downgrade: 'Rare Holo', upgrade: 'Rare Secret' },
-        'Rare Ultra': { loss: 40, draw: 55, win: 5, downgrade: 'Rare Holo', upgrade: 'Rare Secret' },
-        'Hyper Rare': { loss: 40, draw: 55, win: 5, downgrade: 'Rare Holo', upgrade: 'Rare Secret' },
-        'Ultra Rare': { loss: 40, draw: 55, win: 5, downgrade: 'Rare Holo', upgrade: 'Rare Secret' },
-        'Rare Secret': { loss: 30, draw: 70, win: 0, downgrade: ['Rare Ultra', 'Hyper Rare'], upgrade: null },
-        'Rare Rainbow': { loss: 30, draw: 70, win: 0, downgrade: ['Rare Ultra', 'Hyper Rare'], upgrade: null },
-        'Illustration Rare': { loss: 30, draw: 70, win: 0, downgrade: ['Rare Ultra', 'Hyper Rare'], upgrade: null }
+        'COMMON': { loss: 0, draw: 90, win: 10, downgrade: null, upgrade: 'UNCOMMON' },
+        'UNCOMMON': { loss: 25, draw: 65, win: 10, downgrade: 'COMMON', upgrade: 'RARE' },
+        'RARE': { loss: 25, draw: 65, win: 10, downgrade: 'UNCOMMON', upgrade: 'RARE_HOLO' },
+        'RARE_HOLO': { loss: 35, draw: 55, win: 10, downgrade: 'RARE', upgrade: 'ULTRA' },
+        'ULTRA': { loss: 40, draw: 55, win: 5, downgrade: 'RARE_HOLO', upgrade: 'SECRET' },
+        'SECRET': { loss: 30, draw: 70, win: 0, downgrade: 'ULTRA', upgrade: null },
+        'PROMO': { loss: 30, draw: 70, win: 0, downgrade: 'ULTRA', upgrade: null }
+    },
+
+    // Helper: Get category for a specific rarity
+    getRarityCategory(rarity) {
+        for (const [category, rarities] of Object.entries(this.rarityCategories)) {
+            if (rarities.includes(rarity)) {
+                return category;
+            }
+        }
+        return 'RARE'; // Default fallback
     },
 
     async execute(interaction, { database, userManager, cardManager }) {
@@ -99,8 +112,9 @@ module.exports = {
             }
 
             // EXECUTE THE GAMBLE IMMEDIATELY
-            const probTable = this.rarityProbabilities[card.rarity] || this.rarityProbabilities['Rare'];
-            const outcome = this.rollOutcome(card.rarity);
+            const category = this.getRarityCategory(card.rarity);
+            const probTable = this.rarityProbabilities[category] || this.rarityProbabilities['RARE'];
+            const outcome = this.rollOutcome(category);
             const newCard = await this.getNewCard(database, card, outcome, probTable);
 
             if (!newCard) {
@@ -194,12 +208,12 @@ module.exports = {
         }
     },
 
-    // Helper: Roll for outcome based on rarity
-    rollOutcome(rarity) {
-        const probTable = this.rarityProbabilities[rarity];
+    // Helper: Roll for outcome based on category
+    rollOutcome(category) {
+        const probTable = this.rarityProbabilities[category];
         if (!probTable) {
-            // Fallback for unknown rarities (treat as Rare)
-            return this.rollOutcome('Rare');
+            // Fallback for unknown categories (treat as RARE)
+            return this.rollOutcome('RARE');
         }
 
         const roll = Math.random() * 100;
@@ -215,34 +229,34 @@ module.exports = {
 
     // Helper: Get new card based on outcome
     async getNewCard(database, originalCard, outcome, probTable) {
-        let targetRarity = null;
+        // Get category of original card
+        const originalCategory = this.getRarityCategory(originalCard.rarity);
+        let targetCategory = null;
 
         if (outcome === 'loss' && probTable.downgrade) {
-            // Downgrade
-            targetRarity = Array.isArray(probTable.downgrade) 
-                ? probTable.downgrade[Math.floor(Math.random() * probTable.downgrade.length)]
-                : probTable.downgrade;
+            targetCategory = probTable.downgrade;
         } else if (outcome === 'win' && probTable.upgrade) {
-            // Upgrade
-            targetRarity = Array.isArray(probTable.upgrade) 
-                ? probTable.upgrade[Math.floor(Math.random() * probTable.upgrade.length)]
-                : probTable.upgrade;
+            targetCategory = probTable.upgrade;
         } else {
-            // Draw - same rarity, different card
-            targetRarity = originalCard.rarity;
+            // Draw - same category
+            targetCategory = originalCategory;
         }
 
-        console.log(`🎲 Risky Deal: Looking for ${targetRarity} card (outcome: ${outcome}, original: ${originalCard.rarity})`);
+        console.log(`🎲 Risky Deal: ${originalCard.rarity} (${originalCategory}) -> ${outcome} -> ${targetCategory}`);
 
-        // Query for a random card of target rarity (exclude the original card)
+        // Get all rarities in target category
+        const targetRarities = this.rarityCategories[targetCategory] || [targetCategory];
+        const rarityList = targetRarities.map(r => `'${r}'`).join(',');
+
+        // Query for a random card from any rarity in the target category
         const cardCount = await database.get(`
             SELECT COUNT(*) as count FROM cards 
-            WHERE rarity = ? AND id != ?
+            WHERE rarity IN (${rarityList}) AND id != ?
             AND api_id IS NOT NULL
             AND (image_url_large IS NOT NULL OR image_url_small IS NOT NULL)
-        `, [targetRarity, originalCard.id]);
+        `, [originalCard.id]);
 
-        console.log(`📊 Found ${cardCount?.count || 0} cards with rarity: ${targetRarity}`);
+        console.log(`📊 Found ${cardCount?.count || 0} cards in category ${targetCategory} (${targetRarities.join(', ')})`);
 
         if (!cardCount || cardCount.count === 0) {
             // Log available rarities for debugging
@@ -255,10 +269,10 @@ module.exports = {
                 ORDER BY count DESC
             `);
             
-            console.log(`⚠️ No cards found for rarity: "${targetRarity}"`);
-            console.log(`📋 Available rarities in database:`, availableRarities.map(r => `${r.rarity} (${r.count})`).join(', '));
+            console.log(`⚠️ No cards found for category: "${targetCategory}"`);
+            console.log(`📋 Available rarities:`, availableRarities.map(r => `${r.rarity} (${r.count})`).join(', '));
             
-            // Fallback: Try to find ANY card with different rarity (broader search)
+            // Fallback: Return any random card
             const fallbackCard = await database.get(`
                 SELECT * FROM cards 
                 WHERE id != ? 
@@ -269,20 +283,20 @@ module.exports = {
             `, [originalCard.id]);
             
             if (!fallbackCard) {
-                throw new Error(`No suitable replacement cards found in database for rarity: ${targetRarity}`);
+                throw new Error(`No suitable replacement cards found in database`);
             }
             
-            console.log(`✅ Using fallback card: ${fallbackCard.name} (${fallbackCard.rarity})`);
+            console.log(`✅ Using fallback: ${fallbackCard.name} (${fallbackCard.rarity})`);
             return fallbackCard;
         }
 
         const offset = Math.floor(Math.random() * cardCount.count);
         return await database.get(`
             SELECT * FROM cards 
-            WHERE rarity = ? AND id != ?
+            WHERE rarity IN (${rarityList}) AND id != ?
             AND api_id IS NOT NULL
             AND (image_url_large IS NOT NULL OR image_url_small IS NOT NULL)
             LIMIT 1 OFFSET ?
-        `, [targetRarity, originalCard.id, offset]);
+        `, [originalCard.id, offset]);
     }
 };
