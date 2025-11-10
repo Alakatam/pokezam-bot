@@ -114,16 +114,20 @@ class PokezamBot {
                         LIMIT 1
                     `);
                     
+                    // Fix if column is INTEGER instead of BIGINT
                     if (checkResult && checkResult.data_type === 'integer') {
                         console.log('⚠️ Found INTEGER timestamps - fixing to BIGINT...');
                         const { fixTimestamps } = require('./scripts/fixCollectorShopTimestamps');
                         await fixTimestamps();
-                        console.log('✅ Collector shop timestamps fixed');
+                        console.log('✅ Collector shop timestamps fixed to BIGINT');
+                    } else if (checkResult) {
+                        console.log(`✅ Collector shop timestamps already correct (${checkResult.data_type})`);
                     } else {
-                        console.log('✅ Collector shop timestamps already BIGINT');
+                        console.log('ℹ️  Collector shop tables don\'t exist yet - will be created with BIGINT');
                     }
                 } catch (error) {
-                    console.log('ℹ️  Collector shop tables will be created with correct types');
+                    console.error('⚠️ Error checking collector shop timestamps:', error.message);
+                    console.log('ℹ️  Collector shop tables will be created with correct BIGINT types');
                 }
             }
             
