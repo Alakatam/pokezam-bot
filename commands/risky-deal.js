@@ -122,9 +122,8 @@ module.exports = {
             const outcome = this.rollOutcome(category);
             const newCard = await this.getNewCard(database, card, outcome, probTable);
 
-            if (!newCard) {
-                throw new Error('Could not find replacement card');
-            }
+            // getNewCard now has progressive fallbacks and will never return null
+            // (worst case: returns original card)
 
             // Remove original card
             if (userCard.quantity === 1) {
