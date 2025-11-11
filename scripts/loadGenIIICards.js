@@ -13,10 +13,10 @@ async function loadGenIIICards(database) {
         const genIIICheck = await database.get(`
             SELECT COUNT(*) as count FROM cards 
             WHERE set_name IN (
-                'Ruby & Sapphire', 'Sandstorm', 'Dragon', 'Team Magma vs Team Aqua',
-                'Hidden Legends', 'FireRed & LeafGreen', 'Team Rocket Returns', 'Deoxys',
-                'Emerald', 'Unseen Forces', 'Delta Species', 'Legend Maker',
-                'Holon Phantoms', 'Crystal Guardians', 'Dragon Frontiers', 'Power Keepers'
+                'EX Ruby & Sapphire', 'EX Sandstorm', 'EX Dragon', 'EX Team Magma vs Team Aqua',
+                'EX Hidden Legends', 'EX FireRed & LeafGreen', 'EX Team Rocket Returns', 'EX Deoxys',
+                'EX Emerald', 'EX Unseen Forces', 'EX Delta Species', 'EX Legend Maker',
+                'EX Holon Phantoms', 'EX Crystal Guardians', 'EX Dragon Frontiers', 'EX Power Keepers'
             )
         `);
 
@@ -29,22 +29,22 @@ async function loadGenIIICards(database) {
 
         // EX series set mappings (ex1 through ex16)
         const exSetMappings = {
-            'ex1': { name: 'Ruby & Sapphire', series: 'EX', unlockLevel: 35 },
-            'ex2': { name: 'Sandstorm', series: 'EX', unlockLevel: 35 },
-            'ex3': { name: 'Dragon', series: 'EX', unlockLevel: 35 },
-            'ex4': { name: 'Team Magma vs Team Aqua', series: 'EX', unlockLevel: 35 },
-            'ex5': { name: 'Hidden Legends', series: 'EX', unlockLevel: 35 },
-            'ex6': { name: 'FireRed & LeafGreen', series: 'EX', unlockLevel: 35 },
-            'ex7': { name: 'Team Rocket Returns', series: 'EX', unlockLevel: 35 },
-            'ex8': { name: 'Deoxys', series: 'EX', unlockLevel: 35 },
-            'ex9': { name: 'Emerald', series: 'EX', unlockLevel: 35 },
-            'ex10': { name: 'Unseen Forces', series: 'EX', unlockLevel: 35 },
-            'ex11': { name: 'Delta Species', series: 'EX', unlockLevel: 35 },
-            'ex12': { name: 'Legend Maker', series: 'EX', unlockLevel: 35 },
-            'ex13': { name: 'Holon Phantoms', series: 'EX', unlockLevel: 35 },
-            'ex14': { name: 'Crystal Guardians', series: 'EX', unlockLevel: 35 },
-            'ex15': { name: 'Dragon Frontiers', series: 'EX', unlockLevel: 35 },
-            'ex16': { name: 'Power Keepers', series: 'EX', unlockLevel: 35 }
+            'ex1': { name: 'EX Ruby & Sapphire', series: 'EX', unlockLevel: 35 },
+            'ex2': { name: 'EX Sandstorm', series: 'EX', unlockLevel: 35 },
+            'ex3': { name: 'EX Dragon', series: 'EX', unlockLevel: 35 },
+            'ex4': { name: 'EX Team Magma vs Team Aqua', series: 'EX', unlockLevel: 35 },
+            'ex5': { name: 'EX Hidden Legends', series: 'EX', unlockLevel: 35 },
+            'ex6': { name: 'EX FireRed & LeafGreen', series: 'EX', unlockLevel: 35 },
+            'ex7': { name: 'EX Team Rocket Returns', series: 'EX', unlockLevel: 35 },
+            'ex8': { name: 'EX Deoxys', series: 'EX', unlockLevel: 35 },
+            'ex9': { name: 'EX Emerald', series: 'EX', unlockLevel: 35 },
+            'ex10': { name: 'EX Unseen Forces', series: 'EX', unlockLevel: 35 },
+            'ex11': { name: 'EX Delta Species', series: 'EX', unlockLevel: 35 },
+            'ex12': { name: 'EX Legend Maker', series: 'EX', unlockLevel: 35 },
+            'ex13': { name: 'EX Holon Phantoms', series: 'EX', unlockLevel: 35 },
+            'ex14': { name: 'EX Crystal Guardians', series: 'EX', unlockLevel: 35 },
+            'ex15': { name: 'EX Dragon Frontiers', series: 'EX', unlockLevel: 35 },
+            'ex16': { name: 'EX Power Keepers', series: 'EX', unlockLevel: 35 }
         };
 
         let totalLoaded = 0;
