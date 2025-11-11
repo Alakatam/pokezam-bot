@@ -150,10 +150,12 @@ class EnhancedQuestManager {
         }
     }
 
-    // Auto-assign quests with daily rotation and automatic reset at 20:00 ET
+    // Auto-assign quests with proper reset schedules for each type
     async autoAssignDiverseQuests(userId) {
-        // Check if it's time for daily reset (20:00 ET = midnight UTC)
+        // Check reset conditions for each quest type separately
         const shouldResetDaily = await this.shouldResetDailyQuests(userId);
+        const shouldResetWeekly = await this.shouldResetWeeklyQuests(userId);
+        const shouldResetMonthly = await this.shouldResetMonthlyQuests(userId);
         
         // Also check if there are too many daily quests (indicates stuck state)
         const dailyQuestCount = await this.db.get(`
@@ -165,22 +167,54 @@ class EnhancedQuestManager {
         
         const hasTooManyQuests = dailyQuestCount && dailyQuestCount.count > 5;
         
+        // Reset quests by type
         if (shouldResetDaily || hasTooManyQuests) {
             if (shouldResetDaily) {
-                console.log(`🔄 Daily reset triggered for user ${userId} (past 20:00 ET) - deleting all quests`);
+                console.log(`🔄 Daily reset triggered for user ${userId} (past 20:00 ET) - deleting daily quests`);
             } else {
-                console.log(`🔄 Force reset for user ${userId} (${dailyQuestCount.count} daily quests > 5) - deleting all quests`);
+                console.log(`🔄 Force reset for user ${userId} (${dailyQuestCount.count} daily quests > 5) - deleting daily quests`);
             }
-            // Delete ALL user quests at daily reset
-            const deleteResult = await this.db.run(`DELETE FROM user_quests WHERE user_id = ?`, [userId]);
-            console.log(`✅ Deleted ${deleteResult.changes || 'all'} quests for user ${userId}`);
+            // Delete only DAILY quests
+            const deleteResult = await this.db.run(`
+                DELETE FROM user_quests 
+                WHERE user_id = ? AND quest_id IN (
+                    SELECT id FROM quests WHERE quest_type = 'daily'
+                )
+            `, [userId]);
+            console.log(`✅ Deleted ${deleteResult.changes || 0} daily quests for user ${userId}`);
+        }
+        
+        if (shouldResetWeekly) {
+            console.log(`🔄 Weekly reset triggered for user ${userId} (Sunday 20:00 ET) - deleting weekly quests`);
+            const deleteResult = await this.db.run(`
+                DELETE FROM user_quests 
+                WHERE user_id = ? AND quest_id IN (
+                    SELECT id FROM quests WHERE quest_type = 'weekly'
+                )
+            `, [userId]);
+            console.log(`✅ Deleted ${deleteResult.changes || 0} weekly quests for user ${userId}`);
+        }
+        
+        if (shouldResetMonthly) {
+            console.log(`🔄 Monthly reset triggered for user ${userId} (1st at 00:00 ET) - deleting monthly quests`);
+            const deleteResult = await this.db.run(`
+                DELETE FROM user_quests 
+                WHERE user_id = ? AND quest_id IN (
+                    SELECT id FROM quests WHERE quest_type = 'monthly'
+                )
+            `, [userId]);
+            console.log(`✅ Deleted ${deleteResult.changes || 0} monthly quests for user ${userId}`);
         }
         
         const questTypes = ['daily', 'weekly', 'monthly'];
         
         for (const type of questTypes) {
             // Remove old completed quests for this type (if not already deleted by reset)
-            if (!shouldResetDaily && !hasTooManyQuests) {
+            const wasReset = (type === 'daily' && (shouldResetDaily || hasTooManyQuests)) ||
+                           (type === 'weekly' && shouldResetWeekly) ||
+                           (type === 'monthly' && shouldResetMonthly);
+                           
+            if (!wasReset) {
                 await this.cleanupCompletedQuests(userId, type);
             }
             
@@ -274,6 +308,120 @@ class EnhancedQuestManager {
             return false;
         } catch (error) {
             console.error('Error checking daily quest reset:', error);
+            return false;
+        }
+    }
+
+    // Check if weekly quests should be reset (Sunday at 20:00 ET)
+    async shouldResetWeeklyQuests(userId) {
+        try {
+            // Get the last weekly quest assignment time
+            const lastQuest = await this.db.get(`
+                SELECT MAX(assigned_date) as last_assigned
+                FROM user_quests uq
+                JOIN quests q ON uq.quest_id = q.id
+                WHERE uq.user_id = ? AND q.quest_type = 'weekly'
+            `, [userId]);
+            
+            if (!lastQuest || !lastQuest.last_assigned) {
+                return false;
+            }
+            
+            const lastAssigned = new Date(lastQuest.last_assigned);
+            if (isNaN(lastAssigned.getTime())) {
+                return false;
+            }
+            
+            // Get current time in ET
+            const now = new Date();
+            const etOffset = this.isDST(now) ? -4 : -5;
+            const etTime = new Date(now.getTime() + (etOffset * 60 * 60 * 1000));
+            
+            // Get last assigned time in ET
+            const lastAssignedET = new Date(lastAssigned.getTime() + (etOffset * 60 * 60 * 1000));
+            
+            // Find the most recent Sunday at 20:00 ET
+            const currentDay = etTime.getDay(); // 0 = Sunday, 1 = Monday, etc.
+            const lastSundayReset = new Date(etTime);
+            
+            if (currentDay === 0) {
+                // Today is Sunday
+                lastSundayReset.setHours(20, 0, 0, 0);
+                if (etTime < lastSundayReset) {
+                    // Before 20:00 today, so last reset was last Sunday
+                    lastSundayReset.setDate(lastSundayReset.getDate() - 7);
+                }
+            } else {
+                // Go back to most recent Sunday
+                lastSundayReset.setDate(lastSundayReset.getDate() - currentDay);
+                lastSundayReset.setHours(20, 0, 0, 0);
+            }
+            
+            console.log(`📅 Weekly reset check for user ${userId}:`);
+            console.log(`   Current ET time: ${etTime.toISOString()}`);
+            console.log(`   Last assigned: ${lastAssignedET.toISOString()}`);
+            console.log(`   Last Sunday reset: ${lastSundayReset.toISOString()}`);
+            
+            // If last assigned was before the most recent Sunday 20:00 ET, reset
+            if (lastAssignedET < lastSundayReset) {
+                console.log(`✅ Weekly reset needed: Last assigned before last Sunday 20:00 ET`);
+                return true;
+            }
+            
+            return false;
+        } catch (error) {
+            console.error('Error checking weekly quest reset:', error);
+            return false;
+        }
+    }
+
+    // Check if monthly quests should be reset (1st of month at 00:00 ET)
+    async shouldResetMonthlyQuests(userId) {
+        try {
+            // Get the last monthly quest assignment time
+            const lastQuest = await this.db.get(`
+                SELECT MAX(assigned_date) as last_assigned
+                FROM user_quests uq
+                JOIN quests q ON uq.quest_id = q.id
+                WHERE uq.user_id = ? AND q.quest_type = 'monthly'
+            `, [userId]);
+            
+            if (!lastQuest || !lastQuest.last_assigned) {
+                return false;
+            }
+            
+            const lastAssigned = new Date(lastQuest.last_assigned);
+            if (isNaN(lastAssigned.getTime())) {
+                return false;
+            }
+            
+            // Get current time in ET
+            const now = new Date();
+            const etOffset = this.isDST(now) ? -4 : -5;
+            const etTime = new Date(now.getTime() + (etOffset * 60 * 60 * 1000));
+            
+            // Get last assigned time in ET
+            const lastAssignedET = new Date(lastAssigned.getTime() + (etOffset * 60 * 60 * 1000));
+            
+            // Calculate the most recent 1st of month at 00:00 ET
+            const currentMonthReset = new Date(etTime);
+            currentMonthReset.setDate(1);
+            currentMonthReset.setHours(0, 0, 0, 0);
+            
+            console.log(`📆 Monthly reset check for user ${userId}:`);
+            console.log(`   Current ET time: ${etTime.toISOString()}`);
+            console.log(`   Last assigned: ${lastAssignedET.toISOString()}`);
+            console.log(`   Current month reset: ${currentMonthReset.toISOString()}`);
+            
+            // If we're past the 1st of this month at 00:00 ET and quests were assigned before that, reset
+            if (etTime >= currentMonthReset && lastAssignedET < currentMonthReset) {
+                console.log(`✅ Monthly reset needed: Last assigned before 1st of month 00:00 ET`);
+                return true;
+            }
+            
+            return false;
+        } catch (error) {
+            console.error('Error checking monthly quest reset:', error);
             return false;
         }
     }

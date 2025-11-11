@@ -88,8 +88,24 @@ class CardManager {
             return null; // No cards available
         }
 
-        console.log(`🔧 ZAM OPTIMIZATION: ${generationWeights.length} generations, ${totalWeight} total cards`);
-        console.log(`📊 Generation breakdown:`, generationWeights.map(g => `${g.generation}:${g.weight}`).join(', '));
+        // Consolidate sub-generations for cleaner console display
+        const consolidatedBreakdown = new Map();
+        for (const g of generationWeights) {
+            // Extract main generation (e.g., "Generation IV (D&P)" -> "Generation IV")
+            const mainGen = g.generation.includes('(') 
+                ? g.generation.substring(0, g.generation.indexOf('(')).trim()
+                : g.generation;
+            
+            const current = consolidatedBreakdown.get(mainGen) || 0;
+            consolidatedBreakdown.set(mainGen, current + g.weight);
+        }
+        
+        const breakdown = Array.from(consolidatedBreakdown.entries())
+            .map(([gen, weight]) => `${gen}:${weight}`)
+            .join(', ');
+        
+        console.log(`🔧 ZAM OPTIMIZATION: ${generationWeights.length} gen groups, ${totalWeight} total cards`);
+        console.log(`📊 Generation breakdown:`, breakdown);
 
         // Step 2: The "Weighted Roll" - pick a generation
         const generationRoll = Math.floor(Math.random() * totalWeight) + 1;
