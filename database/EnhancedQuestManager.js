@@ -215,7 +215,10 @@ class EnhancedQuestManager {
                            (type === 'monthly' && shouldResetMonthly);
                            
             if (!wasReset) {
-                await this.cleanupCompletedQuests(userId, type);
+                // Run cleanup in background (non-blocking)
+                this.cleanupCompletedQuests(userId, type).catch(err => {
+                    console.error(`⚠️ Quest cleanup error (${type}):`, err.message);
+                });
             }
             
             // Get available quests for this type (with rotation)
@@ -579,7 +582,7 @@ class EnhancedQuestManager {
         
         // Delete completed quests that are past their reset time
         // Check both completed_date AND assigned_date (in case completed_date is null)
-        await this.db.run(`
+        const result = await this.db.run(`
             DELETE FROM user_quests 
             WHERE user_id = ? 
             AND completed = TRUE 
@@ -590,7 +593,10 @@ class EnhancedQuestManager {
             )
         `, [userId, questType, resetTime, resetTime]);
         
-        console.log(`🧹 Cleaned up completed ${questType} quests for user ${userId}`);
+        // Only log if something was actually cleaned up
+        if (result.changes > 0) {
+            console.log(`🧹 Cleaned up ${result.changes} completed ${questType} quests for user ${userId}`);
+        }
     }
 
     getResetTime(questType) {
