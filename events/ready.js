@@ -50,6 +50,16 @@ module.exports = {
                             } else {
                                 console.log(`✨ Generation III loaded: ${result.loaded} cards`);
                             }
+                            
+                            // Fix Gen III images if cards exist but lack images
+                            const { fixGenIIIImages } = require('../scripts/fixGenIIIImages');
+                            fixGenIIIImages(bot.database).then(imageResult => {
+                                if (imageResult.success && imageResult.updated > 0) {
+                                    console.log(`📸 Updated ${imageResult.updated} Gen III cards with images`);
+                                }
+                            }).catch(imgError => {
+                                console.error('⚠️ Gen III image fix error:', imgError.message);
+                            });
                         } else {
                             console.error(`⚠️ Generation III loading failed: ${result.error}`);
                         }
