@@ -151,23 +151,23 @@ module.exports = {
             // Add gold boost effect - delete existing first to avoid duplicates
             await database.run(`DELETE FROM active_effects WHERE user_id = ? AND effect_type = ?`, [userId, `${itemId}_gold`]);
             await database.run(`
-                INSERT INTO active_effects (user_id, effect_name, effect_type, category, multiplier, expires_at, uses_remaining, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            `, [userId, `${itemConfig.name} (Gold)`, `${itemId}_gold`, 'gold_boost', itemConfig.goldMultiplier, expiresAt, usesRemaining, now]);
+                INSERT INTO active_effects (user_id, effect_name, effect_type, effect_value, category, multiplier, expires_at, uses_remaining, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `, [userId, `${itemConfig.name} (Gold)`, `${itemId}_gold`, 'gold_boost', 'gold_boost', itemConfig.goldMultiplier, expiresAt, usesRemaining, now]);
             
             // Add luck boost effect - delete existing first to avoid duplicates
             await database.run(`DELETE FROM active_effects WHERE user_id = ? AND effect_type = ?`, [userId, `${itemId}_luck`]);
             await database.run(`
-                INSERT INTO active_effects (user_id, effect_name, effect_type, category, multiplier, expires_at, uses_remaining, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            `, [userId, `${itemConfig.name} (Luck)`, `${itemId}_luck`, 'luck_boost', itemConfig.luckMultiplier, expiresAt, usesRemaining, now]);
+                INSERT INTO active_effects (user_id, effect_name, effect_type, effect_value, category, multiplier, expires_at, uses_remaining, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `, [userId, `${itemConfig.name} (Luck)`, `${itemId}_luck`, 'luck_boost', 'luck_boost', itemConfig.luckMultiplier, expiresAt, usesRemaining, now]);
         } else {
             // Add single effect to active_effects table - delete existing first to avoid duplicates
             await database.run(`DELETE FROM active_effects WHERE user_id = ? AND effect_type = ?`, [userId, itemId]);
             await database.run(`
-                INSERT INTO active_effects (user_id, effect_name, effect_type, category, multiplier, expires_at, uses_remaining, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            `, [userId, itemConfig.name, itemId, itemConfig.category, itemConfig.multiplier || itemConfig.goldMultiplier || 1.0, expiresAt, usesRemaining, now]);
+                INSERT INTO active_effects (user_id, effect_name, effect_type, effect_value, category, multiplier, expires_at, uses_remaining, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `, [userId, itemConfig.name, itemId, itemConfig.category, itemConfig.category, itemConfig.multiplier || itemConfig.goldMultiplier || 1.0, expiresAt, usesRemaining, now]);
         }
 
         return {
