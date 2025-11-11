@@ -34,11 +34,30 @@ module.exports = {
         // DEPLOYMENT FIX: Start Progressive Card Loading AFTER bot is ready and connected
         // This prevents deployment timeouts by running card loading post-deployment
         if (process.env.NODE_ENV === 'production' || process.env.PORT) {
-            console.log('🎴 Starting post-deployment progressive card loading...');
+            console.log('🎴 Starting post-deployment card loading tasks...');
             
             // Wait 10 seconds after bot ready to ensure everything is stable
             setTimeout(async () => {
                 try {
+                    // Load Generation III (EX series) cards if missing
+                    const loadGenIIICards = require('../scripts/loadGenIIICards');
+                    console.log('🔍 Checking for Generation III cards...');
+                    
+                    loadGenIIICards(bot.database).then(result => {
+                        if (result.success) {
+                            if (result.alreadyLoaded) {
+                                console.log(`✅ Generation III already loaded (${result.count} cards)`);
+                            } else {
+                                console.log(`✨ Generation III loaded: ${result.loaded} cards`);
+                            }
+                        } else {
+                            console.error(`⚠️ Generation III loading failed: ${result.error}`);
+                        }
+                    }).catch(error => {
+                        console.error('❌ Generation III loader error:', error.message);
+                    });
+                    
+                    // Start progressive card loader for other sets
                     const ProgressiveCardLoader = require('../database/ProgressiveCardLoader');
                     const cardLoader = new ProgressiveCardLoader(bot.database);
                     
@@ -50,7 +69,7 @@ module.exports = {
                     });
                     
                 } catch (error) {
-                    console.error('❌ Failed to initialize progressive card loader:', error.message);
+                    console.error('❌ Failed to initialize card loaders:', error.message);
                 }
             }, 10000); // 10 second delay after bot ready
         }
