@@ -120,21 +120,22 @@ module.exports = {
             yamlStatus += '#════════════════════════════════════════\n\n';
 
             yamlStatus += `👤 TRAINER: ${interaction.user.username}\n`;
-            yamlStatus += `💰 GOLD: ${user.gold.toLocaleString()}g\n\n`;
+            yamlStatus += `💰 CURRENT GOLD: ${user.gold.toLocaleString()}g\n\n`;
 
-            yamlStatus += `🏪 SHOP LEVEL: ${shop.shop_level}\n`;
-            yamlStatus += `   Next Upgrade: ${nextUpgradeCost.toLocaleString()}g\n`;
-            yamlStatus += `   Department Cap: Level ${shop.shop_level}\n\n`;
+            yamlStatus += `🏪 SHOP STATUS:\n`;
+            yamlStatus += `   Shop Level: ${shop.shop_level}\n`;
+            yamlStatus += `   Upgrade Cost: ${nextUpgradeCost.toLocaleString()}g\n`;
+            yamlStatus += `   Max Dept Level: ${shop.shop_level}\n`;
+            yamlStatus += `   Total Coins: ${shop.lifetime_coins_generated.toLocaleString()}g\n`;
+            yamlStatus += `   Total Cards: ${shop.lifetime_cards_generated}\n\n`;
 
-            yamlStatus += `📊 LIFETIME STATS:\n`;
-            yamlStatus += `   Coins Generated: ${shop.lifetime_coins_generated.toLocaleString()}g\n`;
-            yamlStatus += `   Cards Generated: ${shop.lifetime_cards_generated}\n\n`;
+            // Show each unlocked department with detailed explanations
+            const unlockedDepts = departments.filter(d => d.level > 0);
+            
+            if (unlockedDepts.length > 0) {
+                yamlStatus += `✅ ACTIVE DEPARTMENTS:\n\n`;
 
-            yamlStatus += `🏬 DEPARTMENTS:\n\n`;
-
-            // Show each unlocked department
-            for (const dept of departments) {
-                if (dept.level > 0) {
+                for (const dept of unlockedDepts) {
                     const config = collectorShopManager.departments[dept.department_id];
                     const status = await collectorShopManager.getDepartmentStatus(
                         interaction.user.id,
@@ -142,57 +143,91 @@ module.exports = {
                         dept.level
                     );
 
-                    yamlStatus += `${config.emoji} ${config.name} (Lvl ${dept.level}):\n`;
+                    yamlStatus += `${config.emoji} ${config.name} (Level ${dept.level})\n`;
+                    yamlStatus += `   📝 ${config.description}\n`;
 
                     if (config.resource === 'coins') {
-                        yamlStatus += `   Generates: ${status.rate}/hr\n`;
-                        yamlStatus += `   Storage: ${status.generated}/${status.capacity} coins\n`;
+                        yamlStatus += `   💰 Generates: ${status.rate} coins/hour\n`;
+                        yamlStatus += `   📦 Storage: ${status.generated}/${status.capacity} coins\n`;
                         const timeToFill = ((status.capacity - status.generated) / status.rate).toFixed(1);
-                        yamlStatus += `   Full in: ${timeToFill}h\n`;
+                        yamlStatus += `   ⏱️ Time to Fill: ${timeToFill} hours\n`;
+                        yamlStatus += `   💡 Provides passive income 24/7\n`;
                     } else if (config.resource === 'cards') {
-                        yamlStatus += `   Generates: ${status.rate}/hr\n`;
-                        yamlStatus += `   Storage: ${status.generated}/${status.capacity} cards\n`;
+                        const hoursPerCard = status.rate >= 1 ? `${status.rate.toFixed(2)}/hr` : `1 every ${(1/status.rate).toFixed(1)}hr`;
+                        yamlStatus += `   🃏 Generates: ${hoursPerCard}\n`;
+                        yamlStatus += `   📦 Storage: ${status.generated}/${status.capacity} cards\n`;
                         const timeToFill = ((status.capacity - status.generated) / status.rate).toFixed(1);
-                        yamlStatus += `   Full in: ${timeToFill}h\n`;
+                        yamlStatus += `   ⏱️ Time to Fill: ${timeToFill} hours\n`;
+                        yamlStatus += `   💡 Free Common cards while offline\n`;
                     } else if (config.resource === 'packs') {
-                        yamlStatus += `   Find Chance: ${status.chance}/hr\n`;
-                        yamlStatus += `   Storage: ${status.generated}/${status.capacity} packs\n`;
+                        yamlStatus += `   🎁 Find Chance: ${status.chance} per hour\n`;
+                        yamlStatus += `   📦 Storage: ${status.generated}/${status.capacity} packs\n`;
+                        yamlStatus += `   💡 Sealed packs = guaranteed cards\n`;
                     } else if (config.resource === 'upgrade_chance') {
                         const chance = config.baseChance + (config.chanceGrowth * (dept.level - 1));
-                        yamlStatus += `   Upgrade Chance: ${(chance * 100).toFixed(1)}%\n`;
+                        yamlStatus += `   ⬆️ Upgrade Chance: ${(chance * 100).toFixed(1)}%\n`;
+                        yamlStatus += `   🌟 Effect: Common → Uncommon\n`;
                         if (dept.level >= config.specialUnlock) {
-                            yamlStatus += `   Holo Chance: 0.5%\n`;
+                            yamlStatus += `   ✨ Bonus: 0.5% Holo chance!\n`;
+                            yamlStatus += `   💡 Makes cards more valuable\n`;
+                        } else {
+                            yamlStatus += `   🔒 Level ${config.specialUnlock}: Unlock Holo boost\n`;
+                            yamlStatus += `   💡 Improves card rarity on collect\n`;
                         }
                     } else if (config.resource === 'quality_boost') {
                         const boost = config.baseChance + (config.chanceGrowth * (dept.level - 1));
-                        yamlStatus += `   Quality Boost: ${(boost * 100).toFixed(1)}%\n`;
+                        yamlStatus += `   ⭐ Quality Boost: ${(boost * 100).toFixed(1)}%\n`;
+                        yamlStatus += `   📈 Effect: Overall better cards\n`;
+                        yamlStatus += `   💡 Increases rare card chances\n`;
                     }
 
+                    const upgradeCost = Math.round(config.upgradeCost * Math.pow(config.costGrowth, dept.level - 1));
+                    yamlStatus += `   💰 Next Upgrade: ${upgradeCost.toLocaleString()}g\n`;
                     yamlStatus += '\n';
                 }
             }
 
-            // Show locked departments
-            const lockedDepts = Object.entries(collectorShopManager.departments)
+            // Show departments available to unlock
+            const lockedAvailable = Object.entries(collectorShopManager.departments)
                 .filter(([id, config]) => {
                     const dept = departments.find(d => d.department_id === id);
-                    return !dept || dept.level === 0;
-                })
-                .filter(([id, config]) => config.unlockLevel > shop.shop_level);
+                    return (!dept || dept.level === 0) && config.unlockLevel <= shop.shop_level;
+                });
 
-            if (lockedDepts.length > 0) {
-                yamlStatus += `🔒 LOCKED DEPARTMENTS:\n\n`;
-                for (const [id, config] of lockedDepts) {
-                    yamlStatus += `${config.emoji} ${config.name}:\n`;
-                    yamlStatus += `   Unlock at: Shop Level ${config.unlockLevel}\n`;
-                    yamlStatus += `   ${config.description}\n\n`;
+            if (lockedAvailable.length > 0) {
+                yamlStatus += `🔓 READY TO UNLOCK:\n\n`;
+                for (const [id, config] of lockedAvailable) {
+                    yamlStatus += `${config.emoji} ${config.name}\n`;
+                    yamlStatus += `   📝 ${config.description}\n`;
+                    yamlStatus += `   ✅ Available now!\n`;
+                    yamlStatus += `   💰 Cost: ${config.upgradeCost.toLocaleString()}g\n`;
+                    yamlStatus += `   💡 Use /collector upgrade-dept\n\n`;
                 }
             }
 
-            yamlStatus += '💡 COMMANDS:\n';
-            yamlStatus += '   /collector collect - Collect resources\n';
-            yamlStatus += '   /collector upgrade - Upgrade shop level\n';
-            yamlStatus += '   /collector upgrade-dept - Upgrade department\n\n';
+            // Show future locked departments
+            const lockedFuture = Object.entries(collectorShopManager.departments)
+                .filter(([id, config]) => config.unlockLevel > shop.shop_level);
+
+            if (lockedFuture.length > 0) {
+                yamlStatus += `🔒 FUTURE DEPARTMENTS:\n\n`;
+                for (const [id, config] of lockedFuture) {
+                    yamlStatus += `${config.emoji} ${config.name}\n`;
+                    yamlStatus += `   📝 ${config.description}\n`;
+                    yamlStatus += `   🔑 Unlock: Shop Level ${config.unlockLevel}\n\n`;
+                }
+            }
+
+            yamlStatus += '💡 HOW IT WORKS:\n';
+            yamlStatus += '   • Departments generate resources 24/7\n';
+            yamlStatus += '   • Higher levels = faster generation\n';
+            yamlStatus += '   • Collect anytime to claim rewards\n';
+            yamlStatus += '   • Upgrade shop to unlock new departments\n\n';
+            
+            yamlStatus += '🎮 COMMANDS:\n';
+            yamlStatus += '   /collector collect - Claim all resources\n';
+            yamlStatus += '   /collector upgrade - Level up shop\n';
+            yamlStatus += '   /collector upgrade-dept - Improve departments\n\n';
             yamlStatus += '#════════════════════════════════════════\n';
             yamlStatus += '```';
 
