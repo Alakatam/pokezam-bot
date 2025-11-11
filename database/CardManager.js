@@ -343,10 +343,10 @@ class CardManager {
             
             // 4. EX Series (Generation III) - Hoenn Region
             'Generation III': [
-                'Ruby & Sapphire', 'Sandstorm', 'Dragon', 'Team Magma vs Team Aqua', 
-                'Hidden Legends', 'FireRed & LeafGreen', 'Team Rocket Returns', 'Deoxys', 
-                'Emerald', 'Unseen Forces', 'Delta Species', 'Legend Maker', 
-                'Holon Phantoms', 'Crystal Guardians', 'Dragon Frontiers', 'Power Keepers'
+                'EX Ruby & Sapphire', 'EX Sandstorm', 'EX Dragon', 'EX Team Magma vs Team Aqua', 
+                'EX Hidden Legends', 'EX FireRed & LeafGreen', 'EX Team Rocket Returns', 'EX Deoxys', 
+                'EX Emerald', 'EX Unseen Forces', 'EX Delta Species', 'EX Legend Maker', 
+                'EX Holon Phantoms', 'EX Crystal Guardians', 'EX Dragon Frontiers', 'EX Power Keepers'
             ],
             
             // 5. Diamond & Pearl Series (Generation IV) - Sinnoh Region
