@@ -182,14 +182,14 @@ error details          : "${showPageError.message}"
             });
         }
 
-        // Filter quests by type AND exclude completed quests
-        const filteredQuests = userQuests.filter(q => q.quest_type === questType && !q.completed);
+        // Filter quests by type (include both active AND completed quests)
+        const filteredQuests = userQuests.filter(q => q.quest_type === questType);
         
         if (filteredQuests.length === 0) {
             return await interaction.editReply({
                 embeds: [EmbedUtils.createInfoEmbed(
                     `No ${questType.charAt(0).toUpperCase() + questType.slice(1)} Quests`,
-                    `All ${questType} quests completed! Check back after reset.`
+                    `No ${questType} quests available yet. Check back later!`
                 )]
             });
         }
@@ -262,7 +262,12 @@ error details          : "${showPageError.message}"
         const displayQuests = quests.slice(0, Math.min(quests.length, maxQuests));
         const hiddenCount = quests.length - displayQuests.length;
 
-        displayQuests.forEach((quest, index) => {
+        // Separate quests into active and completed
+        const activeQuests = displayQuests.filter(q => !q.completed);
+        const completedQuests = displayQuests.filter(q => q.completed);
+
+        // Show active quests first
+        activeQuests.forEach((quest, index) => {
             const progressBar = this.createProgressBar(quest.progress, quest.target_value);
             const progressPercent = Math.round((quest.progress / quest.target_value) * 100);
             
@@ -273,10 +278,29 @@ error details          : "${showPageError.message}"
             yamlContent += `   completion : ${quest.progress} / ${quest.target_value}\n`;
             yamlContent += `   rewards    : ${quest.reward_gold} 🪙 | ${quest.reward_xp || 0} ✨\n`;
             
-            if (index < displayQuests.length - 1) {
+            if (index < activeQuests.length - 1) {
                 yamlContent += `\n# ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈\n\n`;
             }
         });
+
+        // Add completed quests section
+        if (completedQuests.length > 0) {
+            if (activeQuests.length > 0) {
+                yamlContent += `\n\n# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
+            }
+            
+            yamlContent += `# ✅ COMPLETED QUESTS (${completedQuests.length})\n\n`;
+            
+            completedQuests.forEach((quest, index) => {
+                yamlContent += `✅ quest ${activeQuests.length + index + 1}:\n`;
+                yamlContent += `   status     : "Quest Done - Reward Received"\n`;
+                yamlContent += `   rewards    : ${quest.reward_gold} 🪙 | ${quest.reward_xp || 0} ✨\n`;
+                
+                if (index < completedQuests.length - 1) {
+                    yamlContent += `\n`;
+                }
+            });
+        }
 
         if (hiddenCount > 0) {
             yamlContent += `\n\n# ... ${hiddenCount} more quests (use buttons to view)\n`;
@@ -361,30 +385,38 @@ error details          : "${showPageError.message}"
             resetDescription = "Weekly";
 
         } else if (questType === 'monthly') {
-            // Monthly resets on the last day of the month at 20:00 ET
+            // Monthly resets on 1st of month at 00:00 ET (midnight)
             const currentET = etNow;
             const year = currentET.getFullYear();
             const month = currentET.getMonth();
-            const lastDayOfMonth = new Date(year, month + 1, 0).getDate();
+            const day = currentET.getDate();
 
             let targetYear = year;
             let targetMonth = month;
-            let targetDay = lastDayOfMonth;
 
-            if (currentET.getDate() === lastDayOfMonth && currentET.getHours() < 20) {
-                // today at 20:00
-            } else {
-                // last day of next month
+            // If we're on the 1st and it's before midnight, reset is today at 00:00
+            // Otherwise, reset is next month on the 1st at 00:00
+            if (day === 1 && currentET.getHours() === 0 && currentET.getMinutes() === 0) {
+                // Exactly at midnight on 1st - show next month
                 targetMonth = month + 1;
-                if (targetMonth > 11) {
-                    targetMonth = 0;
-                    targetYear = year + 1;
-                }
-                targetDay = new Date(targetYear, targetMonth + 1, 0).getDate();
+            } else if (day === 1 && currentET.getHours() < 24) {
+                // After midnight on the 1st - show next month
+                targetMonth = month + 1;
+            } else {
+                // Any other day - show next 1st of next month
+                targetMonth = month + 1;
             }
 
-            const nextResetEpoch = Date.UTC(targetYear, targetMonth, targetDay, 20, 0, 0, 0) + tzOffsetMillis;
+            if (targetMonth > 11) {
+                targetMonth = 0;
+                targetYear = year + 1;
+            }
+
+            const nextResetEpoch = Date.UTC(targetYear, targetMonth, 1, 0, 0, 0, 0) + tzOffsetMillis;
             nextReset = new Date(nextResetEpoch);
+
+            frequency = "1st of month at 00:00 ET";
+            resetDescription = "Monthly";
 
             frequency = "Last day of month at 20:00 ET";
             resetDescription = "Monthly";

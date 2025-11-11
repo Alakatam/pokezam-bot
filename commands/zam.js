@@ -440,24 +440,39 @@ experience awaiting    : "Cards, quests, and adventure!"
             // Update set completion progress and check for new completions
             await this.checkSetCompletion(userId, detailedCard, interaction);
 
-            // Notify about completed quests (simplified)
+            // Notify about completed quests with YAML format
             if (completedQuests.length > 0) {
                 // Get user's daily quests to find the correct quest positions
                 const dailyQuests = await questManager.getUserQuests(userId);
                 const dailyQuestList = dailyQuests.filter(q => q.quest_type === 'daily');
                 
-                let completionText = '';
+                let yamlContent = '```yaml\n';
                 
                 completedQuests.forEach((q, index) => {
                     // Find the actual position of this quest in the daily quest list
                     const questPosition = dailyQuestList.findIndex(dailyQuest => dailyQuest.name === q.name) + 1;
                     const displayPosition = questPosition > 0 ? questPosition : index + 1;
                     
-                    completionText += `✅ Quest ${displayPosition} completed!\n`;
+                    yamlContent += `# 🎉 QUEST ${displayPosition} COMPLETE!\n`;
+                    yamlContent += `quest:\n`;
+                    yamlContent += `  name: "${q.name}"\n`;
+                    yamlContent += `  rewards:\n`;
+                    yamlContent += `    gold: ${q.reward_gold}🪙\n`;
+                    if (q.reward_xp && q.reward_xp > 0) {
+                        yamlContent += `    xp: ${q.reward_xp}✨\n`;
+                    }
+                    if (q.levelUp) {
+                        yamlContent += `    level_up: ${q.levelUp.oldLevel} → ${q.levelUp.newLevel} 🎊\n`;
+                    }
+                    if (index < completedQuests.length - 1) {
+                        yamlContent += '\n';
+                    }
                 });
+                
+                yamlContent += '```';
 
                 const questEmbed = new EmbedBuilder()
-                    .setDescription(completionText.trim())
+                    .setDescription(yamlContent)
                     .setColor('#00ff00')
                     .setTimestamp();
                 
