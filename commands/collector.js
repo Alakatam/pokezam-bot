@@ -68,10 +68,10 @@ module.exports = {
             
             // Run auto-unlock for ALL commands (await for upgrade-dept to ensure departments are unlocked)
             if (subcommand === 'upgrade-dept' || subcommand === 'collect') {
-                await this.autoUnlockDepartments(interaction.user.id, collectorShopManager);
+                await this.autoUnlockDepartments(interaction.user.id, collectorShopManager, database);
             } else if (subcommand === 'status') {
                 // Background unlock for status (don't block response)
-                this.autoUnlockDepartments(interaction.user.id, collectorShopManager).catch(err => 
+                this.autoUnlockDepartments(interaction.user.id, collectorShopManager, database).catch(err => 
                     console.error('Background auto-unlock error:', err)
                 );
             }
@@ -491,26 +491,45 @@ module.exports = {
      * Auto-unlock departments that should be available based on shop level
      * (Retroactive fix for users who upgraded before migration)
      */
-    async autoUnlockDepartments(userId, collectorShopManager) {
+    async autoUnlockDepartments(userId, collectorShopManager, database) {
         try {
             const shop = await collectorShopManager.getOrCreateShop(userId);
             const departments = await collectorShopManager.getUserDepartments(userId);
             const existingDeptIds = new Set(departments.filter(d => d.level > 0).map(d => d.department_id));
 
+            // Check database type for correct syntax
+            const dbType = database.constructor.name === 'PostgreSQLDatabase' ? 'postgresql' : 'sqlite';
+            
             for (const [deptId, config] of Object.entries(collectorShopManager.departments)) {
                 // If department should be unlocked but isn't yet
                 if (config.unlockLevel <= shop.shop_level && !existingDeptIds.has(deptId)) {
                     console.log(`🔓 Auto-unlocking ${config.name} for user ${userId} (Shop Level ${shop.shop_level})`);
                     
-                    await collectorShopManager.db.run(`
-                        INSERT OR IGNORE INTO collector_departments (user_id, department_id, level, last_collected_at)
-                        VALUES (?, ?, 1, ?)
-                    `, [userId, deptId, Date.now()]);
+                    if (dbType === 'postgresql') {
+                        // PostgreSQL syntax
+                        await collectorShopManager.db.run(`
+                            INSERT INTO collector_departments (user_id, department_id, level, last_collected_at)
+                            VALUES ($1, $2, 1, $3)
+                            ON CONFLICT (user_id, department_id) DO NOTHING
+                        `, [userId, deptId, Date.now()]);
 
-                    await collectorShopManager.db.run(`
-                        INSERT OR IGNORE INTO collector_storage (user_id, department_id, last_generation_at)
-                        VALUES (?, ?, ?)
-                    `, [userId, deptId, Date.now()]);
+                        await collectorShopManager.db.run(`
+                            INSERT INTO collector_storage (user_id, department_id, last_generation_at)
+                            VALUES ($1, $2, $3)
+                            ON CONFLICT (user_id, department_id) DO NOTHING
+                        `, [userId, deptId, Date.now()]);
+                    } else {
+                        // SQLite syntax
+                        await collectorShopManager.db.run(`
+                            INSERT OR IGNORE INTO collector_departments (user_id, department_id, level, last_collected_at)
+                            VALUES (?, ?, 1, ?)
+                        `, [userId, deptId, Date.now()]);
+
+                        await collectorShopManager.db.run(`
+                            INSERT OR IGNORE INTO collector_storage (user_id, department_id, last_generation_at)
+                            VALUES (?, ?, ?)
+                        `, [userId, deptId, Date.now()]);
+                    }
                 }
             }
         } catch (error) {
