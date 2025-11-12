@@ -202,7 +202,7 @@ module.exports = {
                         'Access Denied',
                         'You do not have permission to use admin commands.'
                     )],
-                    ephemeral: true
+                    flags: 64
                 });
             }
 
@@ -272,7 +272,7 @@ module.exports = {
                     'Admin Command Error',
                     'An error occurred while executing the admin command.'
                 )],
-                ephemeral: true
+                flags: 64
             });
         }
     },
@@ -535,7 +535,7 @@ module.exports = {
                     'Reset Cancelled',
                     'You must set `confirm` to `true` to reset a user\'s collection. This action cannot be undone!'
                 )],
-                ephemeral: true
+                flags: 64
             });
         }
 
@@ -661,7 +661,7 @@ module.exports = {
                     '⚠️ Reset Cancelled',
                     'You must set `confirm` to `true` to perform a complete trainer reset.\n\n**⚠️ WARNING**: This will delete ALL progress including level, XP, gold, items, quests, and collection!'
                 )],
-                ephemeral: true
+                flags: 64
             });
         }
 
@@ -796,7 +796,7 @@ module.exports = {
                         'Reset Failed',
                         `Failed to perform complete trainer reset for ${targetUser.username}.\n\n**Error**: ${error.message}`
                     )],
-                    ephemeral: true
+                    flags: 64
                 });
             } else {
                 await interaction.editReply({
@@ -1145,7 +1145,7 @@ module.exports = {
     },
 
     async handleBackupDatabase(interaction) {
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: 64 });
 
         try {
             const DatabaseBackupManager = require('../database/DatabaseBackupManager');
@@ -1190,7 +1190,7 @@ module.exports = {
     },
 
     async handleRestoreDatabase(interaction) {
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: 64 });
 
         try {
             const DatabaseBackupManager = require('../database/DatabaseBackupManager');
@@ -1244,7 +1244,7 @@ module.exports = {
         const targetUser = interaction.options.getUser('user');
         const amount = interaction.options.getInteger('amount');
         
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: 64 });
 
         try {
             // Get or create user
@@ -1308,7 +1308,7 @@ module.exports = {
         const targetUser = interaction.options.getUser('user');
         const amount = interaction.options.getInteger('amount');
         
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: 64 });
 
         try {
             // Get or create user
@@ -1358,7 +1358,7 @@ module.exports = {
         const itemType = interaction.options.getString('item');
         const uses = interaction.options.getInteger('uses') || 10;
 
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: 64 });
 
         try {
             // Get or create user
@@ -1461,7 +1461,7 @@ module.exports = {
         const targetUser = interaction.options.getUser('user');
         const level = interaction.options.getInteger('level');
         
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: 64 });
 
         try {
             // Get or create user
@@ -1509,7 +1509,7 @@ module.exports = {
     async handleViewUser(interaction, userManager, database) {
         const targetUser = interaction.options.getUser('user');
         
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: 64 });
 
         try {
             const user = await userManager.getUser(targetUser.id);
