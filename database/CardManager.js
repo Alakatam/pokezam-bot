@@ -137,71 +137,71 @@ class CardManager {
         }
 
         // 🎲 ROLL FOR RARITY TIER FIRST (before selecting card)
-        // HARDENED ODDS: More rewarding rare pulls!
+        // BALANCED ODDS: More realistic pull rates
         const rarityTiers = [
             { 
                 name: 'Promo', 
-                threshold: 0.35,
+                threshold: 0.10, // 0.1% - Ultra rare
                 rarities: ['Promo'],
                 pattern: "rarity = 'Promo'"
             },
             { 
                 name: 'Ultra Legendary', 
-                threshold: 0.35 + 0.50,
+                threshold: 0.10 + 0.15, // 0.25% total - Chase cards
                 rarities: ['Rare Shining', 'Rare Holo Star', 'Rare BREAK', 'Special Illustration Rare', 'Radiant Rare', 'Rare Holo VSTAR'],
                 pattern: "rarity IN ('Rare Shining', 'Rare Holo Star', 'Rare BREAK', 'Special Illustration Rare', 'Radiant Rare', 'Rare Holo VSTAR')"
             },
             { 
                 name: 'Amazing Rare', 
-                threshold: 0.35 + 0.50 + 0.75,
+                threshold: 0.10 + 0.15 + 0.25, // 0.5% total
                 rarities: ['Amazing Rare'],
                 pattern: "rarity = 'Amazing Rare'"
             },
             { 
                 name: 'Crown Rare', 
-                threshold: 0.35 + 0.50 + 0.75 + 0.90,
-                rarities: ['Rare Rainbow'], // Crown = Rainbow in TCG
+                threshold: 0.10 + 0.15 + 0.25 + 0.30, // 0.8% total - Rainbow rares
+                rarities: ['Rare Rainbow'],
                 pattern: "rarity = 'Rare Rainbow'"
             },
             { 
                 name: 'Secret Rare', 
-                threshold: 0.35 + 0.50 + 0.75 + 0.90 + 0.90,
+                threshold: 0.10 + 0.15 + 0.25 + 0.30 + 0.40, // 1.2% total
                 rarities: ['Rare Secret'],
                 pattern: "rarity = 'Rare Secret'"
             },
             { 
                 name: 'Illustration Rare', 
-                threshold: 0.35 + 0.50 + 0.75 + 0.90 + 0.90 + 1.0,
+                threshold: 0.10 + 0.15 + 0.25 + 0.30 + 0.40 + 0.50, // 1.7% total
                 rarities: ['Illustration Rare'],
                 pattern: "rarity = 'Illustration Rare'"
             },
             { 
                 name: 'Hyper Rare', 
-                threshold: 0.35 + 0.50 + 0.75 + 0.90 + 0.90 + 1.0 + 2.0,
+                threshold: 0.10 + 0.15 + 0.25 + 0.30 + 0.40 + 0.50 + 1.0, // 2.7% total - Ultra/VMAX
                 rarities: ['Rare Ultra', 'Hyper Rare', 'LEGEND', 'Rare Holo VMAX'],
                 pattern: "rarity IN ('Rare Ultra', 'Hyper Rare', 'LEGEND', 'Rare Holo VMAX', 'Ultra Rare')"
             },
             { 
                 name: 'Premium Holo', 
-                threshold: 0.35 + 0.50 + 0.75 + 0.90 + 0.90 + 1.0 + 2.0 + 3.0,
+                threshold: 0.10 + 0.15 + 0.25 + 0.30 + 0.40 + 0.50 + 1.0 + 2.3, // 5% total - V/EX/GX holos
                 rarities: ['Rare Holo', 'Rare ACE', 'Rare Holo EX', 'Rare Holo GX', 'Rare Holo LV.X', 'Rare Prime', 'Rare Prism Star', 'Rare Holo V', 'ACE SPEC Rare'],
                 pattern: "rarity IN ('Rare Holo', 'Rare ACE', 'Rare Holo EX', 'Rare Holo GX', 'Rare Holo LV.X', 'Rare Prime', 'Rare Prism Star', 'Rare Holo V', 'ACE SPEC Rare')"
             },
             { 
                 name: 'Rare', 
-                threshold: 0.35 + 0.50 + 0.75 + 0.90 + 0.90 + 1.0 + 2.0 + 3.0 + 10.0,
+                threshold: 0.10 + 0.15 + 0.25 + 0.30 + 0.40 + 0.50 + 1.0 + 2.3 + 8.0, // 13% total - Regular rares
                 rarities: ['Rare', 'Double Rare'],
                 pattern: "rarity IN ('Rare', 'Double Rare')"
             },
             { 
                 name: 'Uncommon', 
-                threshold: 0.35 + 0.50 + 0.75 + 0.90 + 0.90 + 1.0 + 2.0 + 3.0 + 10.0 + 35.0,
+                threshold: 0.10 + 0.15 + 0.25 + 0.30 + 0.40 + 0.50 + 1.0 + 2.3 + 8.0 + 30.0, // 43% total
                 rarities: ['Uncommon'],
                 pattern: "rarity = 'Uncommon'"
             },
             { 
                 name: 'Common', 
-                threshold: 100,
+                threshold: 100, // 57% - Most common
                 rarities: ['Common'],
                 pattern: "rarity = 'Common'"
             }
