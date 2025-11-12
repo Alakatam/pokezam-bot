@@ -20,7 +20,7 @@ class CardManager {
         return await this.db.get('SELECT * FROM cards WHERE id = ?', [cardId]);
     }
 
-    async getRandomCard(userLevel, guildLuckBonus = 0) {
+    async getRandomCard(userLevel, guildLuckBonus = 0, silent = false) {
         // 🎯 WEIGHTED GENERATION SELECTION OPTIMIZATION
         // Instead of building one massive array of 15,000+ cards, we use a "dartboard" approach:
         // 1. Count cards per generation (fast)
@@ -104,8 +104,10 @@ class CardManager {
             .map(([gen, weight]) => `${gen}:${weight}`)
             .join(', ');
         
-        console.log(`🔧 ZAM OPTIMIZATION: ${generationWeights.length} gen groups, ${totalWeight} total cards`);
-        console.log(`📊 Generation breakdown:`, breakdown);
+        if (!silent) {
+            console.log(`🔧 ZAM OPTIMIZATION: ${generationWeights.length} gen groups, ${totalWeight} total cards`);
+            console.log(`📊 Generation breakdown:`, breakdown);
+        }
 
         // Step 2: The "Weighted Roll" - pick a generation
         const generationRoll = Math.floor(Math.random() * totalWeight) + 1;
@@ -123,7 +125,9 @@ class CardManager {
             selectedGeneration = generationWeights[generationWeights.length - 1];
         }
 
-        console.log(`🎯 Selected: ${selectedGeneration.generation} (${selectedGeneration.weight} cards)`);
+        if (!silent) {
+            console.log(`🎯 Selected: ${selectedGeneration.generation} (${selectedGeneration.weight} cards)`);
+        }
 
         // Step 3: APPLY RARITY ODDS FIRST, then select card
         // Safety check: Ensure weight is a valid number
@@ -213,7 +217,9 @@ class CardManager {
             }
         }
 
-        console.log(`🎲 Rarity roll: ${roll.toFixed(2)}% → ${selectedTier.name} (${selectedTier.threshold}% threshold)`);
+        if (!silent) {
+            console.log(`🎲 Rarity roll: ${roll.toFixed(2)}% → ${selectedTier.name} (${selectedTier.threshold}% threshold)`);
+        }
 
         // Try to get card of target rarity tier from selected generation
         let card = null;
@@ -240,14 +246,16 @@ class CardManager {
                 [...selectedGeneration.sets, rarityOffset]
             );
             
-            if (card) {
+            if (card && !silent) {
                 console.log(`✅ Found ${selectedTier.name}: ${card.name} (${card.rarity})`);
             }
         }
 
         // Fallback: Try any card from generation if rarity tier not found
         if (!card) {
-            console.log(`⚠️ No ${selectedTier.name} cards found, falling back to random`);
+            if (!silent) {
+                console.log(`⚠️ No ${selectedTier.name} cards found, falling back to random`);
+            }
             const randomOffset = Math.floor(Math.random() * selectedGeneration.weight);
             card = await this.db.get(
                 `SELECT * FROM cards 

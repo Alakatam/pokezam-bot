@@ -273,14 +273,40 @@ module.exports = {
                     await interaction.editReply(`⏳ Collecting ${result.results.cards} cards... (this may take a moment)`);
                 }
 
-                // Generate cards with rarity odds and batch add
+                // Track rarity distribution and holo status
+                const rarityCount = {};
+                const holoCards = [];
+
+                // Generate cards with rarity odds and batch add (silent mode)
                 for (let i = 0; i < result.results.cards; i++) {
-                    // Use user's level for rarity odds (same as /zam)
-                    const randomCard = await cardManager.getRandomCard(user.level);
+                    // Use user's level for rarity odds (silent = true to suppress logs)
+                    const randomCard = await cardManager.getRandomCard(user.level, 0, true);
                     if (randomCard) {
                         await cardManager.addCardToUser(interaction.user.id, randomCard.id);
+                        
+                        // Track rarity
+                        rarityCount[randomCard.rarity] = (rarityCount[randomCard.rarity] || 0) + 1;
+                        
+                        // Track holo+ cards
+                        if (randomCard.rarity && (
+                            randomCard.rarity.includes('Holo') ||
+                            randomCard.rarity.includes('Rare') ||
+                            randomCard.rarity.includes('Secret') ||
+                            randomCard.rarity.includes('Ultra') ||
+                            randomCard.rarity.includes('Illustration') ||
+                            randomCard.rarity.includes('Hyper') ||
+                            randomCard.rarity.includes('Amazing') ||
+                            randomCard.rarity.includes('Crown') ||
+                            randomCard.rarity.includes('Promo')
+                        ) && randomCard.rarity !== 'Uncommon' && randomCard.rarity !== 'Common') {
+                            holoCards.push(`${randomCard.name} (${randomCard.rarity})`);
+                        }
                     }
                 }
+
+                // Store for display later
+                result.rarityCount = rarityCount;
+                result.holoCards = holoCards;
             }
 
             // Create collection summary
@@ -294,10 +320,30 @@ module.exports = {
                 yamlCollect += `   💰 Coins: +${result.results.coins.toLocaleString()}g\n`;
             }
             if (result.results.cards > 0) {
-                yamlCollect += `   🃏 Cards: +${result.results.cards} (with rarity odds!)\n`;
+                yamlCollect += `   🃏 Cards: +${result.results.cards}\n\n`;
+                
+                // Show pull overview
+                yamlCollect += `📊 PULL OVERVIEW:\n`;
+                const sortedRarities = Object.entries(result.rarityCount).sort((a, b) => b[1] - a[1]);
+                for (const [rarity, count] of sortedRarities) {
+                    yamlCollect += `   ${rarity}: ${count}x\n`;
+                }
+                
+                // Show notable pulls (holo+)
+                if (result.holoCards.length > 0) {
+                    yamlCollect += `\n✨ NOTABLE PULLS (Holo+):\n`;
+                    const displayLimit = 10; // Show max 10 notable cards
+                    const cardsToShow = result.holoCards.slice(0, displayLimit);
+                    for (const card of cardsToShow) {
+                        yamlCollect += `   • ${card}\n`;
+                    }
+                    if (result.holoCards.length > displayLimit) {
+                        yamlCollect += `   ... and ${result.holoCards.length - displayLimit} more!\n`;
+                    }
+                }
             }
             if (result.results.packs > 0) {
-                yamlCollect += `   🎁 Packs: +${result.results.packs} Sealed\n`;
+                yamlCollect += `\n   🎁 Packs: +${result.results.packs} Sealed\n`;
             }
 
             if (result.results.coins === 0 && result.results.cards === 0 && result.results.packs === 0) {
