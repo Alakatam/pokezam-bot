@@ -1584,7 +1584,7 @@ module.exports = {
     },
 
     async handleFillBulkBin(interaction, userManager, database) {
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: 64 }); // 64 = EPHEMERAL
 
         try {
             const targetUser = interaction.options.getUser('user') || interaction.user;
@@ -1613,12 +1613,12 @@ module.exports = {
             const config = collectorShopManager.departments.bulk_bin;
             const capacity = Math.floor(config.baseCapacity * Math.pow(config.capacityGrowth, bulkBin.level - 1));
 
-            // Fill Bulk Bin to capacity by setting last_collected to far in the past
+            // Fill Bulk Bin to capacity by setting last_collected_at to far in the past
             const hoursToFill = capacity / (config.baseGeneration * Math.pow(config.generationGrowth, bulkBin.level - 1));
             const timestampToSet = Date.now() - (hoursToFill * 60 * 60 * 1000) - 1000; // Add 1 second buffer
 
             await database.run(
-                'UPDATE collector_departments SET last_collected = ? WHERE user_id = ? AND department_id = ?',
+                'UPDATE collector_departments SET last_collected_at = ? WHERE user_id = ? AND department_id = ?',
                 [timestampToSet, targetUser.id, 'bulk_bin']
             );
 
