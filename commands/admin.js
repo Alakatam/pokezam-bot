@@ -182,6 +182,14 @@ module.exports = {
                     option.setName('user')
                         .setDescription('The user to view')
                         .setRequired(true)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('fill-bulkbin')
+                .setDescription('[TEST] Instantly fill Bulk Bin to capacity for testing rarity odds')
+                .addUserOption(option =>
+                    option.setName('user')
+                        .setDescription('User to fill Bulk Bin for (defaults to yourself)')
+                        .setRequired(false)))
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     
     async execute(interaction, { database, userManager, cardManager, questManager }) {
@@ -251,6 +259,9 @@ module.exports = {
                     break;
                 case 'viewuser':
                     await this.handleViewUser(interaction, userManager, database);
+                    break;
+                case 'fill-bulkbin':
+                    await this.handleFillBulkBin(interaction, userManager, database);
                     break;
             }
 
@@ -1567,6 +1578,78 @@ module.exports = {
                 embeds: [EmbedUtils.createErrorEmbed(
                     'View User Failed',
                     `Failed to view ${targetUser.username}'s information.\n\n**Error**: ${error.message}`
+                )]
+            });
+        }
+    },
+
+    async handleFillBulkBin(interaction, userManager, database) {
+        await interaction.deferReply({ ephemeral: true });
+
+        try {
+            const targetUser = interaction.options.getUser('user') || interaction.user;
+            const CollectorShopManager = require('../database/CollectorShopManager');
+            const collectorShopManager = new CollectorShopManager(database);
+
+            // Get user's collector shop
+            const shop = await collectorShopManager.getOrCreateShop(targetUser.id);
+            
+            // Get Bulk Bin department
+            const bulkBin = await database.get(
+                'SELECT * FROM collector_departments WHERE user_id = ? AND department_id = ?',
+                [targetUser.id, 'bulk_bin']
+            );
+
+            if (!bulkBin || bulkBin.level === 0) {
+                return await interaction.editReply({
+                    embeds: [EmbedUtils.createErrorEmbed(
+                        'No Bulk Bin',
+                        `${targetUser.username} hasn't unlocked the Bulk Bin yet!`
+                    )]
+                });
+            }
+
+            // Calculate capacity
+            const config = collectorShopManager.departments.bulk_bin;
+            const capacity = Math.floor(config.baseCapacity * Math.pow(config.capacityGrowth, bulkBin.level - 1));
+
+            // Fill Bulk Bin to capacity by setting last_collected to far in the past
+            const hoursToFill = capacity / (config.baseGeneration * Math.pow(config.generationGrowth, bulkBin.level - 1));
+            const timestampToSet = Date.now() - (hoursToFill * 60 * 60 * 1000) - 1000; // Add 1 second buffer
+
+            await database.run(
+                'UPDATE collector_departments SET last_collected = ? WHERE user_id = ? AND department_id = ?',
+                [timestampToSet, targetUser.id, 'bulk_bin']
+            );
+
+            let yamlContent = '```yaml\n';
+            yamlContent += '#═══════════════════════════════════════════════════\n';
+            yamlContent += '# 📦 BULK BIN FILLED (TESTING)\n';
+            yamlContent += '#═══════════════════════════════════════════════════\n\n';
+            yamlContent += `user               : "${targetUser.username}"\n`;
+            yamlContent += `bulk bin level     : ${bulkBin.level}\n`;
+            yamlContent += `capacity           : ${capacity} cards\n`;
+            yamlContent += `status             : READY TO COLLECT ✅\n\n`;
+            yamlContent += `💡 Use /collector collect to test rarity odds!\n`;
+            yamlContent += '   Cards will use full rarity system.\n\n';
+            yamlContent += '#═══════════════════════════════════════════════════\n';
+            yamlContent += '```';
+
+            await interaction.editReply({
+                embeds: [{
+                    title: '📦 Bulk Bin Filled!',
+                    description: yamlContent,
+                    color: 0x00ff00,
+                    timestamp: new Date().toISOString()
+                }]
+            });
+
+        } catch (error) {
+            console.error('Error filling Bulk Bin:', error);
+            await interaction.editReply({
+                embeds: [EmbedUtils.createErrorEmbed(
+                    'Fill Failed',
+                    `Failed to fill Bulk Bin.\n\n**Error**: ${error.message}`
                 )]
             });
         }
