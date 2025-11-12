@@ -687,18 +687,29 @@ class CollectorShopManager {
                     // Track rarity
                     rarityCount[card.rarity] = (rarityCount[card.rarity] || 0) + 1;
                     
-                    // Track notable cards
-                    if (card.rarity && (
+                    // Track notable cards (Holo+ only, exclude regular Rare/Double Rare)
+                    const isHoloPlus = card.rarity && (
                         card.rarity.includes('Holo') ||
-                        card.rarity.includes('Rare') ||
                         card.rarity.includes('Secret') ||
                         card.rarity.includes('Ultra') ||
                         card.rarity.includes('Illustration') ||
                         card.rarity.includes('Hyper') ||
                         card.rarity.includes('Amazing') ||
-                        card.rarity.includes('Crown') ||
-                        card.rarity.includes('Promo')
-                    ) && card.rarity !== 'Uncommon' && card.rarity !== 'Common') {
+                        card.rarity.includes('Rainbow') ||
+                        card.rarity.includes('Shining') ||
+                        card.rarity.includes('LEGEND') ||
+                        card.rarity.includes('BREAK') ||
+                        card.rarity.includes('Promo') ||
+                        card.rarity.includes('ACE SPEC') ||
+                        card.rarity.includes('Prime') ||
+                        card.rarity.includes('Prism Star') ||
+                        card.rarity.includes('Radiant')
+                    );
+                    
+                    // Exclude plain "Rare" and "Double Rare"
+                    const isPlainRare = card.rarity === 'Rare' || card.rarity === 'Double Rare';
+                    
+                    if (isHoloPlus && !isPlainRare) {
                         holoCards.push(card);
                     }
                 }
