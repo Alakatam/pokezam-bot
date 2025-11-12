@@ -50,6 +50,11 @@ module.exports = {
             // Wait 10 seconds after bot ready to ensure everything is stable
             setTimeout(async () => {
                 try {
+                    // Fix collector_pending_cards schema if needed
+                    const fixCollectorSchema = require('../scripts/fixCollectorPendingCardsSchema');
+                    console.log('🔧 Checking collector_pending_cards schema...');
+                    fixCollectorSchema().catch(err => console.error('Schema fix error:', err));
+
                     // Load Generation III (EX series) cards if missing
                     const loadGenIIICards = require('../scripts/loadGenIIICards');
                     console.log('🔍 Checking for Generation III cards...');
