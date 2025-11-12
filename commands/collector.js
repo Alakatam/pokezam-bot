@@ -81,7 +81,7 @@ module.exports = {
                     await this.handleStatus(interaction, user, collectorShopManager);
                     break;
                 case 'collect':
-                    await this.handleCollect(interaction, user, userManager, database, collectorShopManager);
+                    await this.handleCollect(interaction, user, userManager, database, collectorShopManager, cardManager);
                     break;
                 case 'upgrade':
                     await this.handleUpgrade(interaction, user, userManager, collectorShopManager);
@@ -252,7 +252,7 @@ module.exports = {
     /**
      * Handle /collector collect
      */
-    async handleCollect(interaction, user, userManager, database, collectorShopManager) {
+    async handleCollect(interaction, user, userManager, database, collectorShopManager, cardManager) {
         try {
             const result = await collectorShopManager.collectAll(interaction.user.id);
 
