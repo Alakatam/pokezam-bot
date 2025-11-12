@@ -1589,7 +1589,9 @@ module.exports = {
         try {
             const targetUser = interaction.options.getUser('user') || interaction.user;
             const CollectorShopManager = require('../database/CollectorShopManager');
+            const CardManager = require('../database/CardManager');
             const collectorShopManager = new CollectorShopManager(database);
+            const cardManager = new CardManager(database);
 
             // Get user's collector shop
             const shop = await collectorShopManager.getOrCreateShop(targetUser.id);
@@ -1613,14 +1615,51 @@ module.exports = {
             const config = collectorShopManager.departments.bulk_bin;
             const capacity = Math.floor(config.baseCapacity * Math.pow(config.capacityGrowth, bulkBin.level - 1));
 
-            // Fill Bulk Bin to capacity by setting last_collected_at to far in the past
-            const hoursToFill = capacity / (config.baseGeneration * Math.pow(config.generationGrowth, bulkBin.level - 1));
-            const timestampToSet = Math.floor(Date.now() - (hoursToFill * 60 * 60 * 1000) - 1000); // Add 1 second buffer
-
+            // Clear any existing pending cards
             await database.run(
-                'UPDATE collector_departments SET last_collected_at = ? WHERE user_id = ? AND department_id = ?',
-                [timestampToSet, targetUser.id, 'bulk_bin']
+                'DELETE FROM collector_pending_cards WHERE user_id = ?',
+                [targetUser.id]
             );
+
+            // Get user level for rarity odds
+            const user = await userManager.getUser(targetUser.id);
+
+            // Generate cards instantly (for testing)
+            await interaction.editReply({
+                embeds: [{
+                    title: '⏳ Generating Cards...',
+                    description: `Generating ${capacity} cards for testing...\nThis may take a moment.`,
+                    color: 0xffaa00,
+                    timestamp: new Date().toISOString()
+                }]
+            });
+
+            // Generate cards in batches
+            const batchSize = 50;
+            let generated = 0;
+            const startTime = Date.now();
+
+            for (let i = 0; i < capacity; i += batchSize) {
+                const batch = Math.min(batchSize, capacity - i);
+                
+                for (let j = 0; j < batch; j++) {
+                    const randomCard = await cardManager.getRandomCard(user.level, 0, true);
+                    if (randomCard) {
+                        await database.run(
+                            'INSERT INTO collector_pending_cards (user_id, card_id, generated_at) VALUES (?, ?, ?)',
+                            [targetUser.id, randomCard.id, Date.now()]
+                        );
+                        generated++;
+                    }
+                }
+
+                // Small delay between batches
+                if (i + batchSize < capacity) {
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                }
+            }
+
+            const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
 
             let yamlContent = '```yaml\n';
             yamlContent += '#═══════════════════════════════════════════════════\n';
@@ -1629,9 +1668,11 @@ module.exports = {
             yamlContent += `user               : "${targetUser.username}"\n`;
             yamlContent += `bulk bin level     : ${bulkBin.level}\n`;
             yamlContent += `capacity           : ${capacity} cards\n`;
+            yamlContent += `generated          : ${generated} cards\n`;
+            yamlContent += `time taken         : ${elapsed}s\n`;
             yamlContent += `status             : READY TO COLLECT ✅\n\n`;
             yamlContent += `💡 Use /collector collect to test rarity odds!\n`;
-            yamlContent += '   Cards will use full rarity system.\n\n';
+            yamlContent += '   Cards are pre-generated and ready.\n\n';
             yamlContent += '#═══════════════════════════════════════════════════\n';
             yamlContent += '```';
 
