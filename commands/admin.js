@@ -1615,7 +1615,7 @@ module.exports = {
 
             // Fill Bulk Bin to capacity by setting last_collected_at to far in the past
             const hoursToFill = capacity / (config.baseGeneration * Math.pow(config.generationGrowth, bulkBin.level - 1));
-            const timestampToSet = Date.now() - (hoursToFill * 60 * 60 * 1000) - 1000; // Add 1 second buffer
+            const timestampToSet = Math.floor(Date.now() - (hoursToFill * 60 * 60 * 1000) - 1000); // Add 1 second buffer
 
             await database.run(
                 'UPDATE collector_departments SET last_collected_at = ? WHERE user_id = ? AND department_id = ?',
