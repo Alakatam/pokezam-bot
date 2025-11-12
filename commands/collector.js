@@ -158,7 +158,7 @@ module.exports = {
                         yamlStatus += `   📦 Storage: ${status.generated}/${status.capacity} cards\n`;
                         const timeToFill = ((status.capacity - status.generated) / status.rate).toFixed(1);
                         yamlStatus += `   ⏱️ Time to Fill: ${timeToFill} hours\n`;
-                        yamlStatus += `   💡 Free Common cards while offline\n`;
+                        yamlStatus += `   💡 Random cards with rarity odds!\n`;
                     } else if (config.resource === 'packs') {
                         yamlStatus += `   🎁 Find Chance: ${status.chance} per hour\n`;
                         yamlStatus += `   📦 Storage: ${status.generated}/${status.capacity} packs\n`;
@@ -268,12 +268,18 @@ module.exports = {
             }
 
             if (result.results.cards > 0) {
-                // Generate cards and add to user's collection
+                // Show loading message for large collections
+                if (result.results.cards > 50) {
+                    await interaction.editReply(`⏳ Collecting ${result.results.cards} cards... (this may take a moment)`);
+                }
+
+                // Generate cards with rarity odds and batch add
                 const cardManager = interaction.client.cardManager;
                 for (let i = 0; i < result.results.cards; i++) {
-                    const randomCard = await cardManager.getRandomCard(1); // Level 1 = Common
+                    // Use user's level for rarity odds (same as /zam)
+                    const randomCard = await cardManager.getRandomCard(user.level);
                     if (randomCard) {
-                        await database.addCard(interaction.user.id, randomCard.card_id);
+                        await cardManager.addCardToUser(interaction.user.id, randomCard.card_id);
                     }
                 }
             }
@@ -289,7 +295,7 @@ module.exports = {
                 yamlCollect += `   💰 Coins: +${result.results.coins.toLocaleString()}g\n`;
             }
             if (result.results.cards > 0) {
-                yamlCollect += `   🃏 Cards: +${result.results.cards} Common\n`;
+                yamlCollect += `   🃏 Cards: +${result.results.cards} (with rarity odds!)\n`;
             }
             if (result.results.packs > 0) {
                 yamlCollect += `   🎁 Packs: +${result.results.packs} Sealed\n`;
