@@ -18,10 +18,10 @@ class CollectorShopManager {
                 resource: 'coins',
                 unlockLevel: 1,
                 description: 'Generates coins passively',
-                baseGeneration: 50,      // coins/hour at level 1
-                generationGrowth: 1.5,   // Multiplier per level
-                baseCapacity: 500,       // capacity at level 1
-                capacityGrowth: 1.5,     // Multiplier per level
+                baseGeneration: 100,     // coins/hour at level 1 (was 50, +100%)
+                generationGrowth: 1.25,  // Multiplier per level (was 1.5, more conservative)
+                baseCapacity: 1000,      // capacity at level 1 (was 500, +100%)
+                capacityGrowth: 1.25,    // Multiplier per level (was 1.5, more conservative)
                 fillTime: 10,            // Hours to fill (kept consistent)
                 upgradeCost: 500,        // Base upgrade cost
                 costGrowth: 1.3          // Cost multiplier per level
@@ -31,11 +31,11 @@ class CollectorShopManager {
                 emoji: '📦',
                 resource: 'cards',
                 unlockLevel: 5,
-                description: 'Generates Common cards',
-                baseGeneration: 0.25,    // 1 card per 4 hours at level 1
-                generationGrowth: 1.33,  // Increases generation rate
-                baseCapacity: 6,         // 6 cards at level 1
-                capacityGrowth: 1.33,    // Increases capacity
+                description: 'Generates random cards with rarity odds',
+                baseGeneration: 0.5,     // 1 card per 2 hours at level 1 (was 0.25, +100%)
+                generationGrowth: 1.2,   // Increases generation rate (was 1.33, more conservative)
+                baseCapacity: 10,        // 10 cards at level 1 (was 6, +67%)
+                capacityGrowth: 1.2,     // Increases capacity (was 1.33, more conservative)
                 fillTime: 24,            // Hours to fill
                 upgradeCost: 2000,
                 costGrowth: 1.4
@@ -58,8 +58,8 @@ class CollectorShopManager {
                 resource: 'packs',
                 unlockLevel: 15,
                 description: 'Generates sealed booster packs',
-                baseChance: 0.01,        // 1% per hour at level 1
-                chanceGrowth: 0.002,     // +0.2% per level
+                baseChance: 0.02,        // 2% per hour at level 1 (was 0.01, +100%)
+                chanceGrowth: 0.004,     // +0.4% per level (was 0.002, +100%)
                 baseCapacity: 1,
                 capacityGrowth: 0.2,     // +0.2 capacity per level (at lvl 6 = 2)
                 upgradeCost: 10000,
