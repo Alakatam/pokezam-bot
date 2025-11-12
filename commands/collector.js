@@ -267,46 +267,19 @@ module.exports = {
                 await userManager.addGold(interaction.user.id, result.results.coins);
             }
 
+            let collectionData = null;
             if (result.results.cards > 0) {
                 // Show loading message for large collections
                 if (result.results.cards > 50) {
-                    await interaction.editReply(`⏳ Collecting ${result.results.cards} cards... (this may take a moment)`);
+                    await interaction.editReply(`⏳ Collecting ${result.results.cards} cards...`);
                 }
 
-                // Track rarity distribution and holo status
-                const rarityCount = {};
-                const holoCards = [];
-
-                // Generate cards with rarity odds and batch add (silent mode)
-                for (let i = 0; i < result.results.cards; i++) {
-                    // Use user's level for rarity odds (silent = true to suppress logs)
-                    const randomCard = await cardManager.getRandomCard(user.level, 0, true);
-                    if (randomCard) {
-                        await cardManager.addCardToUser(interaction.user.id, randomCard.id);
-                        
-                        // Track rarity
-                        rarityCount[randomCard.rarity] = (rarityCount[randomCard.rarity] || 0) + 1;
-                        
-                        // Track holo+ cards
-                        if (randomCard.rarity && (
-                            randomCard.rarity.includes('Holo') ||
-                            randomCard.rarity.includes('Rare') ||
-                            randomCard.rarity.includes('Secret') ||
-                            randomCard.rarity.includes('Ultra') ||
-                            randomCard.rarity.includes('Illustration') ||
-                            randomCard.rarity.includes('Hyper') ||
-                            randomCard.rarity.includes('Amazing') ||
-                            randomCard.rarity.includes('Crown') ||
-                            randomCard.rarity.includes('Promo')
-                        ) && randomCard.rarity !== 'Uncommon' && randomCard.rarity !== 'Common') {
-                            holoCards.push(`${randomCard.name} (${randomCard.rarity})`);
-                        }
-                    }
-                }
-
-                // Store for display later
-                result.rarityCount = rarityCount;
-                result.holoCards = holoCards;
+                // INSTANT COLLECTION: Transfer pre-generated cards from pending table
+                collectionData = await collectorShopManager.collectPendingCards(interaction.user.id, cardManager);
+                
+                // Store for display
+                result.rarityCount = collectionData.rarityCount;
+                result.holoCards = collectionData.holoCards; // Full card objects, not strings
             }
 
             // Create collection summary
@@ -329,17 +302,10 @@ module.exports = {
                     yamlCollect += `   ${rarity}: ${count}x\n`;
                 }
                 
-                // Show notable pulls (holo+)
+                // Show notable pulls count
                 if (result.holoCards.length > 0) {
-                    yamlCollect += `\n✨ NOTABLE PULLS (Holo+):\n`;
-                    const displayLimit = 10; // Show max 10 notable cards
-                    const cardsToShow = result.holoCards.slice(0, displayLimit);
-                    for (const card of cardsToShow) {
-                        yamlCollect += `   • ${card}\n`;
-                    }
-                    if (result.holoCards.length > displayLimit) {
-                        yamlCollect += `   ... and ${result.holoCards.length - displayLimit} more!\n`;
-                    }
+                    yamlCollect += `\n✨ Notable Pulls: ${result.holoCards.length} Holo+ cards\n`;
+                    yamlCollect += `   Click "View Holo+ Cards" below to see them!\n`;
                 }
             }
             if (result.results.packs > 0) {
@@ -385,7 +351,38 @@ module.exports = {
                     iconURL: interaction.user.displayAvatarURL({ dynamic: true })
                 });
 
-            await interaction.editReply({ embeds: [embed] });
+            // Add "View Holo+ Cards" button if there are notable pulls
+            const components = [];
+            if (result.holoCards && result.holoCards.length > 0) {
+                const row = new ActionRowBuilder()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setCustomId(`view_holo_${interaction.user.id}_0`)
+                            .setLabel(`View Holo+ Cards (${result.holoCards.length})`)
+                            .setEmoji('✨')
+                            .setStyle(ButtonStyle.Primary)
+                    );
+                components.push(row);
+
+                // Store holo cards in a temporary cache for pagination
+                if (!this.holoCardCache) this.holoCardCache = new Map();
+                this.holoCardCache.set(interaction.user.id, {
+                    cards: result.holoCards,
+                    timestamp: Date.now()
+                });
+
+                // Clean up old cache entries (older than 10 minutes)
+                for (const [userId, data] of this.holoCardCache.entries()) {
+                    if (Date.now() - data.timestamp > 600000) {
+                        this.holoCardCache.delete(userId);
+                    }
+                }
+            }
+
+            await interaction.editReply({ 
+                embeds: [embed],
+                components: components
+            });
 
         } catch (error) {
             console.error('Error in handleCollect:', error);

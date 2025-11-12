@@ -122,6 +122,27 @@ class CollectorShopManager {
                 )
             `);
 
+            // Pending cards table - stores pre-generated cards for instant collection
+            await this.db.run(`
+                CREATE TABLE IF NOT EXISTS collector_pending_cards (
+                    id ${this.dbType === 'postgresql' ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+                    user_id TEXT NOT NULL,
+                    card_id INTEGER NOT NULL,
+                    generated_at ${this.dbType === 'postgresql' ? 'BIGINT' : 'INTEGER'} NOT NULL
+                )
+            `);
+
+            // Indexes for pending cards
+            await this.db.run(`
+                CREATE INDEX IF NOT EXISTS idx_collector_pending_user 
+                ON collector_pending_cards(user_id)
+            `);
+
+            await this.db.run(`
+                CREATE INDEX IF NOT EXISTS idx_collector_pending_generated 
+                ON collector_pending_cards(generated_at)
+            `);
+
             console.log('✅ Collector shop tables initialized');
             return true;
 
@@ -565,6 +586,155 @@ class CollectorShopManager {
         } catch (error) {
             console.error('Error getting passive buffs:', error);
             return { upgradeChance: 0, holoChance: 0, qualityBoost: 0 };
+        }
+    }
+
+    /**
+     * Background card generation - called every hour by a cron job
+     * Generates cards slowly in background to avoid lag spikes
+     */
+    async generatePendingCardsForUser(userId, cardManager, userLevel) {
+        try {
+            const bulkBin = await this.db.get(
+                'SELECT * FROM collector_departments WHERE user_id = ? AND department_id = ?',
+                [userId, 'bulk_bin']
+            );
+
+            if (!bulkBin || bulkBin.level === 0) {
+                return 0; // Bulk Bin not unlocked
+            }
+
+            const config = this.departments.bulk_bin;
+            const generationRate = config.baseGeneration * Math.pow(config.generationGrowth, bulkBin.level - 1);
+            const capacity = Math.floor(config.baseCapacity * Math.pow(config.capacityGrowth, bulkBin.level - 1));
+
+            // Calculate how many cards generated since last collection
+            const now = Date.now();
+            const lastCollected = bulkBin.last_collected_at || now;
+            const hoursSinceCollection = (now - lastCollected) / (1000 * 60 * 60);
+            const totalGenerated = Math.min(Math.floor(hoursSinceCollection * generationRate), capacity);
+
+            // Check how many pending cards already exist
+            const existingCount = await this.db.get(
+                'SELECT COUNT(*) as count FROM collector_pending_cards WHERE user_id = ?',
+                [userId]
+            );
+            const pending = existingCount?.count || 0;
+
+            // Generate missing cards (up to total - pending)
+            const toGenerate = Math.max(0, totalGenerated - pending);
+            
+            if (toGenerate > 0) {
+                // Generate in small batches to avoid blocking
+                const batchSize = 50;
+                let generated = 0;
+
+                for (let i = 0; i < toGenerate; i += batchSize) {
+                    const batch = Math.min(batchSize, toGenerate - i);
+                    
+                    for (let j = 0; j < batch; j++) {
+                        const randomCard = await cardManager.getRandomCard(userLevel, 0, true);
+                        if (randomCard) {
+                            await this.db.run(
+                                'INSERT INTO collector_pending_cards (user_id, card_id, generated_at) VALUES (?, ?, ?)',
+                                [userId, randomCard.id, now]
+                            );
+                            generated++;
+                        }
+                    }
+
+                    // Small delay between batches to avoid blocking
+                    if (i + batchSize < toGenerate) {
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                    }
+                }
+
+                return generated;
+            }
+
+            return 0;
+
+        } catch (error) {
+            console.error('Error generating pending cards:', error);
+            return 0;
+        }
+    }
+
+    /**
+     * Collect pending cards - instant transfer from pending to user collection
+     */
+    async collectPendingCards(userId, cardManager) {
+        try {
+            // Get all pending cards for user
+            const pendingCards = await this.db.all(
+                'SELECT * FROM collector_pending_cards WHERE user_id = ? ORDER BY generated_at',
+                [userId]
+            );
+
+            if (pendingCards.length === 0) {
+                return { cards: [], rarityCount: {}, holoCards: [] };
+            }
+
+            const rarityCount = {};
+            const holoCards = [];
+
+            // Transfer cards to user collection
+            for (const pending of pendingCards) {
+                const card = await cardManager.getCard(pending.card_id);
+                if (card) {
+                    await cardManager.addCardToUser(userId, card.id);
+                    
+                    // Track rarity
+                    rarityCount[card.rarity] = (rarityCount[card.rarity] || 0) + 1;
+                    
+                    // Track notable cards
+                    if (card.rarity && (
+                        card.rarity.includes('Holo') ||
+                        card.rarity.includes('Rare') ||
+                        card.rarity.includes('Secret') ||
+                        card.rarity.includes('Ultra') ||
+                        card.rarity.includes('Illustration') ||
+                        card.rarity.includes('Hyper') ||
+                        card.rarity.includes('Amazing') ||
+                        card.rarity.includes('Crown') ||
+                        card.rarity.includes('Promo')
+                    ) && card.rarity !== 'Uncommon' && card.rarity !== 'Common') {
+                        holoCards.push(card);
+                    }
+                }
+            }
+
+            // Delete collected pending cards
+            await this.db.run(
+                'DELETE FROM collector_pending_cards WHERE user_id = ?',
+                [userId]
+            );
+
+            return {
+                cards: pendingCards,
+                rarityCount,
+                holoCards
+            };
+
+        } catch (error) {
+            console.error('Error collecting pending cards:', error);
+            return { cards: [], rarityCount: {}, holoCards: [] };
+        }
+    }
+
+    /**
+     * Get count of pending cards for a user
+     */
+    async getPendingCardCount(userId) {
+        try {
+            const result = await this.db.get(
+                'SELECT COUNT(*) as count FROM collector_pending_cards WHERE user_id = ?',
+                [userId]
+            );
+            return result?.count || 0;
+        } catch (error) {
+            console.error('Error getting pending card count:', error);
+            return 0;
         }
     }
 }

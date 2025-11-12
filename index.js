@@ -8,6 +8,7 @@ const UserManager = require('./database/UserManager');
 const CardManager = require('./database/CardManager');
 const QuestManager = require('./database/QuestManager');
 const DatabaseBackupManager = require('./database/DatabaseBackupManager');
+const CardGenerationCron = require('./jobs/cardGenerationCron');
 const EmbedUtils = require('./utils/EmbedUtils');
 
 class PokezamBot {
@@ -965,7 +966,7 @@ class PokezamBot {
                     const user = await this.userManager.getUser(interaction.user.id);
                     
                     if (action === 'collect') {
-                        await collectorCommand.handleCollect(interaction, user, this.userManager, this.database, this.collectorShopManager);
+                        await collectorCommand.handleCollect(interaction, user, this.userManager, this.database, this.collectorShopManager, this.cardManager);
                     } else if (action === 'upgrade') {
                         await collectorCommand.handleUpgrade(interaction, user, this.userManager, this.collectorShopManager);
                     }
@@ -983,6 +984,116 @@ class PokezamBot {
                             content: '❌ An error occurred. Please try again!'
                         });
                     }
+                }
+                return;
+            }
+
+            // Handle Holo+ card viewer pagination
+            if (interaction.isButton() && interaction.customId.startsWith('view_holo_')) {
+                try {
+                    const parts = interaction.customId.split('_');
+                    const targetUserId = parts[2];
+                    const page = parseInt(parts[3]);
+                    
+                    if (interaction.user.id !== targetUserId) {
+                        return await interaction.reply({
+                            content: 'You can only view your own cards!',
+                            ephemeral: true
+                        });
+                    }
+                    
+                    await interaction.deferUpdate();
+                    
+                    const collectorCommand = this.commands.get('collector');
+                    if (collectorCommand && collectorCommand.holoCardCache) {
+                        const cacheData = collectorCommand.holoCardCache.get(targetUserId);
+                        if (cacheData) {
+                            const { cards } = cacheData;
+                            const totalPages = cards.length;
+                            const currentPage = Math.min(Math.max(0, page), totalPages - 1);
+                            const card = cards[currentPage];
+                            
+                            // Get card image
+                            const imageUrl = card.image_url_large || card.image_url_small || card.image_large || card.image_small;
+                            
+                            const embed = new EmbedBuilder()
+                                .setTitle(`✨ ${card.name}`)
+                                .setDescription(`**Rarity:** ${card.rarity}\n**Set:** ${card.set_name}\n**Card ID:** ${card.id}`)
+                                .setColor('#FFD700')
+                                .setFooter({ text: `Card ${currentPage + 1} of ${totalPages}` })
+                                .setTimestamp();
+                            
+                            if (imageUrl) {
+                                embed.setImage(imageUrl);
+                            }
+                            
+                            // Navigation buttons
+                            const row = new ActionRowBuilder();
+                            
+                            if (currentPage > 0) {
+                                row.addComponents(
+                                    new ButtonBuilder()
+                                        .setCustomId(`view_holo_${targetUserId}_${currentPage - 1}`)
+                                        .setLabel('◀ Previous')
+                                        .setStyle(ButtonStyle.Secondary)
+                                );
+                            }
+                            
+                            row.addComponents(
+                                new ButtonBuilder()
+                                    .setCustomId(`view_holo_close_${targetUserId}`)
+                                    .setLabel('Close')
+                                    .setStyle(ButtonStyle.Danger)
+                            );
+                            
+                            if (currentPage < totalPages - 1) {
+                                row.addComponents(
+                                    new ButtonBuilder()
+                                        .setCustomId(`view_holo_${targetUserId}_${currentPage + 1}`)
+                                        .setLabel('Next ▶')
+                                        .setStyle(ButtonStyle.Secondary)
+                                );
+                            }
+                            
+                            await interaction.editReply({
+                                embeds: [embed],
+                                components: [row]
+                            });
+                        } else {
+                            await interaction.editReply({
+                                content: '❌ Card data expired. Please collect again!',
+                                embeds: [],
+                                components: []
+                            });
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error handling holo card viewer:', error);
+                }
+                return;
+            }
+
+            // Handle close button for Holo+ viewer
+            if (interaction.isButton() && interaction.customId.startsWith('view_holo_close_')) {
+                try {
+                    const parts = interaction.customId.split('_');
+                    const targetUserId = parts[3];
+                    
+                    if (interaction.user.id !== targetUserId) {
+                        return await interaction.reply({
+                            content: 'You can only close your own views!',
+                            ephemeral: true
+                        });
+                    }
+                    
+                    await interaction.deferUpdate();
+                    await interaction.editReply({
+                        content: '✅ Viewer closed.',
+                        embeds: [],
+                        components: []
+                    });
+                } catch (error) {
+                    console.error('Error closing holo card viewer:', error);
                 }
                 return;
             }
