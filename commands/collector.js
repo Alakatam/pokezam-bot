@@ -278,7 +278,7 @@ module.exports = {
                     // Use user's level for rarity odds (same as /zam)
                     const randomCard = await cardManager.getRandomCard(user.level);
                     if (randomCard) {
-                        await cardManager.addCardToUser(interaction.user.id, randomCard.card_id);
+                        await cardManager.addCardToUser(interaction.user.id, randomCard.id);
                     }
                 }
             }
