@@ -33,7 +33,7 @@ module.exports = {
                             { name: '⭐ Expert Grader', value: 'expert_grader' }
                         ))),
 
-    async execute(interaction, { database, userManager, collectorShopManager }) {
+    async execute(interaction, { database, userManager, collectorShopManager, cardManager }) {
         try {
             await interaction.deferReply();
 
@@ -274,7 +274,6 @@ module.exports = {
                 }
 
                 // Generate cards with rarity odds and batch add
-                const cardManager = interaction.client.cardManager;
                 for (let i = 0; i < result.results.cards; i++) {
                     // Use user's level for rarity odds (same as /zam)
                     const randomCard = await cardManager.getRandomCard(user.level);
