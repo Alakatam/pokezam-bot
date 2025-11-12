@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Client, Collection, GatewayIntentBits, Partials, REST, Routes } = require('discord.js');
+const { Client, Collection, GatewayIntentBits, Partials, REST, Routes, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
