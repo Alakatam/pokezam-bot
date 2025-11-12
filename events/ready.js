@@ -1,5 +1,6 @@
 const { Events } = require('discord.js');
 const cron = require('cron');
+const CardGenerationCron = require('../jobs/cardGenerationCron');
 
 module.exports = {
     name: Events.ClientReady,
@@ -30,6 +31,16 @@ module.exports = {
         } catch (error) {
             console.error('Error in initial quest reset:', error);
         }
+
+        // Start background card generation cron job
+        const cardGenCron = new CardGenerationCron(
+            bot.database,
+            bot.collectorShopManager,
+            bot.cardManager,
+            bot.userManager
+        );
+        cardGenCron.start();
+        bot.cardGenerationCron = cardGenCron; // Store reference for cleanup
 
         // DEPLOYMENT FIX: Start Progressive Card Loading AFTER bot is ready and connected
         // This prevents deployment timeouts by running card loading post-deployment
