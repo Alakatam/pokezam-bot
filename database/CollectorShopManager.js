@@ -687,7 +687,7 @@ class CollectorShopManager {
                     // Track rarity
                     rarityCount[card.rarity] = (rarityCount[card.rarity] || 0) + 1;
                     
-                    // Track notable cards (Holo+ only, exclude regular Rare/Double Rare)
+                    // Track notable cards (Holo+ only, exclude regular Rare but keep Double Rare)
                     const isHoloPlus = card.rarity && (
                         card.rarity.includes('Holo') ||
                         card.rarity.includes('Secret') ||
@@ -703,11 +703,12 @@ class CollectorShopManager {
                         card.rarity.includes('ACE SPEC') ||
                         card.rarity.includes('Prime') ||
                         card.rarity.includes('Prism Star') ||
-                        card.rarity.includes('Radiant')
+                        card.rarity.includes('Radiant') ||
+                        card.rarity === 'Double Rare' // Double Rare is holo
                     );
                     
-                    // Exclude plain "Rare" and "Double Rare"
-                    const isPlainRare = card.rarity === 'Rare' || card.rarity === 'Double Rare';
+                    // Exclude only plain "Rare"
+                    const isPlainRare = card.rarity === 'Rare';
                     
                     if (isHoloPlus && !isPlainRare) {
                         holoCards.push(card);
