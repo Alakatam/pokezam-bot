@@ -24,7 +24,14 @@ class CollectorShopManager {
                 capacityGrowth: 1.25,    // Multiplier per level (was 1.5, more conservative)
                 fillTime: 10,            // Hours to fill (kept consistent)
                 upgradeCost: 500,        // Base upgrade cost
-                costGrowth: 1.3          // Cost multiplier per level
+                costGrowth: 1.3,         // Cost multiplier per level
+                // Shop Hours System
+                baseOperatingHours: 4,   // Hours open per day at level 1
+                maxOperatingHours: 12,   // Maximum hours (level 10+)
+                operatingHoursGrowth: 0.8, // Hours added per level
+                // Random Variance (simulate busy/slow days)
+                minVariance: 0.7,        // 70% of expected (slow day)
+                maxVariance: 1.3         // 130% of expected (busy day)
             },
             bulk_bin: {
                 name: 'Bulk Bin',
@@ -38,7 +45,13 @@ class CollectorShopManager {
                 capacityGrowth: 1.2,     // Increases capacity (was 1.33, more conservative)
                 fillTime: 24,            // Hours to fill
                 upgradeCost: 2000,
-                costGrowth: 1.4
+                costGrowth: 1.4,
+                // Shop Hours System
+                baseOperatingHours: 4,
+                maxOperatingHours: 12,
+                operatingHoursGrowth: 0.8,
+                minVariance: 0.7,
+                maxVariance: 1.3
             },
             glass_case: {
                 name: 'Glass Display Case',
@@ -63,7 +76,13 @@ class CollectorShopManager {
                 baseCapacity: 1,
                 capacityGrowth: 0.2,     // +0.2 capacity per level (at lvl 6 = 2)
                 upgradeCost: 10000,
-                costGrowth: 1.6
+                costGrowth: 1.6,
+                // Shop Hours System
+                baseOperatingHours: 4,
+                maxOperatingHours: 12,
+                operatingHoursGrowth: 0.8,
+                minVariance: 0.7,
+                maxVariance: 1.3
             },
             expert_grader: {
                 name: 'Expert Grader',
@@ -105,6 +124,8 @@ class CollectorShopManager {
                     level INTEGER DEFAULT 0,
                     total_upgrades INTEGER DEFAULT 0,
                     last_collected_at ${this.dbType === 'postgresql' ? 'BIGINT' : 'INTEGER'} DEFAULT ${Date.now()},
+                    shop_opened_at ${this.dbType === 'postgresql' ? 'BIGINT' : 'INTEGER'} DEFAULT ${Date.now()},
+                    daily_variance_multiplier REAL DEFAULT 1.0,
                     PRIMARY KEY (user_id, department_id)
                 )
             `);
@@ -196,6 +217,81 @@ class CollectorShopManager {
     }
 
     /**
+     * Calculate operating hours for a department based on level
+     */
+    getOperatingHours(departmentId, level) {
+        const config = this.departments[departmentId];
+        if (!config || !config.baseOperatingHours) return 24; // Default to 24/7 if not configured
+        
+        const hours = Math.min(
+            config.baseOperatingHours + (config.operatingHoursGrowth * (level - 1)),
+            config.maxOperatingHours
+        );
+        
+        return Math.floor(hours * 10) / 10; // Round to 1 decimal
+    }
+
+    /**
+     * Check if shop is currently open
+     */
+    isShopOpen(departmentData) {
+        if (!departmentData.shop_opened_at) return true; // Legacy data, assume open
+        
+        const now = Date.now();
+        const timeSinceOpen = (now - departmentData.shop_opened_at) / (1000 * 60 * 60); // hours
+        
+        const config = this.departments[departmentData.department_id];
+        if (!config) return true;
+        
+        const operatingHours = this.getOperatingHours(departmentData.department_id, departmentData.level);
+        
+        return timeSinceOpen < operatingHours;
+    }
+
+    /**
+     * Get shop status message
+     */
+    getShopStatus(departmentData) {
+        if (!departmentData.shop_opened_at) return '🟢 Open (24/7)';
+        
+        const now = Date.now();
+        const timeSinceOpen = (now - departmentData.shop_opened_at) / (1000 * 60 * 60); // hours
+        
+        const operatingHours = this.getOperatingHours(departmentData.department_id, departmentData.level);
+        const timeRemaining = operatingHours - timeSinceOpen;
+        
+        if (timeRemaining > 0) {
+            return `🟢 Open (${timeRemaining.toFixed(1)}h left)`;
+        } else {
+            return `🔴 Closed (collect to reopen)`;
+        }
+    }
+
+    /**
+     * Get random variance multiplier for daily generation
+     */
+    getDailyVariance(departmentId) {
+        const config = this.departments[departmentId];
+        if (!config || !config.minVariance) return 1.0;
+        
+        const min = config.minVariance;
+        const max = config.maxVariance;
+        
+        return min + (Math.random() * (max - min));
+    }
+
+    /**
+     * Get variance quality description
+     */
+    getVarianceDescription(multiplier) {
+        if (multiplier >= 1.2) return '🔥 **Extremely Busy Day!**';
+        if (multiplier >= 1.1) return '📈 **Busy Day**';
+        if (multiplier >= 0.95) return '📊 Normal Day';
+        if (multiplier >= 0.8) return '📉 Slow Day';
+        return '😴 **Very Slow Day**';
+    }
+
+    /**
      * Get all departments for a user
      */
     async getUserDepartments(userId) {
@@ -214,47 +310,61 @@ class CollectorShopManager {
     /**
      * Calculate passive generation for a department
      */
-    calculateGeneration(departmentId, level, hoursSinceCollection) {
+    calculateGeneration(departmentId, level, hoursSinceCollection, variance = 1.0) {
         const config = this.departments[departmentId];
         if (!config) return { generated: 0, capacity: 0, fillTime: 0 };
 
+        // Get operating hours for this department
+        const operatingHours = this.getOperatingHours(departmentId, level);
+        const effectiveHours = Math.min(hoursSinceCollection, operatingHours);
+
         if (config.resource === 'coins') {
-            // Coins generation
+            // Coins generation with operating hours and variance
             const rate = config.baseGeneration * Math.pow(config.generationGrowth, level - 1);
             const capacity = config.baseCapacity * Math.pow(config.capacityGrowth, level - 1);
-            const generated = Math.min(Math.floor(rate * hoursSinceCollection), capacity);
+            const generated = Math.min(
+                Math.floor(rate * effectiveHours * variance),
+                capacity
+            );
             
             return {
                 generated,
                 capacity: Math.floor(capacity),
                 rate: Math.floor(rate),
-                fillTime: config.fillTime
+                fillTime: config.fillTime,
+                operatingHours,
+                variance
             };
         }
 
         if (config.resource === 'cards') {
-            // Cards generation
+            // Cards generation with operating hours and variance
             const rate = config.baseGeneration * Math.pow(config.generationGrowth, level - 1);
             const capacity = config.baseCapacity * Math.pow(config.capacityGrowth, level - 1);
-            const generated = Math.min(Math.floor(rate * hoursSinceCollection), Math.floor(capacity));
+            const generated = Math.min(
+                Math.floor(rate * effectiveHours * variance),
+                Math.floor(capacity)
+            );
             
             return {
                 generated,
                 capacity: Math.floor(capacity),
                 rate: parseFloat(rate.toFixed(2)),
-                fillTime: config.fillTime
+                fillTime: config.fillTime,
+                operatingHours,
+                variance
             };
         }
 
         if (config.resource === 'packs') {
-            // Pack generation (chance-based)
+            // Pack generation (chance-based) with operating hours
             const chance = config.baseChance + (config.chanceGrowth * (level - 1));
             const capacity = Math.floor(config.baseCapacity + (config.capacityGrowth * (level - 1)));
             
-            // Calculate how many packs generated based on hourly chance
+            // Calculate how many packs generated based on hourly chance (only during operating hours)
             let packs = 0;
-            for (let i = 0; i < hoursSinceCollection; i++) {
-                if (Math.random() < chance && packs < capacity) {
+            for (let i = 0; i < effectiveHours; i++) {
+                if (Math.random() < chance * variance && packs < capacity) {
                     packs++;
                 }
             }
@@ -263,7 +373,9 @@ class CollectorShopManager {
                 generated: packs,
                 capacity,
                 chance: (chance * 100).toFixed(2) + '%',
-                fillTime: 'Variable'
+                fillTime: 'Variable',
+                operatingHours,
+                variance
             };
         }
 
@@ -295,14 +407,29 @@ class CollectorShopManager {
             const lastCollection = dept.last_collected_at || now;
             const hoursElapsed = (now - lastCollection) / (1000 * 60 * 60);
 
-            // Calculate generation
-            const generation = this.calculateGeneration(departmentId, departmentLevel, hoursElapsed);
+            // Get or generate daily variance
+            let variance = dept.daily_variance_multiplier;
+            if (!variance || variance === null) {
+                variance = this.getDailyVariance(departmentId);
+                // Store variance for this session
+                await this.db.run(`
+                    UPDATE collector_departments
+                    SET daily_variance_multiplier = ?
+                    WHERE user_id = ? AND department_id = ?
+                `, [variance, userId, departmentId]);
+            }
+
+            // Calculate generation with variance
+            const generation = this.calculateGeneration(departmentId, departmentLevel, hoursElapsed, variance);
 
             return {
                 ...storage,
                 ...generation,
                 hoursElapsed: hoursElapsed.toFixed(2),
-                level: departmentLevel
+                level: departmentLevel,
+                variance,
+                varianceDesc: this.getVarianceDescription(variance),
+                shopStatus: this.getShopStatus(dept)
             };
 
         } catch (error) {
@@ -352,11 +479,15 @@ class CollectorShopManager {
                 WHERE user_id = ? AND department_id = ?
             `, [Date.now(), userId, departmentId]);
 
+            // Reset shop hours and generate new daily variance
+            const newVariance = this.getDailyVariance(departmentId);
             await this.db.run(`
                 UPDATE collector_departments
-                SET last_collected_at = ?
+                SET last_collected_at = ?, 
+                    shop_opened_at = ?,
+                    daily_variance_multiplier = ?
                 WHERE user_id = ? AND department_id = ?
-            `, [Date.now(), userId, departmentId]);
+            `, [Date.now(), Date.now(), newVariance, userId, departmentId]);
 
             // Update lifetime stats
             await this.db.run(`
@@ -394,14 +525,18 @@ class CollectorShopManager {
 
             for (const dept of departments) {
                 if (dept.level > 0) {
+                    // Get status before collecting to capture variance
+                    const status = await this.getDepartmentStatus(userId, dept.department_id, dept.level);
                     const result = await this.collectDepartment(userId, dept.department_id);
+                    
                     if (result.success) {
                         results.coins += result.collected.coins;
                         results.cards += result.collected.cards;
                         results.packs += result.collected.packs;
                         results.departments.push({
                             name: result.departmentName,
-                            collected: result.collected
+                            collected: result.collected,
+                            varianceDesc: status?.varianceDesc || null
                         });
                     }
                 }

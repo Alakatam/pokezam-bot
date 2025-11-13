@@ -146,12 +146,23 @@ module.exports = {
                     yamlStatus += `${config.emoji} ${config.name} (Level ${dept.level})\n`;
                     yamlStatus += `   📝 ${config.description}\n`;
 
+                    // Show shop status and business variance
+                    if (status.shopStatus) {
+                        yamlStatus += `   ${status.shopStatus}\n`;
+                    }
+                    if (status.varianceDesc) {
+                        yamlStatus += `   ${status.varianceDesc}\n`;
+                    }
+                    if (status.operatingHours) {
+                        yamlStatus += `   ⏰ Operating Hours: ${status.operatingHours}h/day\n`;
+                    }
+
                     if (config.resource === 'coins') {
                         yamlStatus += `   💰 Generates: ${status.rate} coins/hour\n`;
                         yamlStatus += `   📦 Storage: ${status.generated}/${status.capacity} coins\n`;
                         const timeToFill = ((status.capacity - status.generated) / status.rate).toFixed(1);
                         yamlStatus += `   ⏱️ Time to Fill: ${timeToFill} hours\n`;
-                        yamlStatus += `   💡 Provides passive income 24/7\n`;
+                        yamlStatus += `   💡 Provides passive income during hours\n`;
                     } else if (config.resource === 'cards') {
                         const hoursPerCard = status.rate >= 1 ? `${status.rate.toFixed(2)}/hr` : `1 every ${(1/status.rate).toFixed(1)}hr`;
                         yamlStatus += `   🃏 Generates: ${hoursPerCard}\n`;
@@ -219,9 +230,10 @@ module.exports = {
             }
 
             yamlStatus += '💡 HOW IT WORKS:\n';
-            yamlStatus += '   • Departments generate resources 24/7\n';
-            yamlStatus += '   • Higher levels = faster generation\n';
-            yamlStatus += '   • Collect anytime to claim rewards\n';
+            yamlStatus += '   • Departments open for limited hours daily\n';
+            yamlStatus += '   • Business variance = random busy/slow days\n';
+            yamlStatus += '   • Higher levels = more operating hours\n';
+            yamlStatus += '   • Collect anytime to claim & reopen shop\n';
             yamlStatus += '   • Upgrade shop to unlock new departments\n\n';
             
             yamlStatus += '🎮 COMMANDS:\n';
@@ -334,10 +346,14 @@ module.exports = {
                     if (coins > 0) yamlCollect += `     Coins: ${coins.toLocaleString()}g\n`;
                     if (cards > 0) yamlCollect += `     Cards: ${cards}\n`;
                     if (packs > 0) yamlCollect += `     Packs: ${packs}\n`;
+                    // Show variance quality
+                    if (dept.varianceDesc) {
+                        yamlCollect += `     ${dept.varianceDesc}\n`;
+                    }
                 }
             }
 
-            yamlCollect += '\n💡 Generation has restarted!\n';
+            yamlCollect += '\n💡 Shop reopened with new daily variance!\n';
             yamlCollect += '#════════════════════════════════════════\n';
             yamlCollect += '```';
 
@@ -364,10 +380,11 @@ module.exports = {
                     );
                 components.push(row);
 
-                // Store holo cards in a temporary cache for pagination
+                // Store holo cards AND results embed in a temporary cache for pagination
                 if (!this.holoCardCache) this.holoCardCache = new Map();
                 this.holoCardCache.set(interaction.user.id, {
                     cards: result.holoCards,
+                    resultsEmbed: embed,
                     timestamp: Date.now()
                 });
 
