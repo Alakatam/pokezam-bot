@@ -52,8 +52,11 @@ module.exports = {
                 try {
                     // Add shop hours columns if needed (PostgreSQL-specific for production)
                     const fixCollectorShopHours = require('../scripts/fixCollectorShopHoursPostgreSQL');
-                    console.log('🔧 Checking shop hours columns...');
-                    fixCollectorShopHours().catch(err => console.error('Shop hours migration error:', err));
+                    console.log('🔧 Running PostgreSQL shop hours migration...');
+                    await fixCollectorShopHours().catch(err => {
+                        console.error('❌ Shop hours migration error:', err.message);
+                        console.error('⚠️ Bot will continue, but /collector commands may fail until columns are added');
+                    });
 
                     // Fix collector_pending_cards schema if needed
                     const fixCollectorSchema = require('../scripts/fixCollectorPendingCardsSchema');
