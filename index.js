@@ -1156,6 +1156,121 @@ class PokezamBot {
                 return;
             }
 
+            // Handle collector department detail button
+            if (interaction.isButton() && interaction.customId.startsWith('collector_dept_')) {
+                try {
+                    const parts = interaction.customId.split('_');
+                    const deptId = parts[2];
+                    const targetUserId = parts[3];
+                    
+                    if (interaction.user.id !== targetUserId) {
+                        return await interaction.reply({
+                            content: 'You can only view your own departments!',
+                            ephemeral: true
+                        });
+                    }
+                    
+                    await interaction.deferUpdate();
+                    
+                    const collectorCommand = this.commands.get('collector');
+                    if (collectorCommand && collectorCommand.collectorStatusCache) {
+                        const cacheData = collectorCommand.collectorStatusCache.get(targetUserId);
+                        if (cacheData) {
+                            const { shop, departments } = cacheData;
+                            
+                            // Build department detail embed
+                            const embed = await collectorCommand.buildDepartmentEmbed(
+                                interaction,
+                                deptId,
+                                shop,
+                                departments,
+                                this.collectorShopManager
+                            );
+                            
+                            // Add back button
+                            const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+                            const row = new ActionRowBuilder()
+                                .addComponents(
+                                    new ButtonBuilder()
+                                        .setCustomId(`collector_overview_${targetUserId}`)
+                                        .setLabel('◀ Back to Overview')
+                                        .setStyle(ButtonStyle.Success)
+                                );
+                            
+                            await interaction.editReply({
+                                embeds: [embed],
+                                components: [row]
+                            });
+                        } else {
+                            await interaction.editReply({
+                                content: '❌ Status data expired. Use /collector to refresh!',
+                                embeds: [],
+                                components: []
+                            });
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error handling collector department button:', error);
+                }
+                return;
+            }
+
+            // Handle collector overview back button
+            if (interaction.isButton() && interaction.customId.startsWith('collector_overview_')) {
+                try {
+                    const parts = interaction.customId.split('_');
+                    const targetUserId = parts[2];
+                    
+                    if (interaction.user.id !== targetUserId) {
+                        return await interaction.reply({
+                            content: 'You can only view your own shop!',
+                            ephemeral: true
+                        });
+                    }
+                    
+                    await interaction.deferUpdate();
+                    
+                    const collectorCommand = this.commands.get('collector');
+                    if (collectorCommand && collectorCommand.collectorStatusCache) {
+                        const cacheData = collectorCommand.collectorStatusCache.get(targetUserId);
+                        if (cacheData) {
+                            const { shop, departments } = cacheData;
+                            const user = await this.userManager.getUser(targetUserId);
+                            
+                            // Rebuild overview embed
+                            const embed = await collectorCommand.buildOverviewEmbed(
+                                interaction,
+                                user,
+                                shop,
+                                departments,
+                                this.collectorShopManager
+                            );
+                            
+                            // Rebuild department buttons
+                            const components = collectorCommand.buildDepartmentButtons(
+                                departments,
+                                this.collectorShopManager,
+                                targetUserId
+                            );
+                            
+                            await interaction.editReply({
+                                embeds: [embed],
+                                components
+                            });
+                        } else {
+                            await interaction.editReply({
+                                content: '❌ Status data expired. Use /collector to refresh!',
+                                embeds: [],
+                                components: []
+                            });
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error handling collector overview button:', error);
+                }
+                return;
+            }
+
             // Handle button interactions for shop purchases
             if (interaction.isButton() && interaction.customId.startsWith('shop_buy_')) {
                 try {

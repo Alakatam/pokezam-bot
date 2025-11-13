@@ -112,153 +112,154 @@ module.exports = {
             const shop = await collectorShopManager.getOrCreateShop(interaction.user.id);
             const departments = await collectorShopManager.getUserDepartments(interaction.user.id);
 
-            const nextUpgradeCost = collectorShopManager.getGlobalUpgradeCost(shop.shop_level);
-
-            let yamlStatus = '```yaml\n';
-            yamlStatus += '#════════════════════════════════════════\n';
-            yamlStatus += "# 🏪 COLLECTOR'S SHOP STATUS\n";
-            yamlStatus += '#════════════════════════════════════════\n\n';
-
-            yamlStatus += `👤 TRAINER: ${interaction.user.username}\n`;
-            yamlStatus += `💰 CURRENT GOLD: ${user.gold.toLocaleString()}g\n\n`;
-
-            yamlStatus += `🏪 SHOP STATUS:\n`;
-            yamlStatus += `   Shop Level: ${shop.shop_level}\n`;
-            yamlStatus += `   Upgrade Cost: ${nextUpgradeCost.toLocaleString()}g\n`;
-            yamlStatus += `   Max Dept Level: ${shop.shop_level}\n`;
-            yamlStatus += `   Total Coins: ${shop.lifetime_coins_generated.toLocaleString()}g\n`;
-            yamlStatus += `   Total Cards: ${shop.lifetime_cards_generated}\n\n`;
-
-            // Show each unlocked department with detailed explanations
-            const unlockedDepts = departments.filter(d => d.level > 0);
+            // Build clean overview embed
+            const embed = await this.buildOverviewEmbed(interaction, user, shop, departments, collectorShopManager);
             
-            if (unlockedDepts.length > 0) {
-                yamlStatus += `✅ ACTIVE DEPARTMENTS:\n\n`;
+            // Build department navigation buttons
+            const components = this.buildDepartmentButtons(departments, collectorShopManager, interaction.user.id);
 
-                for (const dept of unlockedDepts) {
-                    const config = collectorShopManager.departments[dept.department_id];
-                    const status = await collectorShopManager.getDepartmentStatus(
-                        interaction.user.id,
-                        dept.department_id,
-                        dept.level
-                    );
+            // Cache shop data for button handlers
+            if (!this.collectorStatusCache) this.collectorStatusCache = new Map();
+            this.collectorStatusCache.set(interaction.user.id, {
+                shop,
+                departments,
+                timestamp: Date.now()
+            });
 
-                    yamlStatus += `${config.emoji} ${config.name} (Level ${dept.level})\n`;
-                    yamlStatus += `   📝 ${config.description}\n`;
-
-                    // Show shop status and business variance
-                    if (status.shopStatus) {
-                        yamlStatus += `   ${status.shopStatus}\n`;
-                    }
-                    if (status.varianceDesc) {
-                        yamlStatus += `   ${status.varianceDesc}\n`;
-                    }
-                    if (status.operatingHours) {
-                        yamlStatus += `   ⏰ Operating Hours: ${status.operatingHours}h/day\n`;
-                    }
-
-                    if (config.resource === 'coins') {
-                        yamlStatus += `   💰 Generates: ${status.rate} coins/hour\n`;
-                        yamlStatus += `   📦 Storage: ${status.generated}/${status.capacity} coins\n`;
-                        const timeToFill = ((status.capacity - status.generated) / status.rate).toFixed(1);
-                        yamlStatus += `   ⏱️ Time to Fill: ${timeToFill} hours\n`;
-                        yamlStatus += `   💡 Provides passive income during hours\n`;
-                    } else if (config.resource === 'cards') {
-                        const hoursPerCard = status.rate >= 1 ? `${status.rate.toFixed(2)}/hr` : `1 every ${(1/status.rate).toFixed(1)}hr`;
-                        yamlStatus += `   🃏 Generates: ${hoursPerCard}\n`;
-                        yamlStatus += `   📦 Storage: ${status.generated}/${status.capacity} cards\n`;
-                        const timeToFill = ((status.capacity - status.generated) / status.rate).toFixed(1);
-                        yamlStatus += `   ⏱️ Time to Fill: ${timeToFill} hours\n`;
-                        yamlStatus += `   💡 Random cards with rarity odds!\n`;
-                    } else if (config.resource === 'packs') {
-                        yamlStatus += `   🎁 Find Chance: ${status.chance} per hour\n`;
-                        yamlStatus += `   📦 Storage: ${status.generated}/${status.capacity} packs\n`;
-                        yamlStatus += `   💡 Sealed packs = guaranteed cards\n`;
-                    } else if (config.resource === 'upgrade_chance') {
-                        const chance = config.baseChance + (config.chanceGrowth * (dept.level - 1));
-                        yamlStatus += `   ⬆️ Upgrade Chance: ${(chance * 100).toFixed(1)}%\n`;
-                        yamlStatus += `   🌟 Effect: Common → Uncommon\n`;
-                        if (dept.level >= config.specialUnlock) {
-                            yamlStatus += `   ✨ Bonus: 0.5% Holo chance!\n`;
-                            yamlStatus += `   💡 Makes cards more valuable\n`;
-                        } else {
-                            yamlStatus += `   🔒 Level ${config.specialUnlock}: Unlock Holo boost\n`;
-                            yamlStatus += `   💡 Improves card rarity on collect\n`;
-                        }
-                    } else if (config.resource === 'quality_boost') {
-                        const boost = config.baseChance + (config.chanceGrowth * (dept.level - 1));
-                        yamlStatus += `   ⭐ Quality Boost: ${(boost * 100).toFixed(1)}%\n`;
-                        yamlStatus += `   📈 Effect: Overall better cards\n`;
-                        yamlStatus += `   💡 Increases rare card chances\n`;
-                    }
-
-                    const upgradeCost = Math.round(config.upgradeCost * Math.pow(config.costGrowth, dept.level - 1));
-                    yamlStatus += `   💰 Next Upgrade: ${upgradeCost.toLocaleString()}g\n`;
-                    yamlStatus += '\n';
+            // Clean up old cache (older than 10 minutes)
+            for (const [userId, data] of this.collectorStatusCache.entries()) {
+                if (Date.now() - data.timestamp > 600000) {
+                    this.collectorStatusCache.delete(userId);
                 }
             }
 
-            // Show departments available to unlock
-            const lockedAvailable = Object.entries(collectorShopManager.departments)
-                .filter(([id, config]) => {
-                    const dept = departments.find(d => d.department_id === id);
-                    return (!dept || dept.level === 0) && config.unlockLevel <= shop.shop_level;
-                });
-
-            if (lockedAvailable.length > 0) {
-                yamlStatus += `🔓 READY TO UNLOCK:\n\n`;
-                for (const [id, config] of lockedAvailable) {
-                    yamlStatus += `${config.emoji} ${config.name}\n`;
-                    yamlStatus += `   📝 ${config.description}\n`;
-                    yamlStatus += `   ✅ Available now!\n`;
-                    yamlStatus += `   💰 Cost: ${config.upgradeCost.toLocaleString()}g\n`;
-                    yamlStatus += `   💡 Use /collector upgrade-dept\n\n`;
-                }
-            }
-
-            // Show future locked departments
-            const lockedFuture = Object.entries(collectorShopManager.departments)
-                .filter(([id, config]) => config.unlockLevel > shop.shop_level);
-
-            if (lockedFuture.length > 0) {
-                yamlStatus += `🔒 FUTURE DEPARTMENTS:\n\n`;
-                for (const [id, config] of lockedFuture) {
-                    yamlStatus += `${config.emoji} ${config.name}\n`;
-                    yamlStatus += `   📝 ${config.description}\n`;
-                    yamlStatus += `   🔑 Unlock: Shop Level ${config.unlockLevel}\n\n`;
-                }
-            }
-
-            yamlStatus += '💡 HOW IT WORKS:\n';
-            yamlStatus += '   • Departments open for limited hours daily\n';
-            yamlStatus += '   • Business variance = random busy/slow days\n';
-            yamlStatus += '   • Higher levels = more operating hours\n';
-            yamlStatus += '   • Collect anytime to claim & reopen shop\n';
-            yamlStatus += '   • Upgrade shop to unlock new departments\n\n';
-            
-            yamlStatus += '🎮 COMMANDS:\n';
-            yamlStatus += '   /collector collect - Claim all resources\n';
-            yamlStatus += '   /collector upgrade - Level up shop\n';
-            yamlStatus += '   /collector upgrade-dept - Improve departments\n\n';
-            yamlStatus += '#════════════════════════════════════════\n';
-            yamlStatus += '```';
-
-            const embed = new EmbedBuilder()
-                .setTitle(`🏪 ${interaction.user.username}'s Collector Shop`)
-                .setDescription(yamlStatus)
-                .setColor('#FFD700')
-                .setTimestamp()
-                .setFooter({
-                    text: `Shop Level ${shop.shop_level} • Passive Generation Active`,
-                    iconURL: interaction.user.displayAvatarURL({ dynamic: true })
-                });
-
-            await interaction.editReply({ embeds: [embed] });
+            await interaction.editReply({ 
+                embeds: [embed],
+                components: components.length > 0 ? components : []
+            });
 
         } catch (error) {
             console.error('Error in handleStatus:', error);
             await interaction.editReply({ content: '❌ Error loading shop status!' });
         }
+    },
+
+    /**
+     * Build clean overview embed
+     */
+    async buildOverviewEmbed(interaction, user, shop, departments, collectorShopManager) {
+        const { EmbedBuilder } = require('discord.js');
+        const nextUpgradeCost = collectorShopManager.getGlobalUpgradeCost(shop.shop_level);
+
+        const unlockedDepts = departments.filter(d => d.level > 0);
+        const totalAvailable = Object.keys(collectorShopManager.departments).length;
+
+        // Calculate total ready to collect
+        let totalCoins = 0;
+        let totalCards = 0;
+        let totalPacks = 0;
+        
+        for (const dept of unlockedDepts) {
+            const status = await collectorShopManager.getDepartmentStatus(
+                interaction.user.id,
+                dept.department_id,
+                dept.level
+            );
+            if (status) {
+                const config = collectorShopManager.departments[dept.department_id];
+                if (config.resource === 'coins') totalCoins += status.generated;
+                if (config.resource === 'cards') totalCards += status.generated;
+                if (config.resource === 'packs') totalPacks += status.generated;
+            }
+        }
+
+        let yamlStatus = '```yaml\n';
+        yamlStatus += '#════════════════════════════════════════\n';
+        yamlStatus += "# 🏪 COLLECTOR'S SHOP OVERVIEW\n";
+        yamlStatus += '#════════════════════════════════════════\n\n';
+
+        yamlStatus += `👤 TRAINER: ${interaction.user.username}\n`;
+        yamlStatus += `� GOLD: ${user.gold.toLocaleString()}g\n\n`;
+
+        yamlStatus += `🏪 SHOP LEVEL: ${shop.shop_level}\n`;
+        yamlStatus += `   Upgrade Cost: ${nextUpgradeCost.toLocaleString()}g\n`;
+        yamlStatus += `   Departments: ${unlockedDepts.length}/${totalAvailable} Active\n\n`;
+
+        yamlStatus += `📊 LIFETIME EARNINGS:\n`;
+        yamlStatus += `   Coins: ${shop.lifetime_coins_generated.toLocaleString()}g\n`;
+        yamlStatus += `   Cards: ${shop.lifetime_cards_generated}\n\n`;
+
+        if (totalCoins > 0 || totalCards > 0 || totalPacks > 0) {
+            yamlStatus += `💼 READY TO COLLECT:\n`;
+            if (totalCoins > 0) yamlStatus += `   � Coins: ${totalCoins.toLocaleString()}g\n`;
+            if (totalCards > 0) yamlStatus += `   🃏 Cards: ${totalCards}\n`;
+            if (totalPacks > 0) yamlStatus += `   🎁 Packs: ${totalPacks}\n`;
+            yamlStatus += '\n';
+        }
+
+        yamlStatus += '💡 Click buttons below for department details!\n';
+        yamlStatus += '#════════════════════════════════════════\n';
+        yamlStatus += '```';
+
+        const embed = new EmbedBuilder()
+            .setTitle(`🏪 ${interaction.user.username}'s Collector Shop`)
+            .setDescription(yamlStatus)
+            .setColor('#FFD700')
+            .setTimestamp()
+            .setFooter({
+                text: `Shop Level ${shop.shop_level} • Use /collector collect to claim rewards`,
+                iconURL: interaction.user.displayAvatarURL({ dynamic: true })
+            });
+
+        return embed;
+    },
+
+    /**
+     * Build department navigation buttons
+     */
+    buildDepartmentButtons(departments, collectorShopManager, userId) {
+        const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+        const rows = [];
+
+        // Row 1: Active departments (unlocked, level > 0)
+        const activeDepts = departments.filter(d => d.level > 0);
+        if (activeDepts.length > 0) {
+            const activeRow = new ActionRowBuilder();
+            for (const dept of activeDepts.slice(0, 5)) { // Max 5 buttons per row
+                const config = collectorShopManager.departments[dept.department_id];
+                activeRow.addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`collector_dept_${dept.department_id}_${userId}`)
+                        .setLabel(`${config.emoji} ${config.name}`)
+                        .setStyle(ButtonStyle.Primary)
+                );
+            }
+            rows.push(activeRow);
+        }
+
+        // Row 2: Locked/Available departments
+        const allDeptIds = Object.keys(collectorShopManager.departments);
+        const lockedDepts = allDeptIds.filter(id => {
+            const dept = departments.find(d => d.department_id === id);
+            return !dept || dept.level === 0;
+        }).slice(0, 5); // Max 5 buttons
+
+        if (lockedDepts.length > 0) {
+            const lockedRow = new ActionRowBuilder();
+            for (const deptId of lockedDepts) {
+                const config = collectorShopManager.departments[deptId];
+                lockedRow.addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`collector_dept_${deptId}_${userId}`)
+                        .setLabel(`${config.emoji} ${config.name}`)
+                        .setStyle(ButtonStyle.Secondary)
+                        .setDisabled(true) // Locked departments are disabled
+                );
+            }
+            rows.push(lockedRow);
+        }
+
+        return rows;
     },
 
     /**
@@ -585,6 +586,121 @@ module.exports = {
             console.error('Error in handleUpgradeDept:', error);
             await interaction.editReply({ content: '❌ Error upgrading department!' });
         }
+    },
+
+    /**
+     * Build department detail embed
+     */
+    async buildDepartmentEmbed(interaction, deptId, shop, departments, collectorShopManager) {
+        const { EmbedBuilder } = require('discord.js');
+        const config = collectorShopManager.departments[deptId];
+        const dept = departments.find(d => d.department_id === deptId);
+
+        if (!dept || dept.level === 0) {
+            // Locked department
+            let yamlStatus = '```yaml\n';
+            yamlStatus += '#════════════════════════════════════════\n';
+            yamlStatus += `# ${config.emoji} ${config.name.toUpperCase()}\n`;
+            yamlStatus += '#════════════════════════════════════════\n\n';
+
+            yamlStatus += `🔒 STATUS: LOCKED\n\n`;
+
+            yamlStatus += `📝 DESCRIPTION:\n`;
+            yamlStatus += `   ${config.description}\n\n`;
+
+            yamlStatus += `🔑 UNLOCK REQUIREMENTS:\n`;
+            yamlStatus += `   Shop Level: ${config.unlockLevel}\n`;
+            yamlStatus += `   Unlock Cost: ${config.upgradeCost.toLocaleString()}g\n\n`;
+
+            yamlStatus += `💡 Use /collector upgrade-dept to unlock!\n`;
+            yamlStatus += '#════════════════════════════════════════\n';
+            yamlStatus += '```';
+
+            return new EmbedBuilder()
+                .setTitle(`${config.emoji} ${config.name}`)
+                .setDescription(yamlStatus)
+                .setColor('#808080')
+                .setTimestamp();
+        }
+
+        // Active department - show full details
+        const status = await collectorShopManager.getDepartmentStatus(
+            interaction.user.id,
+            deptId,
+            dept.level
+        );
+
+        let yamlStatus = '```yaml\n';
+        yamlStatus += '#════════════════════════════════════════\n';
+        yamlStatus += `# ${config.emoji} ${config.name.toUpperCase()} - LEVEL ${dept.level}\n`;
+        yamlStatus += '#════════════════════════════════════════\n\n';
+
+        yamlStatus += `📝 DESCRIPTION:\n`;
+        yamlStatus += `   ${config.description}\n\n`;
+
+        // Show shop status and variance
+        if (status.shopStatus) {
+            yamlStatus += `${status.shopStatus}\n`;
+        }
+        if (status.varianceDesc) {
+            yamlStatus += `${status.varianceDesc}\n`;
+        }
+        if (status.operatingHours) {
+            yamlStatus += `⏰ OPERATING HOURS: ${status.operatingHours}h/day\n\n`;
+        }
+
+        // Resource-specific information
+        if (config.resource === 'coins') {
+            yamlStatus += `💰 GENERATION:\n`;
+            yamlStatus += `   Rate: ${status.rate} coins/hour\n`;
+            yamlStatus += `   Storage: ${status.generated}/${status.capacity} coins\n`;
+            const timeToFill = ((status.capacity - status.generated) / status.rate).toFixed(1);
+            yamlStatus += `   Time to Fill: ${timeToFill} hours\n\n`;
+        } else if (config.resource === 'cards') {
+            const hoursPerCard = status.rate >= 1 ? `${status.rate.toFixed(2)}/hr` : `1 every ${(1/status.rate).toFixed(1)}hr`;
+            yamlStatus += `🃏 GENERATION:\n`;
+            yamlStatus += `   Rate: ${hoursPerCard}\n`;
+            yamlStatus += `   Storage: ${status.generated}/${status.capacity} cards\n`;
+            const timeToFill = ((status.capacity - status.generated) / status.rate).toFixed(1);
+            yamlStatus += `   Time to Fill: ${timeToFill} hours\n\n`;
+        } else if (config.resource === 'packs') {
+            yamlStatus += `🎁 PACK GENERATION:\n`;
+            yamlStatus += `   Find Chance: ${status.chance} per hour\n`;
+            yamlStatus += `   Storage: ${status.generated}/${status.capacity} packs\n\n`;
+        } else if (config.resource === 'upgrade_chance') {
+            const chance = config.baseChance + (config.chanceGrowth * (dept.level - 1));
+            yamlStatus += `⬆️ UPGRADE SYSTEM:\n`;
+            yamlStatus += `   Upgrade Chance: ${(chance * 100).toFixed(1)}%\n`;
+            yamlStatus += `   Effect: Common → Uncommon\n`;
+            if (dept.level >= config.specialUnlock) {
+                yamlStatus += `   ✨ Bonus: 0.5% Holo chance!\n\n`;
+            } else {
+                yamlStatus += `   🔒 Unlock at Level ${config.specialUnlock}\n\n`;
+            }
+        } else if (config.resource === 'quality_boost') {
+            const boost = config.baseChance + (config.chanceGrowth * (dept.level - 1));
+            yamlStatus += `⭐ QUALITY BOOST:\n`;
+            yamlStatus += `   Boost Chance: ${(boost * 100).toFixed(1)}%\n`;
+            yamlStatus += `   Effect: Overall better cards\n\n`;
+        }
+
+        // Upgrade information
+        const upgradeCost = Math.round(config.upgradeCost * Math.pow(config.costGrowth, dept.level - 1));
+        yamlStatus += `📈 UPGRADE INFO:\n`;
+        yamlStatus += `   Current Level: ${dept.level}\n`;
+        yamlStatus += `   Upgrade Cost: ${upgradeCost.toLocaleString()}g\n`;
+        yamlStatus += `   Max Level: ${shop.shop_level}\n\n`;
+
+        yamlStatus += '💡 Use /collector upgrade-dept to improve!\n';
+        yamlStatus += '#════════════════════════════════════════\n';
+        yamlStatus += '```';
+
+        return new EmbedBuilder()
+            .setTitle(`${config.emoji} ${config.name}`)
+            .setDescription(yamlStatus)
+            .setColor('#FFD700')
+            .setTimestamp()
+            .setFooter({ text: `Level ${dept.level} • Click ◀ Back to return to overview` });
     },
 
     /**
