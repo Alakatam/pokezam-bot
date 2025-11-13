@@ -945,8 +945,10 @@ class PokezamBot {
                 return;
             }
 
-            // Handle button interactions for collector shop
-            if (interaction.isButton() && interaction.customId.startsWith('collector_')) {
+            // Handle button interactions for collector shop (collect/upgrade only)
+            if (interaction.isButton() && 
+                (interaction.customId.startsWith('collector_collect_') || 
+                 interaction.customId.startsWith('collector_upgrade_'))) {
                 try {
                     const parts = interaction.customId.split('_');
                     const action = parts[1]; // 'collect' or 'upgrade'
