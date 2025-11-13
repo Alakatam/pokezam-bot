@@ -1,6 +1,6 @@
 # 🎴 Pokézam TCG Bot
 
-The ultimate Discord bot for Pokemon Trading Card Game enthusiasts! Collect authentic Pokemon TCG cards, complete quests, build your collection, and compete with friends in an immersive Pokemon card collecting experience.
+The ultimate Discord bot for Pokemon Trading Card Game enthusiasts! Collect authentic Pokemon TCG cards, complete quests, build your collection, manage your own card shop, and compete with friends in an immersive Pokemon card collecting experience.
 
 ![Pokemon TCG](https://img.shields.io/badge/Pokemon-TCG%20Bot-yellow.svg)
 ![Discord](https://img.shields.io/badge/Discord-Bot-blue.svg)
@@ -12,60 +12,78 @@ The ultimate Discord bot for Pokemon Trading Card Game enthusiasts! Collect auth
 ### 🎯 Card Collection System
 - **14,926 Real Pokemon TCG Cards**: Complete database from Base Set to current releases
 - **Multiple Pack Types**: Master Packs, Premium Packs, Vintage Packs with unique mechanics
-- **Individual Card Drawing**: `/zam` command for single card collection
+- **Individual Card Drawing**: `/zam` command for single card collection with 5-second cooldown
 - **Master Set Variants**: First Edition, Shadowless, and Unlimited variants
 - **Generation-Based Progression**: Unlock card generations by leveling up
 
+### 🏬 Collector Shop System (NEW!)
+- **Run Your Own Card Shop**: Build and manage departments that generate passive income
+- **5 Unique Departments**: Trade Counter (coins), Bulk Bin (cards), Premium Crate (packs), Expert Grader (upgrades), Glass Display Case (quality boosts)
+- **Shop Hours Mechanic**: Departments operate for limited hours daily (4h-12h), close after operating hours
+- **Daily Variance System**: Business fluctuates with busy days (1.3x) and slow days (0.7x)
+- **Progressive Upgrades**: Level up departments to 15 for increased generation and capacity
+- **Strategic Collection**: Can only collect rewards when shop closes, encouraging active timing
+
 ### 🛒 Economy & Shop System
-- **Gold Currency**: Earn gold from card draws and quests
-- **Daily Rewards**: Daily gold claims with streak bonuses
-- **Item Shop**: 16 different boost items and consumables
+- **Gold Currency**: Earn gold from card draws, quests, and your collector shop
+- **Daily Rewards**: Daily gold claims with progressive streak bonuses
+- **Item Shop**: 16 different boost items and consumables across 4 categories
 - **Inventory Management**: Use items to enhance gameplay experience
-- **Active Effects**: Track boost items and their durations
+- **Active Effects Tracking**: Monitor boost items and their durations with `/active-boosts`
 
 ### 🎯 Quest System
 - **Daily, Weekly, Monthly Quests**: 9 different quest types with auto-assignment
 - **Progress Tracking**: Real-time quest progress with YAML-formatted displays
 - **Automatic Reset**: Smart quest reset system with hourly checking
-- **Gold Rewards**: Complete quests to earn substantial gold bonuses
+- **Gold Rewards**: Complete quests to earn substantial gold bonuses (150-50,000 gold)
 
 ### 📊 Collection Management
 - **Carddex Systems**: Regular and Master Set collection tracking
-- **Binder View**: Visual card organization and filtering
+- **Binder View**: Visual card organization and filtering by generation
 - **Master Collection**: Specialized tracking for Master Set variants
-- **Profile Statistics**: Comprehensive user statistics and achievements
-- **Collection Completion**: Track progress across all card sets and generations
+- **Profile Statistics**: Comprehensive user statistics, achievements, and collection progress
+- **Set Completion Tracking**: Track progress across all card sets and generations
 
 ### 🎮 User Experience
-- **Slash Commands**: 24 easy-to-use Discord slash commands
+- **Slash Commands**: 25+ easy-to-use Discord slash commands
 - **Interactive Interface**: Buttons, dropdowns, and smooth navigation
-- **Beautiful Displays**: Rich embeds with emojis and organized layouts
-- **Achievement Celebrations**: Auto reactions for special moments
+- **Beautiful Displays**: Rich embeds with emojis and YAML-formatted layouts
+- **Achievement Celebrations**: Auto reactions for special moments and rare pulls
 - **Mobile Optimized**: Clean interface that works great on all devices
+- **Pagination System**: Navigate large collections with intuitive button controls
 
 ## 🚀 Getting Started
 
 ### Add Pokézam to Your Server
-1. **[Invite Pokézam](https://discord.com/oauth2/authorize?client_id=YOUR_BOT_ID&permissions=2147534912&scope=bot%20applications.commands)** to your Discord server
+1. **Invite Pokézam** to your Discord server
 2. Use `/start` to begin your Pokemon TCG collection journey
 3. Try `/zam` to draw your first Pokemon card!
+4. Build your `/collector` shop and start generating passive income!
 
 ### First Steps
-- `/start` - Initialize your collector profile
+- `/start` - Initialize your collector profile and get Welcome Charm (125 uses)
 - `/help` - Learn about all available commands  
 - `/zam` - Draw a Pokemon card and earn rewards
-- `/profile` - View your collection statistics
-- `/shop` - Browse items to boost your collection
+- `/collector` - Set up your card shop departments
+- `/profile` - View your collection statistics and level
 
-## 📝 Commands (24 Total)
+## 📝 Commands (25+ Total)
 
 ### 🎴 Card Collection
 | Command | Description |
 |---------|-------------|
-| `/zam` | Draw a single Pokemon card with rewards |
+| `/zam` | Draw a single Pokemon card with rewards (5s cooldown) |
 | `/master-pack` | Open premium 5-card Master Set pack |
 | `/premium-pack` | Open premium 3-card pack with enhanced rates |
 | `/vintage-pack` | Open vintage 4-card pack with classic cards |
+
+### 🏬 Collector Shop (NEW!)
+| Command | Description |
+|---------|-------------|
+| `/collector` | View shop status, departments, and collect rewards |
+| `/collector collect` | Collect from all departments (only when shops are closed) |
+| `/collector upgrade <dept>` | Upgrade department level (max 15) |
+| `/collector upgrade shop` | Increase global shop level cap |
 
 ### 📊 Collection Management
 | Command | Description |
@@ -75,9 +93,7 @@ The ultimate Discord bot for Pokemon Trading Card Game enthusiasts! Collect auth
 | `/carddex-reg` | View regular card collection progress |
 | `/carddex-master` | View Master Set collection progress |
 | `/master-collection [user]` | Specialized Master Set variant tracking |
-| `/card-info <name>` | Detailed card lookup with stats, rarity, and ownership data |
 | `/leaderboard` | View community rankings across multiple categories |
-| `/achievement [category] [user]` | View achievement progress and earned badges |
 
 ### 🎯 Quests & Economy
 | Command | Description |
@@ -95,6 +111,7 @@ The ultimate Discord bot for Pokemon Trading Card Game enthusiasts! Collect auth
 | `/start` | Begin your Pokemon TCG collection journey |
 | `/help` | Comprehensive command help and guides |
 | `/faq` | Frequently asked questions and tips |
+| `/sync` | Synchronize TCG data (admin only) |
 
 
 
@@ -118,18 +135,65 @@ Experience the complete Pokemon TCG collecting with authentic variants:
 
 ### Generation Progression System
 Unlock card generations as you level up:
-- **Level 1-4**: Generation I (Kanto region classics)
-- **Level 5-9**: Generation II (Johto region)  
-- **Level 10-14**: Generation III (Hoenn region)
-- **Level 15-19**: Generation IV (Sinnoh region)
-- **Level 20-24**: Generation V (Unova region)
-- **Level 25+**: All generations unlocked
+- **Level 1**: Generation I (Kanto region classics)
+- **Level 10**: Generation II (Johto region)
+- **Level 20**: Generation II e-Card Series
+- **Level 35**: Generation III (Hoenn region)
+- **Level 60**: Generation IV Diamond & Pearl
+- **Level 80**: Generation IV Platinum
+- **Level 90**: Generation IV HeartGold & SoulSilver
+- **Level 110**: Generation V (Unova region)
+- **Level 130**: Generation VI (Kalos region)
+- **Level 150**: Generation VII (Alola region)
+- **Level 170**: Generation VIII (Galar region)
+- **Level 200**: Generation IX (Paldea region)
 
 ### Economy System
-- **Gold Currency**: Primary currency earned from cards and quests
+- **Gold Currency**: Primary currency earned from cards, quests, and collector shop
 - **Daily Streaks**: Consecutive daily claims increase rewards
 - **Item Effects**: Boost gold earnings and card rarity chances
-- **Quest Rewards**: Substantial gold bonuses for completed objectives
+- **Quest Rewards**: Substantial gold bonuses (150-50,000 gold)
+- **Passive Income**: Collector shop generates gold even while offline
+
+### Collector Shop System (NEW!)
+Build and manage your own Pokemon card shop empire:
+
+**Departments Available:**
+- **💰 Trade Counter** (Level 1+) - Generates gold coins passively
+  - Level 15 Max: 466,704 gold per day
+  - 4h base hours → 12h max operating hours
+- **🃏 Bulk Bin** (Level 5+) - Produces random Pokemon cards
+  - Generates cards with rarity rolls
+  - Time-gated production
+- **📦 Premium Crate** (Level 10+) - Creates premium card packs
+  - Higher quality pack generation
+  - Limited daily production
+- **🎓 Expert Grader** (Level 15+) - Increases card upgrade chances
+  - Boost: +5% per level (max +75%)
+  - Passive bonus department
+- **💎 Glass Display Case** (Level 20+) - Improves card quality chances
+  - Boost: +3% per level (max +45%)
+  - Passive bonus department
+
+**Shop Hours Mechanic:**
+- Departments open when you collect rewards
+- Operate for limited hours (4h-12h based on level)
+- Close automatically after operating hours elapse
+- Can only collect when shop is closed
+- Strategic timing rewards active players
+
+**Daily Variance:**
+- 🔥 Extremely Busy Day: 1.2x-1.3x generation
+- 📈 Busy Day: 1.1x-1.19x generation
+- 📊 Normal Day: 0.95x-1.09x generation
+- 📉 Slow Day: 0.8x-0.94x generation
+- 😴 Very Slow Day: 0.7x-0.79x generation
+
+**Progression:**
+- Level Cap: 15 for all departments
+- Shop Level: Must be upgraded to unlock department levels
+- Upgrade Costs: Increase exponentially with level
+- Balanced for long-term gameplay
 
 ### Quest Mechanics
 **Auto-Assignment System**: Quests automatically assigned when completed
@@ -150,22 +214,27 @@ Unlock card generations as you level up:
 ✅ **Active Development** - Regular updates and new features  
 ✅ **User-Friendly** - Easy commands and intuitive interface  
 ✅ **Engaging Gameplay** - Quests, achievements, and progression  
+✅ **Collector Shop System** - Build your own card shop empire  
+✅ **Passive Income** - Earn rewards even when offline  
 ✅ **Community Features** - View others' collections and compete  
 ✅ **Mobile Optimized** - Works perfectly on Discord mobile  
+✅ **Strategic Depth** - Shop hours, variance, and timing mechanics  
 
-## � Support & Community
+## 📞 Support & Community
 
 **Need Help?**
 - Use `/help` in Discord for command assistance
-- Check `/faq` for common questions
-- Join our community server for support and updates
+- Check `/faq` for common questions and detailed guides
+- Report bugs or issues through Discord
 
-**Found a Bug?**
-- Report issues through Discord or GitHub
-- Include command used and error details
+**Features Coming Soon:**
+- Additional TCG set expansions
+- Achievement system enhancements
+- Collector shop competitive leaderboards
+- Trading system between players
 
 ---
 
 **Ready to catch 'em all?** 🎉
 
-**[Invite Pokézam to your server](https://discord.com/oauth2/authorize?client_id=YOUR_BOT_ID&permissions=2147534912&scope=bot%20applications.commands)** and start your Pokemon TCG collection journey today!
+Start your Pokemon TCG collection journey today and build your card shop empire!
