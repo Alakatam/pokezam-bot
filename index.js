@@ -1,3 +1,4 @@
+// Pokezam TCG Bot - Production Ready (Nov 12, 2025)
 require('dotenv').config();
 const { Client, Collection, GatewayIntentBits, Partials, REST, Routes, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const fs = require('fs');
