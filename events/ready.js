@@ -50,6 +50,11 @@ module.exports = {
             // Wait 10 seconds after bot ready to ensure everything is stable
             setTimeout(async () => {
                 try {
+                    // Add shop hours columns if needed
+                    const addShopHoursColumns = require('../scripts/addShopHoursColumns');
+                    console.log('🔧 Checking shop hours columns...');
+                    addShopHoursColumns.addShopHoursColumns().catch(err => console.error('Shop hours migration error:', err));
+
                     // Fix collector_pending_cards schema if needed
                     const fixCollectorSchema = require('../scripts/fixCollectorPendingCardsSchema');
                     console.log('🔧 Checking collector_pending_cards schema...');
