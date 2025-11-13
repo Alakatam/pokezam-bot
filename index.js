@@ -945,7 +945,8 @@ class PokezamBot {
                 return;
             }
 
-            // Handle button interactions for collector shop (collect/upgrade only)
+            // Handle button interactions for collector shop (collect/upgrade actions only)
+            // Department and overview buttons are handled separately below
             if (interaction.isButton() && 
                 (interaction.customId.startsWith('collector_collect_') || 
                  interaction.customId.startsWith('collector_upgrade_'))) {
