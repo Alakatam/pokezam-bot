@@ -135,12 +135,18 @@ Experience the complete Pokemon TCG collecting with authentic variants:
 
 ### Generation Progression System
 Unlock card generations as you level up:
-- **Level 1-4**: Generation I (Kanto region classics)
-- **Level 5-9**: Generation II (Johto region)  
-- **Level 10-14**: Generation III (Hoenn region)
-- **Level 15-19**: Generation IV (Sinnoh region)
-- **Level 20-24**: Generation V (Unova region)
-- **Level 25+**: All generations unlocked
+- **Level 1**: Generation I (Kanto region classics)
+- **Level 10**: Generation II (Johto region)
+- **Level 20**: Generation II e-Card Series
+- **Level 35**: Generation III (Hoenn region)
+- **Level 60**: Generation IV Diamond & Pearl
+- **Level 80**: Generation IV Platinum
+- **Level 90**: Generation IV HeartGold & SoulSilver
+- **Level 110**: Generation V (Unova region)
+- **Level 130**: Generation VI (Kalos region)
+- **Level 150**: Generation VII (Alola region)
+- **Level 170**: Generation VIII (Galar region)
+- **Level 200**: Generation IX (Paldea region)
 
 ### Economy System
 - **Gold Currency**: Primary currency earned from cards, quests, and collector shop
