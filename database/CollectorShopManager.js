@@ -18,10 +18,10 @@ class CollectorShopManager {
                 resource: 'coins',
                 unlockLevel: 1,
                 description: 'Generates coins passively',
-                baseGeneration: 100,     // coins/hour at level 1 (was 50, +100%)
-                generationGrowth: 1.25,  // Multiplier per level (was 1.5, more conservative)
-                baseCapacity: 1000,      // capacity at level 1 (was 500, +100%)
-                capacityGrowth: 1.25,    // Multiplier per level (was 1.5, more conservative)
+                baseGeneration: 500,     // coins/hour at level 1 (was 100, +400%)
+                generationGrowth: 1.5,   // Multiplier per level (was 1.25, aggressive scaling)
+                baseCapacity: 5000,      // capacity at level 1 (was 1000, +400%)
+                capacityGrowth: 1.5,     // Multiplier per level (was 1.25, aggressive)
                 fillTime: 10,            // Hours to fill (kept consistent)
                 upgradeCost: 500,        // Base upgrade cost
                 costGrowth: 1.3,         // Cost multiplier per level
@@ -452,12 +452,25 @@ class CollectorShopManager {
                 return { success: false, error: 'Department not unlocked' };
             }
 
+            // Check if shop is closed before allowing collection
+            const config = this.departments[departmentId];
+            if (config.resource !== 'upgrade_chance' && config.resource !== 'quality_boost') {
+                // Only generator departments (coins, cards, packs) need to be closed
+                if (this.isShopOpen(dept)) {
+                    const status = this.getShopStatus(dept);
+                    const operatingHours = this.getOperatingHours(departmentId, dept.level);
+                    return { 
+                        success: false, 
+                        error: `🔒 Shop is still open!\n\n${status}\n⏰ Operating Hours: ${operatingHours}h/day\n\n💡 You can only collect after the shop closes for the day.`
+                    };
+                }
+            }
+
             const status = await this.getDepartmentStatus(userId, departmentId, dept.level);
             if (!status) {
                 return { success: false, error: 'Could not get department status' };
             }
 
-            const config = this.departments[departmentId];
             const collected = {
                 coins: 0,
                 cards: 0,
