@@ -1030,13 +1030,33 @@ class PokezamBot {
                             // Navigation buttons
                             const row = new ActionRowBuilder();
                             
-                            if (currentPage > 0) {
-                                row.addComponents(
-                                    new ButtonBuilder()
-                                        .setCustomId(`view_holo_${targetUserId}_${currentPage - 1}`)
-                                        .setLabel('◀ Previous')
-                                        .setStyle(ButtonStyle.Secondary)
-                                );
+                            // Back to Results button (always shown)
+                            row.addComponents(
+                                new ButtonBuilder()
+                                    .setCustomId(`view_holo_back_${targetUserId}`)
+                                    .setLabel('◀ Back to Results')
+                                    .setStyle(ButtonStyle.Success)
+                            );
+                            
+                            // Navigation buttons (if multiple pages)
+                            if (totalPages > 1) {
+                                if (currentPage > 0) {
+                                    row.addComponents(
+                                        new ButtonBuilder()
+                                            .setCustomId(`view_holo_${targetUserId}_${currentPage - 1}`)
+                                            .setLabel('Previous')
+                                            .setStyle(ButtonStyle.Secondary)
+                                    );
+                                }
+                                
+                                if (currentPage < totalPages - 1) {
+                                    row.addComponents(
+                                        new ButtonBuilder()
+                                            .setCustomId(`view_holo_${targetUserId}_${currentPage + 1}`)
+                                            .setLabel('Next')
+                                            .setStyle(ButtonStyle.Secondary)
+                                    );
+                                }
                             }
                             
                             row.addComponents(
@@ -1045,15 +1065,6 @@ class PokezamBot {
                                     .setLabel('Close')
                                     .setStyle(ButtonStyle.Danger)
                             );
-                            
-                            if (currentPage < totalPages - 1) {
-                                row.addComponents(
-                                    new ButtonBuilder()
-                                        .setCustomId(`view_holo_${targetUserId}_${currentPage + 1}`)
-                                        .setLabel('Next ▶')
-                                        .setStyle(ButtonStyle.Secondary)
-                                );
-                            }
                             
                             await interaction.editReply({
                                 embeds: [embed],
@@ -1094,6 +1105,53 @@ class PokezamBot {
                     });
                 } catch (error) {
                     console.error('Error closing holo card viewer:', error);
+                }
+                return;
+            }
+
+            // Handle back button for Holo+ viewer (return to results)
+            if (interaction.isButton() && interaction.customId.startsWith('view_holo_back_')) {
+                try {
+                    const parts = interaction.customId.split('_');
+                    const targetUserId = parts[3];
+                    
+                    if (interaction.user.id !== targetUserId) {
+                        return await interaction.reply({
+                            content: 'You can only view your own results!',
+                            ephemeral: true
+                        });
+                    }
+                    
+                    await interaction.deferUpdate();
+                    
+                    const collectorCommand = this.commands.get('collector');
+                    if (collectorCommand && collectorCommand.holoCardCache) {
+                        const cacheData = collectorCommand.holoCardCache.get(targetUserId);
+                        if (cacheData && cacheData.resultsEmbed) {
+                            // Restore the original results embed with "View Holo+ Cards" button
+                            const row = new ActionRowBuilder()
+                                .addComponents(
+                                    new ButtonBuilder()
+                                        .setCustomId(`view_holo_${targetUserId}_0`)
+                                        .setLabel(`View Holo+ Cards (${cacheData.cards.length})`)
+                                        .setEmoji('✨')
+                                        .setStyle(ButtonStyle.Primary)
+                                );
+                            
+                            await interaction.editReply({
+                                embeds: [cacheData.resultsEmbed],
+                                components: [row]
+                            });
+                        } else {
+                            await interaction.editReply({
+                                content: '❌ Results data expired. Please collect again!',
+                                embeds: [],
+                                components: []
+                            });
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error handling back button:', error);
                 }
                 return;
             }
