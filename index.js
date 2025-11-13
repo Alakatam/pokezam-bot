@@ -1162,9 +1162,13 @@ class PokezamBot {
             // Handle collector department detail button
             if (interaction.isButton() && interaction.customId.startsWith('collector_dept_')) {
                 try {
-                    const parts = interaction.customId.split('_');
-                    const deptId = parts[2];
-                    const targetUserId = parts[3];
+                    // Format: collector_dept_{deptId}_{userId}
+                    // But deptId can contain underscores (e.g., "trade_counter")
+                    // So we extract userId from the end
+                    const customId = interaction.customId;
+                    const lastUnderscoreIndex = customId.lastIndexOf('_');
+                    const targetUserId = customId.substring(lastUnderscoreIndex + 1);
+                    const deptId = customId.substring('collector_dept_'.length, lastUnderscoreIndex);
                     
                     if (interaction.user.id !== targetUserId) {
                         return await interaction.reply({
