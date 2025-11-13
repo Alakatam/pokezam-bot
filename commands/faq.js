@@ -11,7 +11,8 @@ module.exports = {
                 .addChoices(
                     { name: '🎯 Getting Started', value: 'getting-started' },
                     { name: '🎴 Cards & Drawing', value: 'cards' },
-                    { name: '🎯 Quests & XP', value: 'quests' },
+                    { name: '� Collector Shop', value: 'collector' },
+                    { name: '�🎯 Quests & XP', value: 'quests' },
                     { name: '🛒 Shop & Items', value: 'shop' },
                     { name: '📊 Levels & Progression', value: 'progression' },
                     { name: '🔧 Commands & Features', value: 'commands' }
@@ -114,21 +115,29 @@ support                : "Use buttons below for detailed help!"
                     .setLabel('🎴 Cards & Drawing')
                     .setStyle(ButtonStyle.Primary),
                 new ButtonBuilder()
-                    .setCustomId('faq_quests')
-                    .setLabel('🎯 Quests & XP')
-                    .setStyle(ButtonStyle.Primary)
+                    .setCustomId('faq_collector')
+                    .setLabel('� Collector Shop')
+                    .setStyle(ButtonStyle.Success)
             );
 
         const buttons2 = new ActionRowBuilder()
             .addComponents(
+                new ButtonBuilder()
+                    .setCustomId('faq_quests')
+                    .setLabel('🎯 Quests & XP')
+                    .setStyle(ButtonStyle.Primary),
                 new ButtonBuilder()
                     .setCustomId('faq_shop')
                     .setLabel('🛒 Shop & Items')
                     .setStyle(ButtonStyle.Primary),
                 new ButtonBuilder()
                     .setCustomId('faq_progression')
-                    .setLabel('📊 Levels & Progression')
-                    .setStyle(ButtonStyle.Primary),
+                    .setLabel('📊 Levels')
+                    .setStyle(ButtonStyle.Primary)
+            );
+
+        const buttons3 = new ActionRowBuilder()
+            .addComponents(
                 new ButtonBuilder()
                     .setCustomId('faq_commands')
                     .setLabel('🔧 Commands & Features')
@@ -147,7 +156,7 @@ support                : "Use buttons below for detailed help!"
 
         await interaction.editReply({
             embeds: [embed],
-            components: [buttons, buttons2]
+            components: [buttons, buttons2, buttons3]
         });
     },
 
@@ -307,6 +316,136 @@ earning gold:
 spending gold:
   shop items           : "50,000-500,000+ gold"
   boosts               : "Gold/Luck/Special effects"
+
+#═══════════════════════════════════════════════════
+\`\`\``
+            },
+
+            'collector': {
+                title: '🏬 Collector Shop System',
+                color: 0x00CED1,
+                content: `\`\`\`yaml
+#═══════════════════════════════════════════════════
+# 🏬 COLLECTOR SHOP - BUILD YOUR CARD EMPIRE
+#═══════════════════════════════════════════════════
+
+❓ "What is the Collector Shop?"
+description            : "Build and manage your own Pokemon card shop!"
+gameplay               : "Tycoon-style passive generation system"
+departments            : "5 unique departments with different resources"
+progression            : "Level up to 15 for maximum generation"
+
+❓ "How do I access the Collector Shop?"
+command                : "/collector (view status and collect)"
+requirement            : "Must complete /start first"
+navigation             : "Button-based interface with pagination"
+
+❓ "What are the departments?"
+generator departments:
+  💰 trade counter:
+    unlock             : "Level 1 (always available)"
+    generates          : "Gold coins passively"
+    level 1 rate       : "1,400 gold/day"
+    level 15 max       : "466,704 gold/day"
+    
+  🃏 bulk bin:
+    unlock             : "Level 5"
+    generates          : "Random Pokemon cards"
+    includes rarities  : "All card rarities possible"
+    
+  📦 premium crate:
+    unlock             : "Level 10"
+    generates          : "Premium card packs"
+    quality            : "Higher rarity chances"
+
+bonus departments:
+  🎓 expert grader:
+    unlock             : "Level 15"
+    effect             : "+5% upgrade chance per level"
+    max bonus          : "+75% at level 15"
+    
+  💎 glass display case:
+    unlock             : "Level 20"
+    effect             : "+3% quality boost per level"
+    max bonus          : "+45% at level 15"
+
+❓ "What is the Shop Hours system?"
+mechanics              : "Departments have limited operating hours"
+base hours             : "4 hours/day at level 1"
+max hours              : "12 hours/day at level 11+"
+growth                 : "+0.8 hours per level"
+
+how it works:
+  shop opens           : "When you collect rewards"
+  shop closes          : "After operating hours elapse"
+  collection           : "Only possible when shop is CLOSED"
+  strategic timing     : "Wait for shops to close before collecting"
+
+❓ "What is Daily Variance?"
+description            : "Random business quality multiplier each collection"
+range                  : "0.7x (slow) to 1.3x (busy)"
+
+variance levels:
+  🔥 extremely busy    : "1.2x-1.3x generation (+20-30%)"
+  📈 busy day          : "1.1x-1.19x generation (+10-19%)"
+  📊 normal day        : "0.95x-1.09x generation (standard)"
+  📉 slow day          : "0.8x-0.94x generation (-6 to -20%)"
+  😴 very slow day     : "0.7x-0.79x generation (-21 to -30%)"
+
+impact                 : "Makes each collection unique and exciting!"
+
+❓ "How do I collect resources?"
+command                : "/collector collect"
+restriction            : "Can ONLY collect when shop is closed"
+error message          : "Shows time remaining if shop still open"
+automatic variance     : "New variance generated each collection"
+shop reopens           : "Operating hours restart after collection"
+
+❓ "How do I upgrade departments?"
+shop level             : "/collector upgrade shop"
+departments            : "/collector upgrade <department_name>"
+level cap              : "15 for all departments"
+requirement            : "Department level cannot exceed shop level"
+
+upgrade costs:
+  shop level           : "Increases exponentially"
+  departments          : "Base cost × 1.3^level"
+  example costs        : "500g → 650g → 845g → 1,098g..."
+
+❓ "What's the progression strategy?"
+early game (levels 1-5):
+  focus                : "Trade Counter upgrades"
+  goal                 : "Build gold income foundation"
+  daily generation     : "1,400g → 9,680g"
+  
+mid game (levels 5-10):
+  unlock               : "Bulk Bin for cards"
+  strategy             : "Balance gold + card generation"
+  daily generation     : "~20,000-80,000g possible"
+  
+late game (levels 10-15):
+  unlock               : "Premium Crate + Expert Grader"
+  strategy             : "Maximize all departments"
+  max generation       : "466,704g/day from Trade Counter alone"
+
+❓ "Why can't I collect?"
+common issue           : "Shop is still open"
+solution               : "Wait for operating hours to complete"
+check status           : "/collector shows time remaining"
+tip                    : "Higher levels = longer hours = more rewards"
+
+❓ "Do bonuses stack?"
+expert grader          : "Applies to card upgrade chances"
+glass display          : "Applies to card quality rolls"
+both together          : "Yes! Both bonuses work simultaneously"
+
+❓ "Tips for maximizing shop income?"
+strategies:
+  upgrade shop level   : "Unlocks higher department levels"
+  focus trade counter  : "Best gold/investment ratio"
+  time your collections: "Collect right when shops close"
+  level consistently   : "Each level significantly increases output"
+  patience pays off    : "Compound growth kicks in at higher levels"
 
 #═══════════════════════════════════════════════════
 \`\`\``

@@ -237,4 +237,8 @@ Build and manage your own Pokemon card shop empire:
 
 **Ready to catch 'em all?** 🎉
 
+<<<<<<< HEAD
 Start your Pokemon TCG collection journey today and build your card shop empire!
+=======
+Start your Pokemon TCG collection journey today and build your card shop empire!
+>>>>>>> 12586f6 (UPDATE: README.md and FAQ with Collector Shop system)
