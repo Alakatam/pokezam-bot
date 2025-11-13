@@ -638,15 +638,20 @@ module.exports = {
         yamlStatus += `📝 DESCRIPTION:\n`;
         yamlStatus += `   ${config.description}\n\n`;
 
-        // Show shop status and variance
-        if (status.shopStatus) {
-            yamlStatus += `${status.shopStatus}\n`;
-        }
-        if (status.varianceDesc) {
-            yamlStatus += `${status.varianceDesc}\n`;
-        }
-        if (status.operatingHours) {
-            yamlStatus += `⏰ OPERATING HOURS: ${status.operatingHours}h/day\n\n`;
+        // Show shop status and variance ONLY for generating departments
+        // Skip for bonus departments (upgrade_chance, quality_boost)
+        const isBonusDepartment = config.resource === 'upgrade_chance' || config.resource === 'quality_boost';
+        
+        if (!isBonusDepartment) {
+            if (status.shopStatus) {
+                yamlStatus += `${status.shopStatus}\n`;
+            }
+            if (status.varianceDesc) {
+                yamlStatus += `${status.varianceDesc}\n`;
+            }
+            if (status.operatingHours) {
+                yamlStatus += `⏰ OPERATING HOURS: ${status.operatingHours}h/day\n\n`;
+            }
         }
 
         // Resource-specific information
