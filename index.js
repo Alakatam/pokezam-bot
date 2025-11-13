@@ -287,10 +287,6 @@ class PokezamBot {
             await this.ensureBaseSetsLoaded();
             console.log('✅ Base sets check complete');
             
-            // AUTO-FIX SET NAMES: Run AFTER base sets are loaded to fix set_name values
-            const autoFixSetNames = require('./scripts/autoFixSetNamesOnStartup');
-            await autoFixSetNames(this.database);
-            
             // 🚀 APPLY PERFORMANCE INDEXES: Critical for 20+ concurrent users
             const { applyZamIndexes } = require('./database/migrations/apply_zam_indexes');
             applyZamIndexes(this.database).catch(err => {
