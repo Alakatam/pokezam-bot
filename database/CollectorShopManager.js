@@ -10,6 +10,9 @@ class CollectorShopManager {
         this.db = database;
         this.dbType = database.dbType || 'sqlite';
         
+        // Global configuration
+        this.MAX_DEPARTMENT_LEVEL = 15;
+        
         // Department configurations with progression formulas
         this.departments = {
             trade_counter: {
@@ -18,10 +21,10 @@ class CollectorShopManager {
                 resource: 'coins',
                 unlockLevel: 1,
                 description: 'Generates coins passively',
-                baseGeneration: 500,     // coins/hour at level 1 (was 100, +400%)
-                generationGrowth: 1.5,   // Multiplier per level (was 1.25, aggressive scaling)
-                baseCapacity: 5000,      // capacity at level 1 (was 1000, +400%)
-                capacityGrowth: 1.5,     // Multiplier per level (was 1.25, aggressive)
+                baseGeneration: 350,     // coins/hour at level 1 (+250% from original 100)
+                generationGrowth: 1.4,   // Multiplier per level (balanced scaling)
+                baseCapacity: 3500,      // capacity at level 1 (+250% from original 1000)
+                capacityGrowth: 1.4,     // Multiplier per level (balanced)
                 fillTime: 10,            // Hours to fill (kept consistent)
                 upgradeCost: 500,        // Base upgrade cost
                 costGrowth: 1.3,         // Cost multiplier per level
@@ -576,6 +579,15 @@ class CollectorShopManager {
     async upgradeShopLevel(userId, userGold) {
         try {
             const shop = await this.getOrCreateShop(userId);
+
+            // Check if shop is at max level
+            if (shop.shop_level >= this.MAX_DEPARTMENT_LEVEL) {
+                return {
+                    success: false,
+                    error: `🏆 Shop already at MAX level (${this.MAX_DEPARTMENT_LEVEL})!`
+                };
+            }
+
             const cost = this.getGlobalUpgradeCost(shop.shop_level);
 
             if (userGold < cost) {
@@ -653,6 +665,14 @@ class CollectorShopManager {
 
             if (!dept || dept.level === 0) {
                 return { success: false, error: 'Department not unlocked' };
+            }
+
+            // Check if department is at max level
+            if (dept.level >= this.MAX_DEPARTMENT_LEVEL) {
+                return {
+                    success: false,
+                    error: `🏆 Department already at MAX level (${this.MAX_DEPARTMENT_LEVEL})!`
+                };
             }
 
             // Check if department level would exceed shop level
