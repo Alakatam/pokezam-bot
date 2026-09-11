@@ -1,18 +1,27 @@
-const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 let pg;
+let sqlite3;
 
 class Database {
     constructor() {
         // Determine database type based on environment
         this.dbType = process.env.DATABASE_URL ? 'postgresql' : 'sqlite';
-        
+
         if (this.dbType === 'postgresql') {
             try {
                 pg = require('pg');
             } catch (error) {
                 console.warn('PostgreSQL module not found, falling back to SQLite');
                 this.dbType = 'sqlite';
+            }
+        }
+
+        if (this.dbType === 'sqlite') {
+            try {
+                sqlite3 = require('sqlite3').verbose();
+            } catch (error) {
+                console.error('SQLite module could not be loaded:', error.message);
+                throw error;
             }
         }
         
