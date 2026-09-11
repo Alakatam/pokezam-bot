@@ -26,6 +26,15 @@ function buildStarterButtons(userId) {
     ]);
 }
 
+async function safeStarterStep(label, fn) {
+    try {
+        return await fn();
+    } catch (error) {
+        console.warn(`⚠️ Starter step failed (${label}):`, error.message || error);
+        return { skipped: true, error };
+    }
+}
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('start')
@@ -69,31 +78,57 @@ module.exports = {
                 user = await userManager.createUser(userId, interaction.user.username);
             }
 
-            await userManager.addGold(userId, 1500);
-            await database.addUserItem(userId, 'treasure_chest', 1);
-
-            let existingEffects = [];
-            let hasWelcomeCharm = false;
-
-            try {
-                existingEffects = await database.getUserActiveEffects(userId);
-                hasWelcomeCharm = existingEffects.some(effect => effect.effect_type === 'welcome_charm');
-            } catch (error) {
-                console.error('Error checking existing effects (continuing anyway):', error.message);
+            if (!user) {
+                user = await userManager.getUser(userId);
             }
 
-            if (!hasWelcomeCharm) {
-                await database.addActiveEffect(
-                    userId,
-                    'welcome_charm',
-                    'multi_boost',
-                    1.0,
-                    null,
-                    125
-                );
-            }
+            const starterResults = {
+                gold: await safeStarterStep('add_gold', async () => {
+                    if (userManager && typeof userManager.addGold === 'function') {
+                        return await userManager.addGold(userId, 1500);
+                    }
+                    return null;
+                }),
+                item: await safeStarterStep('add_item', async () => {
+                    if (database && typeof database.addUserItem === 'function') {
+                        return await database.addUserItem(userId, 'treasure_chest', 1);
+                    }
+                    return null;
+                }),
+                effects: await safeStarterStep('effect_check', async () => {
+                    if (!database || typeof database.getUserActiveEffects !== 'function') {
+                        return { hasWelcomeCharm: false };
+                    }
 
-            await database.run('UPDATE users SET has_started = TRUE WHERE id = ?', [userId]);
+                    const existingEffects = await database.getUserActiveEffects(userId);
+                    const hasWelcomeCharm = Array.isArray(existingEffects) && existingEffects.some(effect => effect.effect_type === 'welcome_charm');
+
+                    if (!hasWelcomeCharm && typeof database.addActiveEffect === 'function') {
+                        await database.addActiveEffect(
+                            userId,
+                            'welcome_charm',
+                            'multi_boost',
+                            1.0,
+                            null,
+                            125
+                        );
+                    }
+
+                    return { hasWelcomeCharm };
+                }),
+                started: await safeStarterStep('mark_started', async () => {
+                    if (!database || typeof database.run !== 'function') return null;
+                    return await database.run('UPDATE users SET has_started = TRUE WHERE id = ?', [userId]);
+                })
+            };
+
+            const starterWarnings = Object.entries(starterResults)
+                .filter(([, result]) => result && result.skipped)
+                .map(([key]) => key);
+
+            if (starterWarnings.length > 0) {
+                console.warn(`Starter package partially applied for ${userId}. Skipped steps: ${starterWarnings.join(', ')}`);
+            }
 
             const embed = EmbedUtils.createBaseEmbed({
                 title: '🎉 Pokézam Trainer Launch Complete',
