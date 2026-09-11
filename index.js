@@ -2089,42 +2089,44 @@ roll result        : "${outcome.toUpperCase()} (${probTable.loss}% chance)"
         try {
             console.log(`🔄 Registering ${commands.length} application (/) commands...`);
 
-            // Determine environment - prioritize explicit NODE_ENV setting
+            // Prefer guild-scoped slash commands for instant registration when a guild is configured.
+            // Set USE_GLOBAL_COMMANDS=true to switch back to global registration later.
             const isProduction = process.env.NODE_ENV === 'production';
             const GUILD_ID = process.env.GUILD_ID || process.env.TEST_GUILD_ID;
-            
-            // Development mode OR Guild ID present: Register to test guild for instant access
-            if (GUILD_ID && !isProduction) {
+            const useGlobalCommands = process.env.USE_GLOBAL_COMMANDS === 'true';
+
+            if (GUILD_ID && !useGlobalCommands) {
                 try {
-                    console.log('🎯 [DEV MODE] Registering to test guild for instant access...');
+                    console.log('🎯 Registering slash commands to guild for instant access...');
                     console.log('🔍 Guild ID:', GUILD_ID);
                     await rest.put(
                         Routes.applicationGuildCommands(process.env.CLIENT_ID, GUILD_ID),
                         { body: commands }
                     );
-                    console.log('✅ Commands registered to test guild (instant access)');
+                    console.log('✅ Commands registered to guild (instant access)');
                     console.log('💡 Guild commands update immediately - no 1 hour wait!');
-                    return; // Skip global registration in dev mode
+                    return; // Skip global registration when guild commands are preferred
                 } catch (guildError) {
                     console.log('⚠️ Guild registration failed:', guildError.message);
                     console.log('🌐 Falling back to global commands...');
                     // Continue to global registration
                 }
             }
-            
-            // Production mode OR dev fallback: Use global commands
+
             console.log('🌐 Registering global commands...');
             const data = await rest.put(
                 Routes.applicationCommands(process.env.CLIENT_ID),
                 { body: commands }
             );
             console.log(`✅ Successfully registered ${data.length} global commands`);
-            
-            if (isProduction) {
+
+            if (isProduction && !useGlobalCommands) {
+                console.log('✅ Guild commands are configured for instant registration');
+            } else if (isProduction) {
                 console.log('✅ Commands will sync to all servers within 1 hour');
             } else {
                 console.log('⏳ Commands will be available globally in ~1 hour');
-                console.log('💡 TIP: Set GUILD_ID in .env for instant dev testing');
+                console.log('💡 TIP: Set GUILD_ID in .env for instant testing');
             }
             
         } catch (error) {
