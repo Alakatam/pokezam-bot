@@ -84,6 +84,10 @@ class CardManager {
         }
 
         if (totalWeight === 0 || generationWeights.length === 0) {
+            const fallbackCard = await this.getFallbackCardFromAvailableSets(availableGenerations);
+            if (fallbackCard) {
+                return fallbackCard;
+            }
             return null; // No cards available
         }
 
@@ -304,7 +308,68 @@ class CardManager {
             }
         }
 
+        // Protection for partial card loads during startup: if the current generation
+        // has not finished seeding yet, fall back to the user's broader unlocked pool.
+        if (!card) {
+            const fallbackCard = await this.getFallbackCardFromAvailableSets(availableGenerations);
+            if (fallbackCard) {
+                return fallbackCard;
+            }
+        }
+
         return card;
+    }
+
+    async getFallbackCardFromAvailableSets(availableGenerations) {
+        if (!availableGenerations || availableGenerations.length === 0) {
+            return null;
+        }
+
+        const allSets = [...new Set(availableGenerations.flatMap(generation => this.getSetsByGeneration(generation)))];
+        if (allSets.length === 0) {
+            return null;
+        }
+
+        const countResult = await this.db.get(
+            `SELECT COUNT(*) as count FROM cards 
+             WHERE set_name IN (${allSets.map(() => '?').join(',')})
+             AND api_id IS NOT NULL
+             AND (image_large IS NOT NULL OR image_small IS NOT NULL)`,
+            allSets
+        );
+
+        let total = parseInt(countResult?.count || '0', 10);
+        let querySets = allSets;
+
+        if (!total) {
+            total = await this.db.get(`SELECT COUNT(*) as count FROM cards WHERE api_id IS NOT NULL AND (image_large IS NOT NULL OR image_small IS NOT NULL)`)
+                .then(result => parseInt(result?.count || '0', 10));
+            if (!total) {
+                return null;
+            }
+            querySets = null;
+        }
+
+        const offset = Math.floor(Math.random() * total);
+
+        if (!querySets) {
+            return await this.db.get(
+                `SELECT * FROM cards 
+                 WHERE api_id IS NOT NULL
+                 AND (image_large IS NOT NULL OR image_small IS NOT NULL)
+                 LIMIT 1 OFFSET ?`,
+                [offset]
+            );
+        }
+
+        return await this.db.get(
+            `SELECT * FROM cards 
+             WHERE set_name IN (${allSets.map(() => '?').join(',')})
+             AND api_id IS NOT NULL
+             AND (image_large IS NOT NULL OR image_small IS NOT NULL)
+             LIMIT 1 OFFSET ?`,
+            [...allSets, offset]
+        );
     }
 
     getAvailableGenerationsByLevel(userLevel) {
