@@ -122,20 +122,24 @@ class PokezamBot {
         console.log('');
     }
 
-    rotatePresence() {
+    async rotatePresence() {
         if (!this.client || !this.client.user) return;
 
         const activity = this.presenceMessages[this.runtime?.presenceIndex ?? 0] || this.presenceMessages[0];
         const nextIndex = (this.runtime?.presenceIndex ?? 0) + 1;
         this.runtime.presenceIndex = nextIndex % this.presenceMessages.length;
 
-        this.client.user.setPresence({
-            activities: [{
-                name: activity,
-                type: 0
-            }],
-            status: 'online'
-        }).catch(() => {});
+        try {
+            await this.client.user.setPresence({
+                activities: [{
+                    name: activity,
+                    type: 0
+                }],
+                status: 'online'
+            });
+        } catch (error) {
+            // Presence updates can fail briefly during startup; keep the bot running.
+        }
     }
 
     registerClientLifecycleHandlers() {
