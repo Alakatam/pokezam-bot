@@ -42,6 +42,11 @@ module.exports = {
         )
         .addSubcommand(subcommand =>
             subcommand
+                .setName('status')
+                .setDescription('View premium bot runtime status and operational health')
+        )
+        .addSubcommand(subcommand =>
+            subcommand
                 .setName('restart')
                 .setDescription('Restart the bot (use with caution)')
         )
@@ -221,6 +226,9 @@ module.exports = {
                 case 'version':
                     await this.handleVersion(interaction);
                     break;
+                case 'status':
+                    await this.handleStatus(interaction);
+                    break;
                 case 'restart':
                     await this.handleRestart(interaction);
                     break;
@@ -294,12 +302,13 @@ module.exports = {
             }
         ];
 
-        const embed = new EmbedBuilder()
-            .setTitle('📋 Pokezam TCG Bot - Changelog')
-            .setColor('#00ff00')
-            .setDescription('Latest updates and changes to the bot')
-            .setTimestamp()
-            .setFooter({ text: 'Pokezam TCG Bot', iconURL: interaction.client.user.displayAvatarURL() });
+        const embed = EmbedUtils.createBaseEmbed({
+            title: '📋 Pokezam TCG Bot - Changelog',
+            description: 'Latest updates and changes to the bot',
+            color: '#00ff00',
+            footerText: 'Pokezam TCG Bot',
+            footerIcon: interaction.client.user.displayAvatarURL()
+        });
 
         for (const entry of changelog) {
             const changeText = entry.changes.join('\n');
@@ -310,7 +319,6 @@ module.exports = {
             }]);
         }
 
-        // Add upcoming features
         embed.addFields([{
             name: '🚀 Coming Soon',
             value: '• Guild System with perks and social features\n' +
@@ -329,15 +337,13 @@ module.exports = {
         const message = interaction.options.getString('message');
         const shouldPing = interaction.options.getBoolean('ping') || false;
 
-        const embed = new EmbedBuilder()
-            .setTitle(`📢 ${title}`)
-            .setDescription(message)
-            .setColor('#ffd700')
-            .setTimestamp()
-            .setFooter({ 
-                text: `Announced by ${interaction.user.username}`, 
-                iconURL: interaction.user.displayAvatarURL() 
-            });
+        const embed = EmbedUtils.createBaseEmbed({
+            title: `📢 ${title}`,
+            description: message,
+            color: '#ffd700',
+            footerText: `Announced by ${interaction.user.username}`,
+            footerIcon: interaction.user.displayAvatarURL()
+        });
 
         const content = shouldPing ? '@everyone' : '';
 
@@ -371,18 +377,18 @@ module.exports = {
         // Get top users
         const topUsers = await database.all('SELECT username, level, total_draws FROM users ORDER BY level DESC, total_draws DESC LIMIT 5');
 
-        const embed = new EmbedBuilder()
-            .setTitle('📊 Bot Statistics')
-            .setColor('#0099ff')
-            .setTimestamp()
-            .addFields([
+        const embed = EmbedUtils.createBaseEmbed({
+            title: '📊 Bot Statistics',
+            color: '#0099ff',
+            fields: [
                 { name: '👥 Total Users', value: userCount.count.toString(), inline: true },
                 { name: '🃏 Total Cards', value: cardCount.count.toString(), inline: true },
                 { name: '🎴 Total Draws', value: (totalDraws.total || 0).toString(), inline: true },
                 { name: '✅ Quest Completions', value: questCompletions.count.toString(), inline: true },
                 { name: '🏛️ Guilds', value: guildCount.count.toString(), inline: true },
                 { name: '🏪 Market Listings', value: marketListings.count.toString(), inline: true }
-            ]);
+            ]
+        });
 
         // Add progressive loading status for cloud deployments
         if (progressiveStatus) {
@@ -466,22 +472,61 @@ module.exports = {
         await interaction.reply({ embeds: [embed] });
     },
 
+    async handleStatus(interaction) {
+        const health = typeof interaction.client.buildHealthSnapshot === 'function'
+            ? interaction.client.buildHealthSnapshot()
+            : {
+                status: interaction.client.isReady ? 'healthy' : 'starting',
+                bot: interaction.client.user ? 'online' : 'offline',
+                uptime: `${Math.floor(process.uptime() / 3600)}h ${Math.floor((process.uptime() % 3600) / 60)}m ${Math.floor(process.uptime() % 60)}s`,
+                memory: {
+                    rssMB: Math.round(process.memoryUsage().rss / 1024 / 1024),
+                    heapUsedMB: Math.round(process.memoryUsage().heapUsed / 1024 / 1024)
+                },
+                ping: `${interaction.client.ws.ping}ms`,
+                commandsLoaded: interaction.client.commands ? interaction.client.commands.size : 0,
+                startupWarnings: []
+            };
+
+        const embed = EmbedUtils.createBaseEmbed({
+            title: '⚙️ Bot Runtime Status',
+            description: 'Live operational overview for the Pokezam bot',
+            color: health.status === 'healthy' ? '#00d26a' : '#ffb703',
+            fields: [
+                { name: 'Status', value: health.status.toUpperCase(), inline: true },
+                { name: 'Bot', value: health.bot, inline: true },
+                { name: 'Uptime', value: health.uptime, inline: true },
+                { name: 'Discord Ping', value: health.ping || 'connecting', inline: true },
+                { name: 'Commands Loaded', value: String(health.commandsLoaded || 0), inline: true },
+                { name: 'Memory RSS', value: `${health.memory.rssMB || 0}MB`, inline: true },
+                { name: 'Heap Used', value: `${health.memory.heapUsedMB || 0}MB`, inline: true },
+                { name: 'Last Error', value: health.metrics?.lastError || 'none', inline: false }
+            ]
+        });
+
+        if (Array.isArray(health.startupWarnings) && health.startupWarnings.length > 0) {
+            embed.addFields([{ name: 'Startup Warnings', value: health.startupWarnings.join('\n'), inline: false }]);
+        }
+
+        await interaction.reply({ embeds: [embed] });
+    },
+
     async handleVersion(interaction) {
         const packageJson = require('../../package.json');
         
-        const embed = new EmbedBuilder()
-            .setTitle('🔧 Bot Version Information')
-            .setColor('#9932cc')
-            .setTimestamp()
-            .addFields([
+        const embed = EmbedUtils.createBaseEmbed({
+            title: '🔧 Bot Version Information',
+            description: 'Technical information about the bot build',
+            color: '#9932cc',
+            fields: [
                 { name: '🤖 Bot Version', value: packageJson.version, inline: true },
                 { name: '📦 Discord.js', value: packageJson.dependencies['discord.js'], inline: true },
                 { name: '🗄️ SQLite3', value: packageJson.dependencies['sqlite3'], inline: true },
                 { name: '🟢 Node.js', value: process.version, inline: true },
                 { name: '💻 Platform', value: process.platform, inline: true },
                 { name: '📅 Last Updated', value: '2025-10-25', inline: true }
-            ])
-            .setDescription('Technical information about the bot build');
+            ]
+        });
 
         // Add feature status
         const features = [
@@ -577,11 +622,13 @@ module.exports = {
             await database.run('COMMIT');
 
             // Create success embed with before/after stats
-            const embed = new EmbedBuilder()
-                .setTitle('✅ Collection Reset Complete')
-                .setColor('#00ff00')
-                .setDescription(`Successfully reset **${targetUser.username}**'s entire collection.\n\n🔧 **Fixed Issues**: NULL card names, N/A set IDs, and corrupted variant data from cards obtained before the complete TCG database was added.`)
-                .addFields([
+            const embed = EmbedUtils.createBaseEmbed({
+                title: '✅ Collection Reset Complete',
+                description: `Successfully reset **${targetUser.username}**'s entire collection.\n\n🔧 **Fixed Issues**: NULL card names, N/A set IDs, and corrupted variant data from cards obtained before the complete TCG database was added.`,
+                color: '#00ff00',
+                footerText: `Reset performed by ${interaction.user.username}`,
+                footerIcon: interaction.user.displayAvatarURL(),
+                fields: [
                     {
                         name: '📊 Before Reset',
                         value: `• **Total Cards**: ${beforeStats.total_cards || 0}\n` +
@@ -619,12 +666,8 @@ module.exports = {
                                `• Profile settings`,
                         inline: false
                     }
-                ])
-                .setTimestamp()
-                .setFooter({ 
-                    text: `Reset performed by ${interaction.user.username}`, 
-                    iconURL: interaction.user.displayAvatarURL() 
-                });
+                ]
+            });
 
             await interaction.editReply({ embeds: [embed] });
 
@@ -715,11 +758,13 @@ module.exports = {
             await database.run('COMMIT');
 
             // Create comprehensive reset success embed
-            const embed = new EmbedBuilder()
-                .setTitle('🔥 COMPLETE TRAINER RESET SUCCESSFUL')
-                .setColor('#ff6b6b')
-                .setDescription(`**${targetUser.username}** has been completely reset to a fresh trainer account.\n\n⚠️ **ALL PROGRESS HAS BEEN WIPED**`)
-                .addFields([
+            const embed = EmbedUtils.createBaseEmbed({
+                title: '🔥 COMPLETE TRAINER RESET SUCCESSFUL',
+                description: `**${targetUser.username}** has been completely reset to a fresh trainer account.\n\n⚠️ **ALL PROGRESS HAS BEEN WIPED**`,
+                color: '#ff6b6b',
+                footerText: `COMPLETE RESET by ${interaction.user.username}`,
+                footerIcon: interaction.user.displayAvatarURL(),
+                fields: [
                     {
                         name: '📊 Before Reset',
                         value: `• **Level**: ${beforeUser.level}\n` +
@@ -764,12 +809,8 @@ module.exports = {
                                `✨ Ready for optimal experience with current balance`,
                         inline: false
                     }
-                ])
-                .setTimestamp()
-                .setFooter({ 
-                    text: `COMPLETE RESET by ${interaction.user.username}`, 
-                    iconURL: interaction.user.displayAvatarURL() 
-                });
+                ]
+            });
 
             await interaction.editReply({ embeds: [embed] });
 
@@ -790,20 +831,19 @@ module.exports = {
             console.error('Error performing complete trainer reset:', error);
             
             // Check if we can still reply
-            if (!interaction.replied && !interaction.deferred) {
-                await interaction.reply({
-                    embeds: [EmbedUtils.createErrorEmbed(
-                        'Reset Failed',
-                        `Failed to perform complete trainer reset for ${targetUser.username}.\n\n**Error**: ${error.message}`
-                    )],
-                    flags: 64
-                });
+            const errorResponse = {
+                embeds: [EmbedUtils.createErrorEmbed(
+                    'Reset Failed',
+                    `Failed to perform complete trainer reset for ${targetUser.username}.\n\n**Error**: ${error.message}`
+                )]
+            };
+
+            if (interaction.deferred || interaction.replied) {
+                await interaction.editReply(errorResponse);
             } else {
-                await interaction.editReply({
-                    embeds: [EmbedUtils.createErrorEmbed(
-                        'Reset Failed',
-                        `Failed to perform complete trainer reset for ${targetUser.username}.\n\n**Error**: ${error.message}`
-                    )]
+                await interaction.reply({
+                    ...errorResponse,
+                    flags: 64
                 });
             }
         }
@@ -844,11 +884,13 @@ module.exports = {
             }
 
             // Create success embed
-            const embed = new EmbedBuilder()
-                .setTitle('🎛️ Cooldown Settings Updated')
-                .setColor(cooldownEnabled ? '#ff6b6b' : '#00ff00')
-                .setDescription(`Successfully updated cooldown settings for **${targetUser.username}**`)
-                .addFields([
+            const embed = EmbedUtils.createBaseEmbed({
+                title: '🎛️ Cooldown Settings Updated',
+                description: `Successfully updated cooldown settings for **${targetUser.username}**`,
+                color: cooldownEnabled ? '#ff6b6b' : '#00ff00',
+                footerText: `Cooldown toggle by ${interaction.user.username}`,
+                footerIcon: interaction.user.displayAvatarURL(),
+                fields: [
                     {
                         name: '⏱️ Draw Cooldowns',
                         value: cooldownEnabled ? '🔴 **ENABLED** (5 second cooldowns active)' : '🟢 **DISABLED** (no cooldowns - instant draws)',
@@ -868,12 +910,8 @@ module.exports = {
                             'User can draw cards instantly without any cooldown delays.',
                         inline: false
                     }
-                ])
-                .setTimestamp()
-                .setFooter({ 
-                    text: `Cooldown toggle by ${interaction.user.username}`, 
-                    iconURL: interaction.user.displayAvatarURL() 
-                });
+                ]
+            });
 
             await interaction.editReply({ embeds: [embed] });
 
@@ -926,11 +964,11 @@ module.exports = {
             const avgMemPerUser = userCount.count > 0 ? Math.round(rssMB / userCount.count * 100) / 100 : 0;
             const uptimeHours = Math.round(uptime / 3600 * 10) / 10;
             
-            const embed = new EmbedBuilder()
-                .setTitle('🏗️ 24/7 Hosting Analysis Report')
-                .setColor('#00ff00')
-                .setDescription('Comprehensive system analysis for cloud hosting migration')
-                .setTimestamp();
+            const embed = EmbedUtils.createBaseEmbed({
+                title: '🏗️ 24/7 Hosting Analysis Report',
+                description: 'Comprehensive system analysis for cloud hosting migration',
+                color: '#00ff00'
+            });
 
             // Current system performance
             embed.addFields([{
@@ -1068,11 +1106,11 @@ module.exports = {
             const botUptimeStr = `${Math.floor(uptime / 86400)}d ${Math.floor((uptime % 86400) / 3600)}h ${Math.floor((uptime % 3600) / 60)}m`;
             const sysUptimeStr = `${Math.floor(systemUptime / 86400)}d ${Math.floor((systemUptime % 86400) / 3600)}h ${Math.floor((systemUptime % 3600) / 60)}m`;
             
-            const embed = new EmbedBuilder()
-                .setTitle('🖥️ Real-Time System Monitor')
-                .setColor('#00ff00')
-                .setDescription('Current system resource usage and performance metrics')
-                .setTimestamp();
+            const embed = EmbedUtils.createBaseEmbed({
+                title: '🖥️ Real-Time System Monitor',
+                description: 'Current system resource usage and performance metrics',
+                color: '#00ff00'
+            });
 
             // Bot-specific metrics
             embed.addFields([{
@@ -1170,11 +1208,11 @@ module.exports = {
             yamlBackup += '#════════════════════════════════\n';
             yamlBackup += '```';
 
-            const backupEmbed = new EmbedBuilder()
-                .setTitle('💾 Database Backup Created')
-                .setDescription(yamlBackup)
-                .setColor('#00FF00')
-                .setTimestamp();
+            const backupEmbed = EmbedUtils.createBaseEmbed({
+                title: '💾 Database Backup Created',
+                description: yamlBackup,
+                color: '#00FF00'
+            });
 
             await interaction.editReply({ embeds: [backupEmbed] });
 
@@ -1213,11 +1251,11 @@ module.exports = {
                 yamlRestore += '#════════════════════════════════\n';
                 yamlRestore += '```';
 
-                const restoreEmbed = new EmbedBuilder()
-                    .setTitle('🔄 Database Restored')
-                    .setDescription(yamlRestore)
-                    .setColor('#00FF00')
-                    .setTimestamp();
+                const restoreEmbed = EmbedUtils.createBaseEmbed({
+                    title: '🔄 Database Restored',
+                    description: yamlRestore,
+                    color: '#00FF00'
+                });
 
                 await interaction.editReply({ embeds: [restoreEmbed] });
             } else {

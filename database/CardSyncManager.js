@@ -7,7 +7,7 @@ class CardSyncManager {
         this.syncInProgress = false;
     }
 
-    async syncCardsFromAPI(setIds = null, forceUpdate = false) {
+    async syncCardsFromAPI(setIds = null, forceUpdate = false, target = 'classic') {
         if (this.syncInProgress) {
             console.log('Card sync already in progress...');
             return { success: false, message: 'Sync already in progress' };
@@ -24,8 +24,15 @@ class CardSyncManager {
         try {
             console.log('Starting card sync from Pokemon TCG API...');
 
-            // Use provided setIds or default to classic sets
-            const targetSetIds = setIds || this.api.getClassicSetIds();
+            let targetSetIds = setIds;
+            if (!targetSetIds || targetSetIds.length === 0) {
+                console.log(`Resolving live set list for target: ${target}`);
+                targetSetIds = await this.api.getSetIdsForTarget(target);
+            }
+
+            if (!targetSetIds || targetSetIds.length === 0) {
+                targetSetIds = this.api.getClassicSetIds();
+            }
             
             for (const setId of targetSetIds) {
                 try {

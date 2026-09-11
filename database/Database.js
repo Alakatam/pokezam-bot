@@ -259,6 +259,41 @@ class Database {
                 userColumnNames = result.map(col => col.column_name);
             }
             
+            // Ensure user_quests has the enhanced timestamp columns used by quest resets and completion tracking.
+            try {
+                let userQuestColumnNames = [];
+
+                if (this.dbType === 'sqlite') {
+                    const userQuestTableInfo = await this.all('PRAGMA table_info(user_quests)');
+                    userQuestColumnNames = userQuestTableInfo.map(col => col.name);
+                } else {
+                    const result = await this.all(`
+                        SELECT column_name
+                        FROM information_schema.columns
+                        WHERE table_name = 'user_quests' AND table_schema = 'public'
+                    `);
+                    userQuestColumnNames = result.map(col => col.column_name);
+                }
+
+                const userQuestColumns = [
+                    { name: 'assigned_date', type: 'INTEGER DEFAULT NULL' },
+                    { name: 'completed_date', type: 'INTEGER DEFAULT NULL' }
+                ];
+
+                for (const column of userQuestColumns) {
+                    if (!userQuestColumnNames.includes(column.name)) {
+                        try {
+                            await this.run(`ALTER TABLE user_quests ADD COLUMN ${column.name} ${column.type}`);
+                            console.log(`✅ Added user_quests column: ${column.name}`);
+                        } catch (err) {
+                            console.log(`⚠️ Failed to add user_quests.${column.name}: ${err.message}`);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.log('User quests migration check failed, will be handled during quest initialization');
+            }
+
             const rarePullColumns = [
                 { name: 'legendary_pulls', type: 'INTEGER DEFAULT 0' },
                 { name: 'ultra_pulls', type: 'INTEGER DEFAULT 0' },
@@ -402,6 +437,7 @@ class Database {
                 description TEXT NOT NULL,
                 quest_type TEXT NOT NULL, -- 'daily', 'weekly', or 'monthly'
                 target_value INTEGER NOT NULL,
+                target_type TEXT DEFAULT 'card_draws',
                 reward_gold INTEGER NOT NULL,
                 reward_xp INTEGER DEFAULT 0,
                 reset_interval INTEGER NOT NULL -- seconds
@@ -414,6 +450,8 @@ class Database {
                 quest_id INTEGER NOT NULL,
                 progress INTEGER DEFAULT 0,
                 completed BOOLEAN DEFAULT FALSE,
+                assigned_date INTEGER DEFAULT NULL,
+                completed_date INTEGER DEFAULT NULL,
                 last_reset INTEGER DEFAULT (strftime('%s', 'now')),
                 completed_at INTEGER DEFAULT NULL,
                 FOREIGN KEY (user_id) REFERENCES users(id),

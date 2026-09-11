@@ -271,15 +271,13 @@ adventure awaits       : "Items + Cards + Quests + More!"
             yamlDescription += '#═══════════════════════════════════════════════════\n';
             yamlDescription += '```';
 
-            const embed = new EmbedBuilder()
-                .setTitle(`🎒 ${targetUser.displayName}'s Inventory`)
-                .setDescription(yamlDescription)
-                .setColor('#4A90E2')
-                .setTimestamp()
-                .setFooter({ 
-                    text: 'Inventory System • Use /use to activate items',
-                    iconURL: targetUser.displayAvatarURL({ dynamic: true })
-                });
+            const embed = EmbedUtils.createBaseEmbed({
+                title: `🎒 ${targetUser.displayName}'s Inventory`,
+                description: yamlDescription,
+                color: EmbedUtils.palette.accent,
+                footerText: 'Inventory System • Use /use to activate items',
+                footerIcon: targetUser.displayAvatarURL({ dynamic: true })
+            });
 
             // Create action buttons if viewing own inventory
             const components = [];

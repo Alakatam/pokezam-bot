@@ -199,60 +199,20 @@ module.exports = {
 
             const user = await userManager.getUser(interaction.user.id);
 
-            // Check if user has started their adventure
             if (!user || !user.has_started) {
-                const yamlContent = `\`\`\`yaml
-#═══════════════════════════════════════════════════
-# 🛒 POKÉMON SHOP LOCKED - ADVENTURE REQUIRED!
-#═══════════════════════════════════════════════════
-
-shop access            : "RESTRICTED" 
-trainer status         : "Not registered"
-unlock requirement     : "Complete /start onboarding"
-
-#───────────────────────────────────────────────────
-# 💎 PREMIUM ITEMS WAITING FOR YOU
-#───────────────────────────────────────────────────
-
-gold boost items:
-  amulet coin          : "50,000 Gold - 2x earnings!"
-  golden horseshoe     : "85,000 Gold - 3x earnings!" 
-  fortune charm        : "150,000 Gold - 5x earnings!"
-
-luck boost items:
-  collectors charm     : "75,000 Gold - 2x rare chance!"
-  shiny charm          : "125,000 Gold - 3x rare chance!"
-  master ball          : "200,000 Gold - 5x rare chance!"
-
-special items:
-  treasure chest       : "300,000 Gold - Instant rewards!"
-  mystery box          : "500,000 Gold - Unknown surprises!"
-
-#───────────────────────────────────────────────────
-# 🎒 GET YOUR STARTER PACKAGE
-#───────────────────────────────────────────────────
-
-starter gold           : "500 🪙 to begin shopping"
-welcome charm          : "125 uses of multi-boost!"
-unlocked features      : "Full shop access + more"
-
-next step              : "Type '/start' to unlock shop!"
-
-#═══════════════════════════════════════════════════
-\`\`\``;
-
-                return await interaction.editReply({
-                    embeds: [{
-                        title: '🛒 Pokémon Shop Locked - Adventure Required!',
-                        description: yamlContent,
-                        color: 0x00ff00,
-                        timestamp: new Date().toISOString(),
-                        footer: {
-                            text: `${interaction.user.username}, premium items await your arrival!`,
-                            icon_url: interaction.user.displayAvatarURL()
-                        }
-                    }]
+                const lockedEmbed = EmbedUtils.createBaseEmbed({
+                    title: '🛒 Shop Locked • Adventure Required',
+                    description: 'Your trainer account is still on standby. Complete `/start` to unlock the full shop and premium progression system.',
+                    color: EmbedUtils.palette.success,
+                    footerText: 'Starter access unlocks gold boosts, rare chance upgrades, and premium loot routes.',
+                    footerIcon: interaction.user.displayAvatarURL({ dynamic: true }),
+                    fields: [
+                        { name: '✨ Starter Prizes', value: '💰 1,500g starter wallet\n🎁 Welcome Charm bonus\n📦 Treasure chest unlock', inline: false },
+                        { name: '🚀 Quick Unlock', value: 'Use `/start` to activate your trainer path and gain access to the market.', inline: false }
+                    ]
                 });
+
+                return await interaction.editReply({ embeds: [lockedEmbed] });
             }
 
             const currentPage = 1; // Start with page 1 (Gold Boost)
@@ -331,36 +291,17 @@ next step              : "Type '/start' to unlock shop!"
             }
             await database.addUserItem(interaction.user.id, itemId, 1);
 
-            // Create concise YAML success message
-            let yamlSuccess = '```yaml\n';
-            yamlSuccess += '#════════════════════════════════\n';
-            yamlSuccess += '# ✅ PURCHASE COMPLETE\n';
-            yamlSuccess += '#════════════════════════════════\n\n';
-            
-            yamlSuccess += `🛒 PURCHASED: ${item.emoji} ${item.name}\n`;
-            yamlSuccess += `💰 PAID: ${item.price.toLocaleString()}g\n`;
-            yamlSuccess += `🏦 NEW BALANCE: ${(user.gold - item.price).toLocaleString()}g\n\n`;
-            
-            yamlSuccess += `📦 ITEM DETAILS:\n`;
-            yamlSuccess += `   Effect: ${this.formatEffectInfo(item.effect)}\n`;
-            yamlSuccess += `   Usage: /use ${itemId}\n\n`;
-            
-            yamlSuccess += '💡 COMMANDS:\n';
-            yamlSuccess += '   /inventory - View items\n';
-            yamlSuccess += '   /active-boosts - Active effects\n';
-            yamlSuccess += '   /shop - Return to shop\n\n';
-            yamlSuccess += '#════════════════════════════════\n';
-            yamlSuccess += '```';
-
-            const successEmbed = new EmbedBuilder()
-                .setTitle('✅ Purchase Successful!')
-                .setDescription(yamlSuccess)
-                .setColor('#00FF00')
-                .setTimestamp()
-                .setFooter({
-                    text: `Item added to inventory • Use /use ${itemId} to activate`,
-                    iconURL: interaction.user.displayAvatarURL({ dynamic: true })
-                });
+            const successEmbed = EmbedUtils.createBaseEmbed({
+                title: '✅ Purchase Successful',
+                description: `**${item.emoji} ${item.name}** has been added to your inventory.`,
+                color: EmbedUtils.palette.success,
+                footerText: `Paid ${item.price.toLocaleString()}g • New balance ${(user.gold - item.price).toLocaleString()}g`,
+                footerIcon: interaction.user.displayAvatarURL({ dynamic: true }),
+                fields: [
+                    { name: '📦 Item Effect', value: this.formatEffectInfo(item.effect), inline: false },
+                    { name: '⚡ Next Step', value: `Use "/use ${itemId}" to activate it, or open "/inventory" to review your collection.`, inline: false }
+                ]
+            });
 
             await interaction.editReply({
                 embeds: [successEmbed],
@@ -389,50 +330,24 @@ next step              : "Type '/start' to unlock shop!"
             item.category === category.id && item.price > 0
         );
 
-        // Create YAML shop display for current page
-        let yamlDescription = '```yaml\n';
-        yamlDescription += '#══════════════════════════════════════\n';
-        yamlDescription += '# 🏪 POKÉZAM SHOP\n';
-        yamlDescription += '#══════════════════════════════════════\n\n';
-        
-        yamlDescription += '💰 WALLET:\n';
-        yamlDescription += `   Balance: ${user.gold.toLocaleString()}g\n\n`;
-
-        yamlDescription += `📂 CATEGORY: ${category.name}\n`;
-        yamlDescription += `   ${category.description}\n`;
-        yamlDescription += `   Page: ${pageNumber} / ${CATEGORIES.length}\n\n`;
-
-        if (items.length === 0) {
-            yamlDescription += '📦 NO ITEMS AVAILABLE\n\n';
-        } else {
-            yamlDescription += `🛒 ITEMS (${items.length} available):\n\n`;
-
-            items.forEach(([id, item]) => {
+        const itemSummary = items.length > 0
+            ? items.map(([id, item]) => {
                 const canAfford = user.gold >= item.price;
-                const status = canAfford ? '✅' : '❌';
-                
-                yamlDescription += `${item.emoji} ${item.name}:\n`;
-                yamlDescription += `   Price: ${item.price.toLocaleString()}g ${status}\n`;
-                yamlDescription += `   Effect: ${this.formatEffectInfo(item.effect)}\n`;
-                yamlDescription += `   Usage: /use ${id}\n\n`;
-            });
-        }
+                const status = canAfford ? '✅ Affordable' : '❌ Too expensive';
+                return `**${item.emoji} ${item.name}**\nPrice: **${item.price.toLocaleString()}g** • ${status}\nEffect: ${this.formatEffectInfo(item.effect)}`;
+            }).join('\n\n')
+            : 'No items are available in this category yet.';
 
-        yamlDescription += '💡 CONTROLS:\n';
-        yamlDescription += '   ⬅️ Previous Category  ➡️ Next Category\n';
-        yamlDescription += '   🛒 Purchase with buttons below\n\n';
-        yamlDescription += '#══════════════════════════════════════\n';
-        yamlDescription += '```';
-
-        const embed = new EmbedBuilder()
-            .setTitle(`🏪 Pokézam Shop - ${category.name}`)
-            .setDescription(yamlDescription)
-            .setColor('#FFD700')
-            .setTimestamp()
-            .setFooter({ 
-                text: `Page ${pageNumber}/${CATEGORIES.length} • Use arrows to navigate`,
-                iconURL: 'https://cdn.discordapp.com/emojis/1234567890123456789.png' // Placeholder
-            });
+        const embed = EmbedUtils.createBaseEmbed({
+            title: `🏪 Pokézam Shop • ${category.name}`,
+            description: `**Wallet:** ${user.gold.toLocaleString()}g\n**Category:** ${category.description}\n**Page:** ${pageNumber}/${CATEGORIES.length}`,
+            color: EmbedUtils.palette.warning,
+            footerText: `Elite market access • Page ${pageNumber}/${CATEGORIES.length}`,
+            footerIcon: null,
+            fields: [
+                { name: '📦 Shop Highlights', value: itemSummary, inline: false }
+            ]
+        });
 
         // Create navigation buttons
         const navigationRow = new ActionRowBuilder();

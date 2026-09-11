@@ -122,15 +122,13 @@ module.exports = {
                 packColor = '#E1BEE7';
             }
 
-            const embed = new EmbedBuilder()
-                .setTitle(packTitle)
-                .setDescription(yamlDescription)
-                .setColor(packColor)
-                .setTimestamp()
-                .setFooter({ 
-                    text: `Opened by ${interaction.user.username}`,
-                    iconURL: interaction.user.displayAvatarURL({ dynamic: true })
-                });
+            const embed = EmbedUtils.createBaseEmbed({
+                title: packTitle,
+                description: yamlDescription,
+                color: packColor,
+                footerText: `Opened by ${interaction.user.username}`,
+                footerIcon: interaction.user.displayAvatarURL({ dynamic: true })
+            });
 
             await interaction.editReply({ embeds: [embed] });
 
@@ -158,20 +156,19 @@ module.exports = {
 
         } catch (error) {
             console.error('Error in premium pack command:', error);
-            if (!interaction.replied && !interaction.deferred) {
-                await interaction.reply({
-                    embeds: [EmbedUtils.createErrorEmbed(
-                        'Premium Pack Error',
-                        'An error occurred while opening your premium pack. Your gold has not been deducted!'
-                    )],
-                    flags: 64
-                });
+            const errorResponse = {
+                embeds: [EmbedUtils.createErrorEmbed(
+                    'Premium Pack Error',
+                    'An error occurred while opening your premium pack. Please contact support if gold was deducted!'
+                )]
+            };
+
+            if (interaction.deferred || interaction.replied) {
+                await interaction.editReply(errorResponse);
             } else {
-                await interaction.editReply({
-                    embeds: [EmbedUtils.createErrorEmbed(
-                        'Premium Pack Error',
-                        'An error occurred while opening your premium pack. Please contact support if gold was deducted!'
-                    )]
+                await interaction.reply({
+                    ...errorResponse,
+                    flags: 64
                 });
             }
         }

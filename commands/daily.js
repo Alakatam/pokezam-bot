@@ -74,16 +74,13 @@ module.exports = {
                 yamlCooldown += '```';
 
                 return interaction.reply({
-                    embeds: [new EmbedBuilder()
-                        .setColor('#FF6B6B')
-                        .setTitle('⏰ Daily Reward Already Claimed')
-                        .setDescription(yamlCooldown)
-                        .setTimestamp()
-                        .setFooter({ 
-                            text: 'Daily rewards reset at 20:00 ET!',
-                            iconURL: interaction.user.displayAvatarURL({ dynamic: true })
-                        })
-                    ],
+                    embeds: [EmbedUtils.createBaseEmbed({
+                        title: '⏰ Daily Reward Already Claimed',
+                        description: yamlCooldown,
+                        color: EmbedUtils.palette.error,
+                        footerText: 'Daily rewards reset at 20:00 ET!',
+                        footerIcon: interaction.user.displayAvatarURL({ dynamic: true })
+                    })],
                     flags: 64 // ephemeral flag
                 });
             }
@@ -184,15 +181,13 @@ module.exports = {
             
             const finalDisplay = yamlRewards.replace('#═══════════════════════════════════════════════════\n```', progressInfo + '\n#═══════════════════════════════════════════════════\n```');
 
-            const rewardEmbed = new EmbedBuilder()
-                .setTitle(`${rewards.special ? '🌟 SPECIAL ' : '🎁 '}Daily Rewards - Day ${streakCount}!`)
-                .setDescription(finalDisplay)
-                .setColor(rewards.special ? '#FFD700' : '#4CAF50')
-                .setTimestamp()
-                .setFooter({ 
-                    text: `Next reward at 22:00 ET • ${rewards.streakProtection ? 'Streak Protection Active' : 'Keep your streak going!'}`,
-                    iconURL: interaction.user.displayAvatarURL({ dynamic: true })
-                });
+            const rewardEmbed = EmbedUtils.createBaseEmbed({
+                title: `${rewards.special ? '🌟 SPECIAL ' : '🎁 '}Daily Rewards - Day ${streakCount}!`,
+                description: finalDisplay,
+                color: rewards.special ? EmbedUtils.palette.warning : EmbedUtils.palette.success,
+                footerText: `Next reward at 22:00 ET • ${rewards.streakProtection ? 'Streak Protection Active' : 'Keep your streak going!'}`,
+                footerIcon: interaction.user.displayAvatarURL({ dynamic: true })
+            });
 
             // Add milestone bonus rewards if applicable
             if (rewards.milestoneReward) {
@@ -214,11 +209,11 @@ module.exports = {
 
             // Send milestone celebration if applicable
             if (rewards.milestoneReward) {
-                const celebrationEmbed = new EmbedBuilder()
-                    .setTitle(`🎊 MILESTONE ACHIEVED! Day ${streakCount}! 🎊`)
-                    .setDescription(`**${rewards.milestoneName}**\n\n${rewards.milestoneMessage}\n\n🏆 **Milestone Rewards:**\n${rewards.milestoneBonus ? `💰 ${rewards.milestoneBonus.toLocaleString()} Gold\n` : ''}${rewards.milestoneItem ? `🎁 ${rewards.milestoneItem}\n` : ''}`)
-                    .setColor('#FFD700')
-                    .setTimestamp();
+                const celebrationEmbed = EmbedUtils.createBaseEmbed({
+                    title: `🎊 Milestone Achieved • Day ${streakCount}!`,
+                    description: `**${rewards.milestoneName}**\n\n${rewards.milestoneMessage}\n\n🏆 **Milestone Rewards:**\n${rewards.milestoneBonus ? `💰 ${rewards.milestoneBonus.toLocaleString()} Gold\n` : ''}${rewards.milestoneItem ? `🎁 ${rewards.milestoneItem}\n` : ''}`,
+                    color: EmbedUtils.palette.warning
+                });
                 
                 await interaction.followUp({ embeds: [celebrationEmbed] });
             }

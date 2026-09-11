@@ -144,15 +144,13 @@ module.exports = {
                 achievementMessage = '\n✨ **Great pull!** 1st Edition secured!';
             }
 
-            const embed = new EmbedBuilder()
-                .setTitle(packTitle)
-                .setDescription(yamlDescription + (achievementMessage ? `\n${achievementMessage}` : ''))
-                .setColor(packColor)
-                .setTimestamp()
-                .setFooter({ 
-                    text: `Opened by ${interaction.user.username} • Vintage Collector Level ${user.level}`,
-                    iconURL: interaction.user.displayAvatarURL({ dynamic: true })
-                });
+            const embed = EmbedUtils.createBaseEmbed({
+                title: packTitle,
+                description: yamlDescription + (achievementMessage ? `\n${achievementMessage}` : ''),
+                color: packColor,
+                footerText: `Opened by ${interaction.user.username} • Vintage Collector Level ${user.level}`,
+                footerIcon: interaction.user.displayAvatarURL({ dynamic: true })
+            });
 
             await interaction.editReply({ embeds: [embed] });
 
@@ -199,20 +197,19 @@ module.exports = {
 
         } catch (error) {
             console.error('Error in vintage pack command:', error);
-            if (!interaction.replied && !interaction.deferred) {
-                await interaction.reply({
-                    embeds: [EmbedUtils.createErrorEmbed(
-                        'Vintage Pack Error',
-                        'An error occurred while opening your vintage pack. Your gold has not been deducted!'
-                    )],
-                    flags: 64
-                });
+            const errorResponse = {
+                embeds: [EmbedUtils.createErrorEmbed(
+                    'Vintage Pack Error',
+                    'An error occurred while opening your vintage pack. Please contact support if gold was deducted!'
+                )]
+            };
+
+            if (interaction.deferred || interaction.replied) {
+                await interaction.editReply(errorResponse);
             } else {
-                await interaction.editReply({
-                    embeds: [EmbedUtils.createErrorEmbed(
-                        'Vintage Pack Error',
-                        'An error occurred while opening your vintage pack. Please contact support if gold was deducted!'
-                    )]
+                await interaction.reply({
+                    ...errorResponse,
+                    flags: 64
                 });
             }
         }

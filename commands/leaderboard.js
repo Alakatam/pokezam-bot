@@ -185,15 +185,13 @@ module.exports = {
             yamlContent += '\n#═══════════════════════════════════════════════════\n';
             yamlContent += '```';
 
-            const embed = new EmbedBuilder()
-                .setTitle(`${emoji} ${title}`)
-                .setDescription(yamlContent)
-                .setColor(0xffd700)
-                .setTimestamp()
-                .setFooter({
-                    text: userRank ? `Your rank: #${userRank}` : 'Use /start to join the leaderboard!',
-                    iconURL: interaction.user.displayAvatarURL()
-                });
+            const embed = EmbedUtils.createBaseEmbed({
+                title: `${emoji} ${title}`,
+                description: yamlContent,
+                color: EmbedUtils.palette.warning,
+                footerText: userRank ? `Your rank: #${userRank}` : 'Use /start to join the leaderboard!',
+                footerIcon: interaction.user.displayAvatarURL()
+            });
 
             await interaction.editReply({ embeds: [embed] });
 
@@ -202,18 +200,16 @@ module.exports = {
             
             if (interaction.deferred && !interaction.replied) {
                 await interaction.editReply({
-                    embeds: [{
-                        title: '❌ Leaderboard Error',
-                        description: '```yaml\n' +
+                    embeds: [EmbedUtils.createErrorEmbed(
+                        'Leaderboard Error',
+                        '```yaml\n' +
                             '#═══════════════════════════════════════════════════\n' +
                             '# ❌ ERROR LOADING LEADERBOARD\n' +
                             '#═══════════════════════════════════════════════════\n\n' +
                             `error              : ${error.message}\n` +
                             'suggestion         : Try again in a moment\n' +
-                            '```',
-                        color: 0xff0000,
-                        timestamp: new Date().toISOString()
-                    }]
+                            '```'
+                    )]
                 });
             }
         }

@@ -111,20 +111,14 @@ module.exports = {
                 embedTitle = '🔹 Master Set Collection - Rising Collector!';
             }
 
-            const embed = new EmbedBuilder()
-                .setTitle(embedTitle)
-                .setDescription(yamlDescription)
-                .setColor(embedColor)
-                .setTimestamp()
-                .setFooter({ 
-                    text: `Level ${user.level} • ${user.gold.toLocaleString()} 🪙`,
-                    iconURL: interaction.user.displayAvatarURL({ dynamic: true })
-                });
-
-            // Add thumbnail based on collection level
-            if (overallCompletion >= 50) {
-                embed.setThumbnail('https://assets.tcgdx.net/en/base/base1/4'); // Charizard for high collectors
-            }
+            const embed = EmbedUtils.createBaseEmbed({
+                title: embedTitle,
+                description: yamlDescription,
+                color: embedColor,
+                footerText: `Level ${user.level} • ${user.gold.toLocaleString()} 🪙`,
+                footerIcon: interaction.user.displayAvatarURL({ dynamic: true }),
+                thumbnail: overallCompletion >= 50 ? 'https://assets.tcgdx.net/en/base/base1/4' : null
+            });
 
             await interaction.editReply({ embeds: [embed] });
 

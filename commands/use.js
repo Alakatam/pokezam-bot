@@ -336,15 +336,13 @@ module.exports = {
         yamlDescription += '#═══════════════════════════════════════════════════\n';
         yamlDescription += '```';
 
-        return new EmbedBuilder()
-            .setTitle(`✨ ${itemName} Activated!`)
-            .setDescription(yamlDescription)
-            .setColor('#FFD700')
-            .setTimestamp()
-            .setFooter({ 
-                text: 'Use /active_boosts to see all your active effects',
-                iconURL: user.displayAvatarURL({ dynamic: true })
-            });
+        return EmbedUtils.createBaseEmbed({
+            title: `✨ ${itemName} Activated!`,
+            description: yamlDescription,
+            color: EmbedUtils.palette.warning,
+            footerText: 'Use /active_boosts to see all your active effects',
+            footerIcon: user.displayAvatarURL({ dynamic: true })
+        });
     },
 
     getItemDisplayName(itemId) {

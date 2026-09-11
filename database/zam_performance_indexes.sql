@@ -7,16 +7,14 @@
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_cards_zam_group_by 
 ON cards(set_name, api_id) 
 WHERE api_id IS NOT NULL 
-AND (image_url_large IS NOT NULL OR image_url_small IS NOT NULL 
-     OR image_large IS NOT NULL OR image_small IS NOT NULL);
+AND (image_large IS NOT NULL OR image_small IS NOT NULL);
 
 -- 2. OFFSET optimization: Makes LIMIT/OFFSET queries instant
 -- Covers the final card selection query
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_cards_zam_offset 
 ON cards(set_name, id) 
 WHERE api_id IS NOT NULL 
-AND (image_url_large IS NOT NULL OR image_url_small IS NOT NULL 
-     OR image_large IS NOT NULL OR image_small IS NOT NULL);
+AND (image_large IS NOT NULL OR image_small IS NOT NULL);
 
 -- 3. Fallback query optimization (cached cards)
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_cards_zam_cached 

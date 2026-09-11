@@ -82,6 +82,58 @@ class PokemonTCGAPI {
         return sets;
     }
 
+    getAllKnownSetIds() {
+        return [
+            'base1', 'base2', 'base3', 'base4',
+            'gym1', 'gym2',
+            'neo1', 'neo2', 'neo3', 'neo4',
+            'ex1', 'ex2', 'ex3', 'ex4', 'ex5', 'ex6', 'ex7', 'ex8', 'ex9', 'ex10', 'ex11', 'ex12', 'ex13', 'ex14', 'ex15', 'ex16',
+            'dp1', 'dp2', 'dp3', 'dp4', 'dp5', 'dp6', 'dp7', 'dp8', 'dp9', 'dp10', 'dp11', 'dp12', 'dp13', 'dp14', 'dp15',
+            'pl1', 'pl2', 'pl3', 'pl4', 'pl5', 'pl6', 'pl7',
+            'ru1', 'ru2', 'ru3',
+            'bw1', 'bw2', 'bw3', 'bw4', 'bw5', 'bw6', 'bw7', 'bw8', 'bw9', 'bw10', 'bw11', 'bw12',
+            'xy1', 'xy2', 'xy3', 'xy4', 'xy5', 'xy6', 'xy7', 'xy8', 'xy9', 'xy10', 'xy11', 'xy12',
+            'sm1', 'sm2', 'sm3', 'sm4', 'sm5', 'sm6', 'sm7', 'sm8', 'sm9', 'sm10', 'sm11', 'sm12',
+            'swsh1', 'swsh2', 'swsh3', 'swsh4', 'swsh5', 'swsh6', 'swsh7', 'swsh8', 'swsh9', 'swsh10', 'swsh11', 'swsh12',
+            'sv1', 'sv2', 'sv3', 'sv4', 'sv5', 'sv6', 'sv7', 'sv8', 'sv9', 'sv10', 'sv11', 'sv12'
+        ];
+    }
+
+    async getSetIdsForTarget(target = 'classic') {
+        const classicSetIds = this.getClassicSetIds();
+        const fallbackSetIds = this.getAllKnownSetIds();
+
+        if (target === 'classic') {
+            return classicSetIds;
+        }
+
+        try {
+            const allSets = await this.fetchSets();
+            const liveSetIds = (allSets || [])
+                .map(set => set && set.id)
+                .filter(Boolean);
+
+            if (!liveSetIds.length || liveSetIds.length <= 10) {
+                if (target === 'modern') {
+                    return fallbackSetIds.filter(setId => !classicSetIds.includes(setId));
+                }
+                return fallbackSetIds;
+            }
+
+            if (target === 'modern') {
+                return liveSetIds.filter(setId => !classicSetIds.includes(setId));
+            }
+
+            return liveSetIds;
+        } catch (error) {
+            console.error('Error resolving target set IDs:', error.message);
+            if (target === 'modern') {
+                return fallbackSetIds.filter(setId => !classicSetIds.includes(setId));
+            }
+            return fallbackSetIds;
+        }
+    }
+
     normalizeCardData(apiCard) {
         return {
             api_id: apiCard.id,

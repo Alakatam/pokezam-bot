@@ -1,90 +1,121 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const EmbedUtils = require('../utils/EmbedUtils');
+
+const HELP_CATEGORIES = {
+    overview: {
+        title: '🏆 Pokézam Command Hub',
+        description: 'Your premium trainer dashboard for collection, progression, and elite rewards.',
+        color: EmbedUtils.palette.brand,
+        fields: [
+            { name: '🎴 Core Loop', value: 'Use `/start`, `/zam`, `/quest`, and `/inventory` to build momentum fast.', inline: false },
+            { name: '📦 Best First Actions', value: 'Open your starter chest, complete quests, and keep drawing for steady upgrades.', inline: false },
+            { name: '⚡ Power Moves', value: 'Use `/shop`, `/binder`, `/profile`, and `/carddex-reg` to scale your collection efficiently.', inline: false }
+        ]
+    },
+    collection: {
+        title: '📚 Collection & Binder',
+        description: 'Track your cards, sets, and trading progress like a pro.',
+        color: EmbedUtils.palette.accent,
+        fields: [
+            { name: '/binder', value: 'Browse your owned cards by set and rarity.', inline: true },
+            { name: '/profile', value: 'Check trainer stats, collection size, and current progress.', inline: true },
+            { name: '/carddex-reg', value: 'Explore the full Pokézam TCG database and card registry.', inline: true },
+            { name: '💡 Tip', value: 'Collecting rare variants early unlocks stronger gold and progression spikes.', inline: false }
+        ]
+    },
+    progression: {
+        title: '🚀 Progression & Quests',
+        description: 'Push your trainer forward with quests, rewards, and consistent leveling.',
+        color: EmbedUtils.palette.warning,
+        fields: [
+            { name: '/quest', value: 'Complete daily and weekly objectives for gold and XP.', inline: true },
+            { name: '/daily', value: 'Claim your recurring daily rewards and streak bonuses.', inline: true },
+            { name: '/active-boosts', value: 'Monitor current buffs, charms, and temporary bonuses.', inline: true },
+            { name: '🎯 Strategy', value: 'Prioritize quest completion first, then spend gold on upgrades and boost items.', inline: false }
+        ]
+    },
+    economy: {
+        title: '💰 Economy & Shop',
+        description: 'Buy smarter, stack boosts, and play the long game with efficient upgrades.',
+        color: EmbedUtils.palette.success,
+        fields: [
+            { name: '/shop', value: 'Buy premium items, boosts, and progression enhancers.', inline: true },
+            { name: '/inventory', value: 'Manage active items and your trainer inventory.', inline: true },
+            { name: '/use', value: 'Activate treasure chests and consumable bonuses at the right moment.', inline: true },
+            { name: '💸 Rule', value: 'Spend gold on items that increase draw efficiency and reward conversion, not random churn.', inline: false }
+        ]
+    }
+};
+
+function buildHelpButtons(activeCategory = 'overview') {
+    const categories = [
+        { id: 'overview', label: 'Overview' },
+        { id: 'collection', label: 'Collection' },
+        { id: 'progression', label: 'Progression' },
+        { id: 'economy', label: 'Economy' }
+    ];
+
+    return new ActionRowBuilder().addComponents(
+        categories.map(({ id, label }) =>
+            new ButtonBuilder()
+                .setCustomId(`help_${id}`)
+                .setLabel(label)
+                .setStyle(id === activeCategory ? ButtonStyle.Primary : ButtonStyle.Secondary)
+                .setDisabled(id === activeCategory)
+        )
+    );
+}
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('help')
-        .setDescription('Get help with bot commands and features'),
-    
-    async execute(interaction, { database, userManager, cardManager, questManager }) {
+        .setDescription('Open the premium Pokézam command hub and quick-start guide'),
+
+    async execute(interaction, context) {
+        await this.showHelpOverview(interaction, context);
+    },
+
+    async showHelpOverview(interaction, context) {
         try {
-            // Create compact help format to fit Discord's 4096 character limit
-            const yamlHelp = `\`\`\`yaml
-#═══════════════════════════════════════════════════
-# 🎮 POKÉZAM BOT - COMMAND REFERENCE
-#═══════════════════════════════════════════════════
-
-📱 CORE COMMANDS:
-   /draw                  : Draw Pokemon cards (5s cooldown)
-   /profile [user]        : View trainer stats & collection
-   /binder [user]         : Browse your card binder by set
-   /master-collection     : View Master Set variant progress
-   /quest                 : View daily & weekly challenges
-
-🎁 PREMIUM PACKS:
-   /premium-pack          : 100,000 🪙 | Enhanced variant odds
-   /master-pack           : 250,000 🪙 | Guaranteed rare variants
-   /vintage-pack          : 500,000 🪙 | 40% 1st Edition focus
-
-🌟 MASTER SET VARIANTS:
-   🔹 Normal             : Standard (100% gold)
-   🔸 Reverse Holo       : Reverse shine (150% gold)
-   ✨ Holographic        : Rainbow holo (300% gold)
-   🥇 1st Edition        : Museum quality (600% gold)
-   🎁 Promotional        : Special promos (400% gold)
-
-🎯 CARD RARITIES & XP REWARDS:
-   Common    : 1 XP  | 100-250 Gold | White embeds
-   Uncommon  : 2 XP  | 250-400 Gold | Green embeds  
-   Rare      : 5 XP  | 400-1000 Gold | Blue embeds
-   Holo Rare : 10 XP | 1000-2000 Gold | Purple embeds
-   Ultra/EX  : 25 XP | 2000-5000 Gold | Pink embeds
-   Secret    : 50 XP | 5000-10000 Gold | Orange embeds
-
-📊 GENERATION PROGRESSION:
-   Level 1+   : Generation I (Kanto - Base Set)
-   Level 35+  : Generation III (Hoenn - EX Series)
-   Level 60+  : Generation IV (Sinnoh - D&P)
-   Level 110+ : Generation V (Unova - B&W)
-   Level 150+ : Generation VII (Alola - S&M)
-   Level 200+ : Generation IX (Paldea - S&V)
-
-🎯 QUEST SYSTEM:
-   Daily quests: Steady gold income
-   Weekly quests: Bigger rewards
-   The Grinder: Draw 100 cards (50 🪙)
-   The Socialite: React to 5 cards (25 🪙)
-
-💡 PRO TIPS:
-   • Use /binder to explore your collection
-   • Complete dailies consistently for gold
-   • Invest in premium packs for rare variants
-   • Draw regularly to unlock new eras
-
-#═══════════════════════════════════════════════════
-\`\`\``;
-
-            const embed = EmbedUtils.createInfoEmbed(
-                '📚 Command Reference',
-                yamlHelp
-            );
-
-            embed.setFooter({ 
-                text: 'Happy collecting! 🎉',
-                iconURL: interaction.client.user.displayAvatarURL()
+            const category = HELP_CATEGORIES.overview;
+            const embed = EmbedUtils.createBaseEmbed({
+                title: category.title,
+                description: category.description,
+                color: category.color,
+                footerText: 'Pokézam TCG • Elite trainer guide',
+                footerIcon: interaction.client.user.displayAvatarURL(),
+                fields: category.fields
             });
 
-            await interaction.reply({ embeds: [embed] });
-
+            await interaction.reply({
+                embeds: [embed],
+                components: [buildHelpButtons('overview')]
+            });
         } catch (error) {
             console.error('Error in help command:', error);
             await interaction.reply({
-                embeds: [EmbedUtils.createErrorEmbed(
-                    'Help Error',
-                    'An error occurred while loading help information. Please try again!'
-                )],
+                embeds: [EmbedUtils.createErrorEmbed('Help Error', 'An error occurred while loading the command hub. Please try again!')],
                 ephemeral: true
             });
         }
+    },
+
+    async showHelpCategory(interaction, categoryKey) {
+        const key = categoryKey && HELP_CATEGORIES[categoryKey] ? categoryKey : 'overview';
+        const category = HELP_CATEGORIES[key];
+
+        const embed = EmbedUtils.createBaseEmbed({
+            title: category.title,
+            description: category.description,
+            color: category.color,
+            footerText: 'Pokézam TCG • Elite trainer guide',
+            footerIcon: interaction.client.user.displayAvatarURL(),
+            fields: category.fields
+        });
+
+        await interaction.editReply({
+            embeds: [embed],
+            components: [buildHelpButtons(key)]
+        });
     }
 };

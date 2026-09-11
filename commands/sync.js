@@ -66,20 +66,19 @@ module.exports = {
         } catch (error) {
             console.error('Error in sync command:', error);
             
-            if (!interaction.replied && !interaction.deferred) {
-                await interaction.reply({
-                    embeds: [EmbedUtils.createErrorEmbed(
-                        '❌ Sync Error',
-                        `An error occurred during sync operation.\n\n**Error**: ${error.message}\n\n*Please try again or contact support.*`
-                    )],
-                    ephemeral: true
-                });
+            const errorResponse = {
+                embeds: [EmbedUtils.createErrorEmbed(
+                    '❌ Sync Error',
+                    `An error occurred during sync operation.\n\n**Error**: ${error.message}`
+                )]
+            };
+
+            if (interaction.deferred || interaction.replied) {
+                await interaction.editReply(errorResponse);
             } else {
-                await interaction.editReply({
-                    embeds: [EmbedUtils.createErrorEmbed(
-                        '❌ Sync Error',
-                        `An error occurred during sync operation.\n\n**Error**: ${error.message}`
-                    )]
+                await interaction.reply({
+                    ...errorResponse,
+                    ephemeral: true
                 });
             }
         }
@@ -143,12 +142,12 @@ module.exports = {
         yamlDescription += '#═══════════════════════════════════════════════════\n';
         yamlDescription += '```';
 
-        const embed = new EmbedBuilder()
-            .setTitle('🔄 Smart TCG Sync Started')
-            .setDescription(yamlDescription)
-            .setColor('#00D9FF')
-            .setTimestamp()
-            .setFooter({ text: 'Sync running in background - you\'ll be notified when complete!' });
+        const embed = EmbedUtils.createBaseEmbed({
+            title: '🔄 Smart TCG Sync Started',
+            description: yamlDescription,
+            color: '#00D9FF',
+            footerText: 'Sync running in background - you\'ll be notified when complete!'
+        });
 
         await interaction.reply({ embeds: [embed] });
 
@@ -158,7 +157,7 @@ module.exports = {
 
     async executeSmartSync(syncManager, target, setIds, forceUpdate, interaction) {
         try {
-            const result = await syncManager.syncCardsFromAPI(setIds, forceUpdate);
+            const result = await syncManager.syncCardsFromAPI(setIds, forceUpdate, target);
             
             let yamlDescription = '```yaml\n';
             yamlDescription += '#═══════════════════════════════════════════════════\n';
@@ -204,12 +203,12 @@ module.exports = {
             yamlDescription += '\n#═══════════════════════════════════════════════════\n';
             yamlDescription += '```';
 
-            const resultEmbed = new EmbedBuilder()
-                .setTitle(result.success ? '✅ Sync Complete!' : '❌ Sync Failed')
-                .setDescription(yamlDescription)
-                .setColor(result.success ? '#00FF00' : '#FF0000')
-                .setTimestamp()
-                .setFooter({ text: result.success ? 'Card database updated successfully!' : 'Check logs for detailed error information' });
+            const resultEmbed = EmbedUtils.createBaseEmbed({
+                title: result.success ? '✅ Sync Complete!' : '❌ Sync Failed',
+                description: yamlDescription,
+                color: result.success ? '#00FF00' : '#FF0000',
+                footerText: result.success ? 'Card database updated successfully!' : 'Check logs for detailed error information'
+            });
 
             await interaction.followUp({ embeds: [resultEmbed] });
             
@@ -296,15 +295,13 @@ module.exports = {
         else if (syncPercentage >= 70) embedColor = '#FFA500'; // Orange for good
         else if (syncPercentage < 50) embedColor = '#FF6B6B'; // Red for needs work
 
-        const embed = new EmbedBuilder()
-            .setTitle('📊 TCG Database Status')
-            .setDescription(yamlDescription)
-            .setColor(embedColor)
-            .setTimestamp()
-            .setFooter({ 
-                text: `${syncPercentage}% synced | Use /sync update to improve coverage`,
-                iconURL: interaction.user.displayAvatarURL({ dynamic: true })
-            });
+        const embed = EmbedUtils.createBaseEmbed({
+            title: '📊 TCG Database Status',
+            description: yamlDescription,
+            color: embedColor,
+            footerText: `${syncPercentage}% synced | Use /sync update to improve coverage`,
+            footerIcon: interaction.user.displayAvatarURL({ dynamic: true })
+        });
 
         await interaction.reply({ embeds: [embed] });
     },

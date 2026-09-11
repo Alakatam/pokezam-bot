@@ -9,9 +9,23 @@ module.exports = {
     cooldown: 5, // 5 seconds
     
     async execute(interaction, { database, userManager, cardManager, questManager }) {
+        let interactionAlreadyAcknowledged = false;
+
         try {
-            // OPTIMIZATION: Defer reply immediately to prevent Discord timeout
-            await interaction.deferReply();
+            // Guard against duplicate Discord acknowledgments on the same interaction.
+            // Some flows can already have replied or deferred before this command finishes.
+            if (!interaction.deferred && !interaction.replied) {
+                try {
+                    await interaction.deferReply();
+                } catch (error) {
+                    if (error.code === 40060) {
+                        interactionAlreadyAcknowledged = true;
+                        console.warn('⚠️ /zam interaction already acknowledged; skipping duplicate defer.');
+                    } else {
+                        throw error;
+                    }
+                }
+            }
             
             const userId = interaction.user.id;
             let user = await userManager.getUser(userId);
@@ -58,16 +72,13 @@ experience awaiting    : "Cards, quests, and adventure!"
 \`\`\``;
 
                 return await interaction.editReply({
-                    embeds: [{
-                        title: '🚫 Adventure Not Started - Welcome to Pokézam!',
-                        description: yamlContent,
-                        color: 0xff6b6b,
-                        timestamp: new Date().toISOString(),
-                        footer: {
-                            text: `Welcome ${interaction.user.username}! Use /start to begin`,
-                            icon_url: interaction.user.displayAvatarURL()
-                        }
-                    }]
+                    embeds: [EmbedUtils.createBaseEmbed({
+                        title: '🚫 Adventure Not Started',
+                        description: `**Welcome to Pokézam!**\n\nUse **/start** to begin your trainer journey and unlock drawing, quests, and rewards.`,
+                        color: EmbedUtils.palette.error,
+                        footerText: `Welcome ${interaction.user.username}! Use /start to begin`,
+                        footerIcon: interaction.user.displayAvatarURL({ dynamic: true })
+                    })]
                 });
             }
 
@@ -238,76 +249,46 @@ experience awaiting    : "Cards, quests, and adventure!"
             // Get user's updated gold total
             const updatedUser = await userManager.getUser(userId);
             
-            // Build ultra-clean YAML card draw result with Master Set variant info
             const isSpecialVariant = variant !== 'normal';
-            let yamlDescription = '```yaml\n';
-            yamlDescription += '#═══════════════════════════════════════════════════\n';
-            yamlDescription += `# ${isSpecialVariant ? variantInfo.emoji : '🎴'} ${detailedCard.name.toUpperCase()}\n`;
-            yamlDescription += '#═══════════════════════════════════════════════════\n\n';
-            
-            yamlDescription += '🃏 CARD INFO:\n';
-            yamlDescription += `   Name               : "${detailedCard.name}"\n`;
-            yamlDescription += `   Set ID             : "${setId}"\n`;
-            yamlDescription += `   Card Number        : "${cardId}"\n`;
-            yamlDescription += `   Rarity             : "${detailedCard.rarity}"\n`;
-            
-            // Only add Master Set variant information if it's a special variant
-            if (isSpecialVariant) {
-                yamlDescription += `   Variant            : "${variantInfo.displayName}" ${variantInfo.emoji}\n`;
-            }
-            
-            // Add type if available
-            if (detailedCard.is_cached && detailedCard.types) {
-                try {
-                    const types = JSON.parse(detailedCard.types);
-                    if (types && types.length > 0) {
-                        yamlDescription += `   Type               : "${types.join(', ')}"\n`;
+            const typeInfo = detailedCard.is_cached && detailedCard.types
+                ? (() => {
+                    try {
+                        const parsed = JSON.parse(detailedCard.types);
+                        return Array.isArray(parsed) && parsed.length ? parsed.join(', ') : 'Unknown';
+                    } catch {
+                        return 'Unknown';
                     }
-                } catch (e) {
-                    // Ignore JSON parsing errors
-                }
-            }
-            
-            yamlDescription += '\n💰 REWARDS EARNED:\n';
-            yamlDescription += `   Experience         : ${xpReward} XP${variantInfo.xpBonus > 0 ? ` (${baseXpReward} base +${variantInfo.xpBonus} variant)` : ` (${baseXpReward} rarity bonus)`}\n`;
-            
-            // Build gold reward display with bonuses
-            let goldDisplay = `${goldReward.toLocaleString()} 🪙`;
-            const bonuses = [];
-            if (variantInfo.goldMultiplier > 1) {
-                bonuses.push(`${variantInfo.goldMultiplier}x variant`);
-            }
-            if (totalGoldMultiplier > 1) {
-                bonuses.push(`${totalGoldMultiplier}x ${activeEffectNames.join(', ')}`);
-            }
-            if (bonuses.length > 0) {
-                goldDisplay += ` (${bonuses.join(' + ')})`;
-            }
-            
-            yamlDescription += `   Gold Reward        : ${goldDisplay}\n`;
-            yamlDescription += `   Rarity Bonus       : "${rarityInfo.description.replace(/\*\*/g, '').replace('!', '')}"\n`;
-            if (isSpecialVariant) {
-                yamlDescription += `   Variant Bonus      : "${variantInfo.description}"\n`;
-            }
-            yamlDescription += '\n';
-            yamlDescription += '#═══════════════════════════════════════════════════\n';
-            yamlDescription += '```';
-            
-            const embed = new EmbedBuilder()
-                .setTitle(`${isSpecialVariant ? variantInfo.emoji : rarityInfo.emoji} ${isSpecialVariant ? `${variantInfo.displayName} ` : ''}Card Drawn!`)
-                .setDescription(yamlDescription)
-                .setColor(isSpecialVariant ? variantInfo.color : rarityInfo.color)
-                .setTimestamp()
-                .setFooter({ 
-                    text: `Collected by ${interaction.user.username}`,
-                    iconURL: interaction.user.displayAvatarURL({ dynamic: true })
-                });
-            
-            // Ensure image is set if available (prioritize large image)
+                })()
+                : 'Unknown';
+
+            const bonusSummary = [];
+            if (variantInfo.goldMultiplier > 1) bonusSummary.push(`${variantInfo.goldMultiplier}x variant gold`);
+            if (totalGoldMultiplier > 1) bonusSummary.push(`${totalGoldMultiplier}x active boost`);
+
+            const rewardSummary = [
+                { name: 'Card', value: detailedCard.name, inline: true },
+                { name: 'Set', value: detailedCard.set_name || setId, inline: true },
+                { name: 'No.', value: String(cardId), inline: true },
+                { name: 'Rarity', value: detailedCard.rarity, inline: true },
+                { name: isSpecialVariant ? 'Variant' : 'Status', value: isSpecialVariant ? `${variantInfo.displayName} ${variantInfo.emoji}` : rarityInfo.description.replace(/\*\*/g, '').replace('!', ''), inline: true },
+                { name: 'Type', value: typeInfo, inline: true },
+                { name: 'Rewards', value: `${xpReward} XP • ${goldReward.toLocaleString()} 🪙`, inline: true },
+                { name: 'Bonus', value: bonusSummary.length ? bonusSummary.join(' • ') : 'Standard pull', inline: true },
+                { name: 'Next Move', value: activeEffectNames.length ? `Boost active: ${activeEffectNames.join(', ')}` : 'Keep the streak alive and draw again.', inline: false }
+            ];
+
             const imageUrl = detailedCard.image_large || detailedCard.image_small;
-            if (imageUrl) {
-                embed.setImage(imageUrl);
-            }
+            const embed = EmbedUtils.createBaseEmbed({
+                title: `${isSpecialVariant ? variantInfo.emoji : rarityInfo.emoji} ${detailedCard.name}`,
+                description: isSpecialVariant
+                    ? `**${variantInfo.displayName} pull acquired.** Your collection just got deeper.`
+                    : `**${detailedCard.rarity} pull acquired.** The grind is paying off.`,
+                color: isSpecialVariant ? variantInfo.color : rarityInfo.color,
+                image: imageUrl,
+                footerText: `Collected by ${interaction.user.username}`,
+                footerIcon: interaction.user.displayAvatarURL({ dynamic: true }),
+                fields: rewardSummary
+            });
 
             // No additional fields needed - all info is in description
 
@@ -471,10 +452,11 @@ experience awaiting    : "Cards, quests, and adventure!"
                 
                 yamlContent += '```';
 
-                const questEmbed = new EmbedBuilder()
-                    .setDescription(yamlContent)
-                    .setColor('#00ff00')
-                    .setTimestamp();
+                const questEmbed = EmbedUtils.createBaseEmbed({
+                    title: '✨ Quest Complete',
+                    description: yamlContent,
+                    color: EmbedUtils.palette.success
+                });
                 
                 setTimeout(async () => {
                     try {
@@ -487,21 +469,34 @@ experience awaiting    : "Cards, quests, and adventure!"
 
         } catch (error) {
             console.error('Error in draw command:', error);
-            if (!interaction.replied && !interaction.deferred) {
-                await interaction.reply({
-                    embeds: [EmbedUtils.createErrorEmbed(
-                        'Draw Error',
-                        'An error occurred while drawing a card. Please try again!'
-                    )],
-                    flags: 64
-                });
-            } else {
-                await interaction.editReply({
-                    embeds: [EmbedUtils.createErrorEmbed(
-                        'Draw Error',
-                        'An error occurred while drawing a card. Please try again!'
-                    )]
-                });
+
+            if (interactionAlreadyAcknowledged || error.code === 40060) {
+                console.warn('⚠️ Ignoring duplicate-response attempt on already acknowledged /zam interaction.');
+                return;
+            }
+
+            const errorResponse = {
+                embeds: [EmbedUtils.createErrorEmbed(
+                    'Draw Error',
+                    'An error occurred while drawing a card. Please try again!'
+                )]
+            };
+
+            try {
+                if (interaction.deferred || interaction.replied) {
+                    await interaction.editReply(errorResponse);
+                } else {
+                    await interaction.reply({
+                        ...errorResponse,
+                        flags: 64
+                    });
+                }
+            } catch (sendError) {
+                if (sendError.code === 40060) {
+                    console.warn('⚠️ Interaction was already acknowledged before draw error response could be sent.');
+                    return;
+                }
+                console.error('Failed to send draw error message:', sendError);
             }
         }
     },
@@ -642,16 +637,7 @@ experience awaiting    : "Cards, quests, and adventure!"
 
             // Create a special showcase embed (more compact than the main one)
             const isSpecialVariant = variant !== 'normal';
-            const showcaseEmbed = new EmbedBuilder()
-                .setTitle(`${isSpecialVariant ? variantInfo.emoji : rarityInfo.emoji} ${detailedCard.rarity} Pulled!`)
-                .setColor(isSpecialVariant ? variantInfo.color : rarityInfo.color)
-                .setTimestamp();
-
-            // Add card image if available
             const imageUrl = detailedCard.image_large || detailedCard.image_small;
-            if (imageUrl) {
-                showcaseEmbed.setThumbnail(imageUrl);
-            }
 
             // Compact YAML-style description for showcase
             let showcaseDescription = '```yaml\n';
@@ -683,12 +669,13 @@ experience awaiting    : "Cards, quests, and adventure!"
             showcaseDescription += '\n#══════════════════════════════════════\n';
             showcaseDescription += '```';
 
-            showcaseEmbed.setDescription(showcaseDescription);
-            
-            // Set footer with trainer info
-            showcaseEmbed.setFooter({
-                text: `Congratulations ${interaction.user.username}! • Pokézam Global Showcase`,
-                iconURL: interaction.user.displayAvatarURL({ dynamic: true })
+            const showcaseEmbed = EmbedUtils.createBaseEmbed({
+                title: `${isSpecialVariant ? variantInfo.emoji : rarityInfo.emoji} ${detailedCard.rarity} Pulled!`,
+                description: showcaseDescription,
+                color: isSpecialVariant ? variantInfo.color : rarityInfo.color,
+                thumbnail: imageUrl,
+                footerText: `Congratulations ${interaction.user.username}! • Pokézam Global Showcase`,
+                footerIcon: interaction.user.displayAvatarURL({ dynamic: true })
             });
 
             // Send to global showcase channel
@@ -806,17 +793,17 @@ experience awaiting    : "Cards, quests, and adventure!"
                     
                     if (reward) {
                         // Send set completion notification
-                        const completionEmbed = new EmbedBuilder()
-                            .setColor('#ffd700')
-                            .setTitle('🎉 SET COMPLETED!')
-                            .setDescription(`**Congratulations!** You have completed the **${card.set_name}** set!`)
-                            .addFields({
-                                name: '🎁 **Reward Earned**',
+                        const completionEmbed = EmbedUtils.createBaseEmbed({
+                            title: '🎉 SET COMPLETED!',
+                            description: `**Congratulations!** You have completed the **${card.set_name}** set!`,
+                            color: '#ffd700',
+                            footerText: 'Use /sets progress to view all your set completion progress',
+                            fields: [{
+                                name: '🎁 Reward Earned',
                                 value: reward.description || `${reward.value} ${reward.type}`,
                                 inline: false
-                            })
-                            .setFooter({ text: 'Use /sets progress to view all your set completion progress' })
-                            .setTimestamp();
+                            }]
+                        });
 
                         // Send completion notification after a short delay
                         setTimeout(async () => {

@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const EmbedUtils = require('../utils/EmbedUtils');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -201,17 +202,13 @@ module.exports = {
         yamlStatus += '#════════════════════════════════════════\n';
         yamlStatus += '```';
 
-        const embed = new EmbedBuilder()
-            .setTitle(`🏪 ${interaction.user.username}'s Collector Shop`)
-            .setDescription(yamlStatus)
-            .setColor('#FFD700')
-            .setTimestamp()
-            .setFooter({
-                text: `Shop Level ${shop.shop_level} • Use /collector collect to claim rewards`,
-                iconURL: interaction.user.displayAvatarURL({ dynamic: true })
-            });
-
-        return embed;
+        return EmbedUtils.createBaseEmbed({
+            title: `🏪 ${interaction.user.username}'s Collector Shop`,
+            description: yamlStatus,
+            color: EmbedUtils.palette.warning,
+            footerText: `Shop Level ${shop.shop_level} • Use /collector collect to claim rewards`,
+            footerIcon: interaction.user.displayAvatarURL({ dynamic: true })
+        });
     },
 
     /**
@@ -358,15 +355,12 @@ module.exports = {
             yamlCollect += '#════════════════════════════════════════\n';
             yamlCollect += '```';
 
-            const embed = new EmbedBuilder()
-                .setTitle('💰 Collection Complete!')
-                .setDescription(yamlCollect)
-                .setColor('#00FF00')
-                .setTimestamp()
-                .setFooter({
-                    text: 'Your departments are generating new resources!',
-                    iconURL: interaction.user.displayAvatarURL({ dynamic: true })
-                });
+            const embed = EmbedUtils.createSuccessEmbed(
+                '💰 Collection Complete!',
+                yamlCollect,
+                'Your departments are generating new resources!'
+            );
+            embed.setThumbnail('https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png');
 
             // Add "View Holo+ Cards" button if there are notable pulls
             const components = [];
@@ -461,15 +455,13 @@ module.exports = {
             yamlUpgrade += '#════════════════════════════════════════\n';
             yamlUpgrade += '```';
 
-            const embed = new EmbedBuilder()
-                .setTitle('🎉 Shop Upgraded!')
-                .setDescription(yamlUpgrade)
-                .setColor('#FFD700')
-                .setTimestamp()
-                .setFooter({
-                    text: `New Shop Level: ${result.newLevel}`,
-                    iconURL: interaction.user.displayAvatarURL({ dynamic: true })
-                });
+            const embed = EmbedUtils.createBaseEmbed({
+                title: '🎉 Shop Upgraded!',
+                description: yamlUpgrade,
+                color: '#FFD700',
+                footerText: `New Shop Level: ${result.newLevel}`,
+                footerIcon: interaction.user.displayAvatarURL({ dynamic: true })
+            });
 
             await interaction.editReply({ embeds: [embed] });
 
@@ -570,15 +562,13 @@ module.exports = {
             yamlUpgrade += '#════════════════════════════════════════\n';
             yamlUpgrade += '```';
 
-            const embed = new EmbedBuilder()
-                .setTitle(`⬆️ ${config.name} Upgraded!`)
-                .setDescription(yamlUpgrade)
-                .setColor('#00FF00')
-                .setTimestamp()
-                .setFooter({
-                    text: `Level ${result.newLevel}/${shop.shop_level}`,
-                    iconURL: interaction.user.displayAvatarURL({ dynamic: true })
-                });
+            const embed = EmbedUtils.createBaseEmbed({
+                title: `⬆️ ${config.name} Upgraded!`,
+                description: yamlUpgrade,
+                color: '#00FF00',
+                footerText: `Level ${result.newLevel}/${shop.shop_level}`,
+                footerIcon: interaction.user.displayAvatarURL({ dynamic: true })
+            });
 
             await interaction.editReply({ embeds: [embed] });
 
@@ -616,11 +606,11 @@ module.exports = {
             yamlStatus += '#════════════════════════════════════════\n';
             yamlStatus += '```';
 
-            return new EmbedBuilder()
-                .setTitle(`${config.emoji} ${config.name}`)
-                .setDescription(yamlStatus)
-                .setColor('#808080')
-                .setTimestamp();
+            return EmbedUtils.createBaseEmbed({
+                title: `${config.emoji} ${config.name}`,
+                description: yamlStatus,
+                color: '#808080'
+            });
         }
 
         // Active department - show full details
@@ -700,12 +690,12 @@ module.exports = {
         yamlStatus += '#════════════════════════════════════════\n';
         yamlStatus += '```';
 
-        return new EmbedBuilder()
-            .setTitle(`${config.emoji} ${config.name}`)
-            .setDescription(yamlStatus)
-            .setColor('#FFD700')
-            .setTimestamp()
-            .setFooter({ text: `Level ${dept.level} • Click ◀ Back to return to overview` });
+        return EmbedUtils.createBaseEmbed({
+            title: `${config.emoji} ${config.name}`,
+            description: yamlStatus,
+            color: '#FFD700',
+            footerText: `Level ${dept.level} • Click ◀ Back to return to overview`
+        });
     },
 
     /**

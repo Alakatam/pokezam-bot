@@ -342,22 +342,17 @@ module.exports = {
         yamlDescription += '#════════════════════════════════════════════════════════════\n';
         yamlDescription += '```';
 
-        // Create embed with enhanced master set theming
-        const embed = new EmbedBuilder()
-            .setTitle('🎖️ Master Set Collection Tracker')
-            .setDescription(yamlDescription)
-            .setColor(stats.master_completion_percentage >= 100 ? '#FFD700' : 
-                     stats.master_completion_percentage >= 75 ? '#C0C0C0' :
-                     stats.master_completion_percentage >= 50 ? '#CD7F32' : '#8B4513')
-            .setTimestamp()
-            .setFooter({ 
-                text: `Master Complete: ${stats.master_completion_percentage}% | Variant Collection: ${stats.variant_completion_percentage}%`,
-                iconURL: targetUser.displayAvatarURL({ dynamic: true })
-            });
-
-        // Special master set thumbnail
         const masterEmoji = this.getMasterProgressEmoji(parseFloat(stats.master_completion_percentage));
-        embed.setThumbnail(`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${masterEmoji}.png`);
+        const embed = EmbedUtils.createBaseEmbed({
+            title: '🎖️ Master Set Collection Tracker',
+            description: yamlDescription,
+            color: stats.master_completion_percentage >= 100 ? '#FFD700' : 
+                 stats.master_completion_percentage >= 75 ? '#C0C0C0' :
+                 stats.master_completion_percentage >= 50 ? '#CD7F32' : '#8B4513',
+            thumbnail: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${masterEmoji}.png`,
+            footerText: `Master Complete: ${stats.master_completion_percentage}% | Variant Collection: ${stats.variant_completion_percentage}%`,
+            footerIcon: targetUser.displayAvatarURL({ dynamic: true })
+        });
 
         // Create action rows
         const components = [];

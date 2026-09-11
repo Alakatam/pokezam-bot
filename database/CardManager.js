@@ -49,8 +49,7 @@ class CardManager {
             `SELECT set_name, COUNT(*) as count FROM cards 
              WHERE set_name IN (${allSets.map(() => '?').join(',')})
              AND api_id IS NOT NULL
-             AND (image_url_large IS NOT NULL OR image_url_small IS NOT NULL 
-                  OR image_large IS NOT NULL OR image_small IS NOT NULL)
+             AND (image_large IS NOT NULL OR image_small IS NOT NULL)
              GROUP BY set_name`,
             allSets
         );
@@ -228,8 +227,7 @@ class CardManager {
              WHERE set_name IN (${selectedGeneration.sets.map(() => '?').join(',')})
              AND (${selectedTier.pattern})
              AND api_id IS NOT NULL
-             AND (image_url_large IS NOT NULL OR image_url_small IS NOT NULL 
-                  OR image_large IS NOT NULL OR image_small IS NOT NULL)`,
+             AND (image_large IS NOT NULL OR image_small IS NOT NULL)`,
             selectedGeneration.sets
         );
 
@@ -240,8 +238,7 @@ class CardManager {
                  WHERE set_name IN (${selectedGeneration.sets.map(() => '?').join(',')})
                  AND (${selectedTier.pattern})
                  AND api_id IS NOT NULL
-                 AND (image_url_large IS NOT NULL OR image_url_small IS NOT NULL 
-                      OR image_large IS NOT NULL OR image_small IS NOT NULL)
+                 AND (image_large IS NOT NULL OR image_small IS NOT NULL)
                  LIMIT 1 OFFSET ?`,
                 [...selectedGeneration.sets, rarityOffset]
             );
@@ -261,8 +258,7 @@ class CardManager {
                 `SELECT * FROM cards 
                  WHERE set_name IN (${selectedGeneration.sets.map(() => '?').join(',')})
                  AND api_id IS NOT NULL
-                 AND (image_url_large IS NOT NULL OR image_url_small IS NOT NULL 
-                      OR image_large IS NOT NULL OR image_small IS NOT NULL)
+                 AND (image_large IS NOT NULL OR image_small IS NOT NULL)
                  LIMIT 1 OFFSET ?`,
                 [...selectedGeneration.sets, randomOffset]
             );
@@ -491,11 +487,11 @@ class CardManager {
         return await this.db.get(`
             SELECT 
                 c.*,
-                COALESCE(c.image_url_large, c.image_large) as image_large,
-                COALESCE(c.image_url_small, c.image_small) as image_small,
+                c.image_large as image_large,
+                c.image_small as image_small,
                 CASE 
-                    WHEN COALESCE(c.image_url_large, c.image_large) IS NOT NULL THEN COALESCE(c.image_url_large, c.image_large)
-                    WHEN COALESCE(c.image_url_small, c.image_small) IS NOT NULL THEN COALESCE(c.image_url_small, c.image_small)
+                    WHEN c.image_large IS NOT NULL THEN c.image_large
+                    WHEN c.image_small IS NOT NULL THEN c.image_small
                     ELSE NULL
                 END as primary_image
             FROM cards c

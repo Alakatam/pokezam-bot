@@ -44,15 +44,13 @@ module.exports = {
                     '```';
                 
                 return await interaction.editReply({
-                    embeds: [new EmbedBuilder()
-                        .setTitle('😴 No Active Effects')
-                        .setDescription(yamlDescription)
-                        .setColor('#6B73FF')
-                        .setTimestamp()
-                        .setFooter({ 
-                            text: 'Visit /shop to get started with boosts!',
-                            iconURL: interaction.user.displayAvatarURL({ dynamic: true })
-                        })]
+                    embeds: [EmbedUtils.createBaseEmbed({
+                        title: '😴 No Active Effects',
+                        description: yamlDescription,
+                        color: EmbedUtils.palette.accent,
+                        footerText: 'Visit /shop to get started with boosts!',
+                        footerIcon: interaction.user.displayAvatarURL({ dynamic: true })
+                    })]
                 });
             }
 
@@ -164,15 +162,13 @@ module.exports = {
         else if (activeEffects.length >= 3) embedColor = '#00FF00'; // Green for several effects
         else if (activeEffects.length >= 1) embedColor = '#FFA500'; // Orange for some effects
 
-        return new EmbedBuilder()
-            .setTitle(`⚡ Active Effects (${activeEffects.length})`)
-            .setDescription(yamlDescription)
-            .setColor(embedColor)
-            .setTimestamp()
-            .setFooter({ 
-                text: 'Effects update automatically | Use /use to activate more items',
-                iconURL: user.displayAvatarURL({ dynamic: true })
-            });
+        return EmbedUtils.createBaseEmbed({
+            title: `⚡ Active Effects (${activeEffects.length})`,
+            description: yamlDescription,
+            color: embedColor,
+            footerText: 'Effects update automatically | Use /use to activate more items',
+            footerIcon: user.displayAvatarURL({ dynamic: true })
+        });
     },
 
     groupEffectsByCategory(effects) {

@@ -243,22 +243,17 @@ module.exports = {
         yamlDescription += '\n#═══════════════════════════════════════════════════\n';
         yamlDescription += '```';
 
-        // Create embed
-        const embed = new EmbedBuilder()
-            .setTitle('📚 Pokémon TCG Card Dex')
-            .setDescription(yamlDescription)
-            .setColor(stats.completion_percentage >= 100 ? '#FFD700' : 
-                     stats.completion_percentage >= 75 ? '#00FF00' :
-                     stats.completion_percentage >= 50 ? '#FFA500' : '#FF6B6B')
-            .setTimestamp()
-            .setFooter({ 
-                text: `${stats.completion_percentage}% Complete | Use buttons to navigate and filter`,
-                iconURL: targetUser.displayAvatarURL({ dynamic: true })
-            });
-
-        // Add progress bar as thumbnail indicator
         const progressEmoji = this.getProgressEmoji(parseFloat(stats.completion_percentage));
-        embed.setThumbnail(`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${progressEmoji}.png`);
+        const embed = EmbedUtils.createBaseEmbed({
+            title: '📚 Pokémon TCG Card Dex',
+            description: yamlDescription,
+            color: stats.completion_percentage >= 100 ? '#FFD700' : 
+                 stats.completion_percentage >= 75 ? '#00FF00' :
+                 stats.completion_percentage >= 50 ? '#FFA500' : '#FF6B6B',
+            thumbnail: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${progressEmoji}.png`,
+            footerText: `${stats.completion_percentage}% Complete | Use buttons to navigate and filter`,
+            footerIcon: targetUser.displayAvatarURL({ dynamic: true })
+        });
 
         // Create action rows
         const components = [];

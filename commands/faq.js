@@ -144,15 +144,13 @@ support                : "Use buttons below for detailed help!"
                     .setStyle(ButtonStyle.Primary)
             );
 
-        const embed = new EmbedBuilder()
-            .setTitle('📋 Pokézam TCG Bot - FAQ Overview')
-            .setDescription(yamlContent)
-            .setColor(0x00ff00)
-            .setTimestamp()
-            .setFooter({ 
-                text: `${interaction.user.username}, select a category for detailed help!`, 
-                iconURL: interaction.user.displayAvatarURL() 
-            });
+        const embed = EmbedUtils.createBaseEmbed({
+            title: '📋 Pokézam TCG Bot • FAQ Overview',
+            description: yamlContent,
+            color: EmbedUtils.palette.success,
+            footerText: `${interaction.user.username}, select a category for detailed help!`,
+            footerIcon: interaction.user.displayAvatarURL()
+        });
 
         await interaction.editReply({
             embeds: [embed],
@@ -163,15 +161,13 @@ support                : "Use buttons below for detailed help!"
     async showFAQCategory(interaction, category) {
         const faqData = this.getFAQData(category);
         
-        const embed = new EmbedBuilder()
-            .setTitle(faqData.title)
-            .setDescription(faqData.content)
-            .setColor(faqData.color)
-            .setTimestamp()
-            .setFooter({ 
-                text: `${interaction.user.username} - Use /faq for overview`, 
-                iconURL: interaction.user.displayAvatarURL() 
-            });
+        const embed = EmbedUtils.createBaseEmbed({
+            title: faqData.title,
+            description: faqData.content,
+            color: faqData.color || EmbedUtils.palette.accent,
+            footerText: `${interaction.user.username} - Use /faq for overview`,
+            footerIcon: interaction.user.displayAvatarURL()
+        });
 
         // Back button
         const backButton = new ActionRowBuilder()

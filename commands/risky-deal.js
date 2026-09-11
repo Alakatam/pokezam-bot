@@ -142,59 +142,56 @@ module.exports = {
             await cardManager.addCardToUser(userId, newCard.id, 1);
 
             // Show enhanced result with card image
-            const newCardImage = newCard.image_url_large || newCard.image_url_small || 
-                                newCard.image_large || newCard.image_small;
+            const newCardImage = newCard.image_large || newCard.image_small;
 
             let resultEmbed;
             if (outcome === 'win') {
-                resultEmbed = new EmbedBuilder()
-                    .setTitle('🎰 VEX\'S GAMBLE HOUSE')
-                    .setDescription(
-                        `## 📈 WONDROUS TRADE!\n\n` +
+                resultEmbed = EmbedUtils.createBaseEmbed({
+                    title: '🎰 VEX\'S GAMBLE HOUSE',
+                    description: `## 📈 WONDROUS TRADE!\n\n` +
                         `### Your Gamble:\n` +
                         `\`\`\`diff\n` +
                         `- You Risked: ${card.name} [${card.rarity}]\n` +
                         `+ You Won:    ${newCard.name} [${newCard.rarity}]\n` +
                         `\`\`\`\n` +
                         `> *"Hehehehe... Fortune favors the bold today! Your luck runs deep, mortal."* 🎉\n\n` +
-                        `**Roll Result:** WIN ✨ (${probTable.win}% chance)`
-                    )
-                    .setColor('#00FF00');
+                        `**Roll Result:** WIN ✨ (${probTable.win}% chance)`,
+                    color: EmbedUtils.palette.success,
+                    footerText: `🎲 All trades are final • Gambled: ${card.set_id}-${card.number}`
+                });
             } else if (outcome === 'draw') {
-                resultEmbed = new EmbedBuilder()
-                    .setTitle('🎰 VEX\'S GAMBLE HOUSE')
-                    .setDescription(
-                        `## 😐 FAIR EXCHANGE\n\n` +
+                resultEmbed = EmbedUtils.createBaseEmbed({
+                    title: '🎰 VEX\'S GAMBLE HOUSE',
+                    description: `## 😐 FAIR EXCHANGE\n\n` +
                         `### Your Gamble:\n` +
                         `\`\`\`yaml\n` +
                         `You Risked: ${card.name} [${card.rarity}]\n` +
                         `You Got:    ${newCard.name} [${newCard.rarity}]\n` +
                         `\`\`\`\n` +
                         `> *"A fair trade. Boring, but balanced. The cards mock us both."* 🃏\n\n` +
-                        `**Roll Result:** DRAW ⚖️ (${probTable.draw}% chance)`
-                    )
-                    .setColor('#FFAA00');
+                        `**Roll Result:** DRAW ⚖️ (${probTable.draw}% chance)`,
+                    color: EmbedUtils.palette.warning,
+                    footerText: `🎲 All trades are final • Gambled: ${card.set_id}-${card.number}`
+                });
             } else {
-                resultEmbed = new EmbedBuilder()
-                    .setTitle('🎰 VEX\'S GAMBLE HOUSE')
-                    .setDescription(
-                        `## 📉 UNLUCKY TRADE!\n\n` +
+                resultEmbed = EmbedUtils.createBaseEmbed({
+                    title: '🎰 VEX\'S GAMBLE HOUSE',
+                    description: `## 📉 UNLUCKY TRADE!\n\n` +
                         `### Your Gamble:\n` +
                         `\`\`\`diff\n` +
                         `- You Risked: ${card.name} [${card.rarity}]\n` +
                         `- You Got:    ${newCard.name} [${newCard.rarity}]\n` +
                         `\`\`\`\n` +
                         `> *"BAHAHAHA! You should have walked away, fool! The house always wins!"* 💸\n\n` +
-                        `**Roll Result:** LOSS 💀 (${probTable.loss}% chance)`
-                    )
-                    .setColor('#FF0000');
+                        `**Roll Result:** LOSS 💀 (${probTable.loss}% chance)`,
+                    color: EmbedUtils.palette.error,
+                    footerText: `🎲 All trades are final • Gambled: ${card.set_id}-${card.number}`
+                });
             }
 
             if (newCardImage) {
                 resultEmbed.setImage(newCardImage);
             }
-
-            resultEmbed.setFooter({ text: `🎲 All trades are final • Gambled: ${card.set_id}-${card.number}` });
 
             await interaction.editReply({ embeds: [resultEmbed] });
 
@@ -270,7 +267,7 @@ module.exports = {
             SELECT COUNT(*) as count FROM cards 
             WHERE rarity IN (${rarityList}) AND id != ?
             AND api_id IS NOT NULL
-            AND (image_url_large IS NOT NULL OR image_url_small IS NOT NULL)
+            AND (image_large IS NOT NULL OR image_small IS NOT NULL)
         `, [originalCard.id]);
 
         console.log(`📊 Found ${cardCount?.count || 0} cards in category ${targetCategory} (${targetRarities.join(', ')})`);
@@ -281,7 +278,7 @@ module.exports = {
                 SELECT DISTINCT rarity, COUNT(*) as count 
                 FROM cards 
                 WHERE api_id IS NOT NULL 
-                AND (image_url_large IS NOT NULL OR image_url_small IS NOT NULL)
+                AND (image_large IS NOT NULL OR image_small IS NOT NULL)
                 GROUP BY rarity
                 ORDER BY count DESC
             `);
@@ -298,7 +295,7 @@ module.exports = {
                 WHERE rarity IN (${this.rarityCategories[originalCategory].map(r => `'${r}'`).join(',')})
                 AND id != ? 
                 AND api_id IS NOT NULL
-                AND (image_url_large IS NOT NULL OR image_url_small IS NOT NULL)
+                AND (image_large IS NOT NULL OR image_small IS NOT NULL)
                 ORDER BY RANDOM()
                 LIMIT 1
             `, [originalCard.id]);
@@ -313,7 +310,7 @@ module.exports = {
                 SELECT * FROM cards 
                 WHERE id != ? 
                 AND api_id IS NOT NULL
-                AND (image_url_large IS NOT NULL OR image_url_small IS NOT NULL)
+                AND (image_large IS NOT NULL OR image_small IS NOT NULL)
                 ORDER BY RANDOM()
                 LIMIT 1
             `, [originalCard.id]);
@@ -333,7 +330,7 @@ module.exports = {
             SELECT * FROM cards 
             WHERE rarity IN (${rarityList}) AND id != ?
             AND api_id IS NOT NULL
-            AND (image_url_large IS NOT NULL OR image_url_small IS NOT NULL)
+            AND (image_large IS NOT NULL OR image_small IS NOT NULL)
             LIMIT 1 OFFSET ?
         `, [originalCard.id, offset]);
     }

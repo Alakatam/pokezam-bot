@@ -181,27 +181,29 @@ class CollectorShopManager {
      */
     async getOrCreateShop(userId) {
         try {
+            await this.initializeTables();
+
             let shop = await this.db.get(
                 'SELECT * FROM collector_shops WHERE user_id = ?',
                 [userId]
             );
 
             if (!shop) {
-                // Create new shop with Trade Counter unlocked
+                // Create new shop with Trade Counter unlocked. Use OR IGNORE so repeated calls remain safe.
                 await this.db.run(`
-                    INSERT INTO collector_shops (user_id, shop_level, created_at, updated_at)
+                    INSERT OR IGNORE INTO collector_shops (user_id, shop_level, created_at, updated_at)
                     VALUES (?, 1, ?, ?)
                 `, [userId, Date.now(), Date.now()]);
 
                 // Unlock Trade Counter department (level 1 unlock)
                 await this.db.run(`
-                    INSERT INTO collector_departments (user_id, department_id, level, last_collected_at)
+                    INSERT OR IGNORE INTO collector_departments (user_id, department_id, level, last_collected_at)
                     VALUES (?, 'trade_counter', 1, ?)
                 `, [userId, Date.now()]);
 
                 // Initialize storage for Trade Counter
                 await this.db.run(`
-                    INSERT INTO collector_storage (user_id, department_id, last_generation_at)
+                    INSERT OR IGNORE INTO collector_storage (user_id, department_id, last_generation_at)
                     VALUES (?, 'trade_counter', ?)
                 `, [userId, Date.now()]);
 
@@ -209,6 +211,11 @@ class CollectorShopManager {
                     'SELECT * FROM collector_shops WHERE user_id = ?',
                     [userId]
                 );
+            }
+
+            if (!shop) {
+                console.warn(`Collector shop was not created for user ${userId}`);
+                return null;
             }
 
             return shop;

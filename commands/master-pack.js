@@ -119,15 +119,13 @@ module.exports = {
                 packColor = '#9B59B6';
             }
 
-            const embed = new EmbedBuilder()
-                .setTitle(packTitle)
-                .setDescription(yamlDescription)
-                .setColor(packColor)
-                .setTimestamp()
-                .setFooter({ 
-                    text: `Opened by ${interaction.user.username} • Master Collector`,
-                    iconURL: interaction.user.displayAvatarURL({ dynamic: true })
-                });
+            const embed = EmbedUtils.createBaseEmbed({
+                title: packTitle,
+                description: yamlDescription,
+                color: packColor,
+                footerText: `Opened by ${interaction.user.username} • Master Collector`,
+                footerIcon: interaction.user.displayAvatarURL({ dynamic: true })
+            });
 
             await interaction.editReply({ embeds: [embed] });
 
@@ -156,20 +154,19 @@ module.exports = {
 
         } catch (error) {
             console.error('Error in master pack command:', error);
-            if (!interaction.replied && !interaction.deferred) {
-                await interaction.reply({
-                    embeds: [EmbedUtils.createErrorEmbed(
-                        'Master Pack Error',
-                        'An error occurred while opening your master pack. Your gold has not been deducted!'
-                    )],
-                    flags: 64
-                });
+            const errorResponse = {
+                embeds: [EmbedUtils.createErrorEmbed(
+                    'Master Pack Error',
+                    'An error occurred while opening your master pack. Please contact support if gold was deducted!'
+                )]
+            };
+
+            if (interaction.deferred || interaction.replied) {
+                await interaction.editReply(errorResponse);
             } else {
-                await interaction.editReply({
-                    embeds: [EmbedUtils.createErrorEmbed(
-                        'Master Pack Error',
-                        'An error occurred while opening your master pack. Please contact support if gold was deducted!'
-                    )]
+                await interaction.reply({
+                    ...errorResponse,
+                    flags: 64
                 });
             }
         }

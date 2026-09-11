@@ -314,13 +314,12 @@ error details          : "${showPageError.message}"
             'monthly': '#ffd700'
         };
 
-        const embed = new EmbedBuilder()
-            .setTitle(`${typeEmojis[questType]} ${typeTitles[questType]}`)
-            .setColor(typeColors[questType])
-            .setDescription(yamlContent)
-            .setTimestamp();
-
-        return embed;
+        return EmbedUtils.createBaseEmbed({
+            title: `${typeEmojis[questType]} ${typeTitles[questType]}`,
+            description: yamlContent,
+            color: typeColors[questType] || EmbedUtils.palette.brand,
+            timestamp: true
+        });
     },
 
     createProgressBar(current, total, length = 15) {

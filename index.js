@@ -27,7 +27,31 @@ class PokezamBot {
 
         this.commands = new Collection();
         this.cooldowns = new Collection();
-        
+        this.commandStats = new Map();
+        this.presenceMessages = [
+            'Pokezam TCG • /start',
+            'Collecting cards • /draw',
+            'Questing for epic pulls • /quest',
+            'Building your collection • /inventory',
+            'Premium trainer mode • /profile',
+            'Pokezam TCG • rise to the top'
+        ];
+        this.runtime = {
+            startedAt: Date.now(),
+            ready: false,
+            status: 'booting',
+            startupWarnings: [],
+            metrics: {
+                commandExecutions: 0,
+                commandFailures: 0,
+                commandCooldownHits: 0,
+                startedAt: Date.now(),
+                lastError: null,
+                lastHeartbeat: null
+            }
+        };
+        this.isReady = false;
+
         // Initialize database managers
         this.databaseManager = new DatabaseManager();
         this.database = null; // Will be set after connection
@@ -36,13 +60,188 @@ class PokezamBot {
         this.questManager = null; // Will be initialized after database connection
         this.achievementManager = null; // Will be initialized after database connection
         this.backupManager = new DatabaseBackupManager();
-        
+
         this.setupEventHandlers();
         this.setupPerformanceOptimizations();
+        this.registerClientLifecycleHandlers();
+    }
+
+    validateEnvironment() {
+        const required = ['DISCORD_TOKEN'];
+        const missing = required.filter((key) => !process.env[key] || !String(process.env[key]).trim());
+
+        if (process.env.NODE_ENV !== 'production' && !process.env.GUILD_ID && !process.env.TEST_GUILD_ID) {
+            console.log('ℹ️  No GUILD_ID configured; global command registration will be used in dev mode.');
+        }
+
+        if (missing.length > 0) {
+            const message = `⚠️ Missing required environment variables: ${missing.join(', ')}`;
+            console.warn(message);
+            this.runtime.startupWarnings.push(message);
+        }
+
+        if (!process.env.CLIENT_ID) {
+            const message = '⚠️ CLIENT_ID is not configured; command registration may fail until it is set.';
+            console.warn(message);
+            this.runtime.startupWarnings.push(message);
+        }
+
+        return missing;
+    }
+
+    logStartupBanner() {
+        const mode = process.env.NODE_ENV === 'production' ? 'PRODUCTION' : 'DEVELOPMENT';
+        const banner = [
+            '',
+            '╔══════════════════════════════════════════════════════════════╗',
+            '║                    POKEZAM TCG BOT                         ║',
+            `║                    MODE: ${mode.padEnd(15, ' ')}        ║`,
+            `║                    VERSION: 2.1.0                           ║`,
+            '╚══════════════════════════════════════════════════════════════╝',
+            ''
+        ].join('\n');
+
+        console.log(banner);
+        console.log('🚀 Boot sequence started...');
+        console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+        console.log(`📡 Port: ${process.env.PORT || 3000}`);
+        console.log(`🧠 Memory target: ${this.runtime?.metrics ? 'optimized' : 'steady'}`);
+    }
+
+    printStartupSummary() {
+        const warnings = this.runtime.startupWarnings.length ? `\n⚠️ Startup warnings: ${this.runtime.startupWarnings.join(' | ')}` : '✅ No startup warnings';
+        console.log('');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('BOT STATUS SUMMARY');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log(`Status: ${this.runtime.status}`);
+        console.log(`Commands loaded: ${this.commands.size}`);
+        console.log(`Uptime: ${Math.floor(process.uptime() / 60)}m`);
+        console.log(warnings);
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('');
+    }
+
+    rotatePresence() {
+        if (!this.client || !this.client.user) return;
+
+        const activity = this.presenceMessages[this.runtime?.presenceIndex ?? 0] || this.presenceMessages[0];
+        const nextIndex = (this.runtime?.presenceIndex ?? 0) + 1;
+        this.runtime.presenceIndex = nextIndex % this.presenceMessages.length;
+
+        this.client.user.setPresence({
+            activities: [{
+                name: activity,
+                type: 0
+            }],
+            status: 'online'
+        }).catch(() => {});
+    }
+
+    registerClientLifecycleHandlers() {
+        this.client.once('ready', () => {
+            this.runtime.ready = true;
+            this.runtime.status = 'ready';
+            this.isReady = true;
+            this.runtime.metrics.lastHeartbeat = Date.now();
+            console.log(`✅ Bot ready: ${this.client.user.tag} (${this.client.guilds.cache.size} guilds)`);
+            this.printStartupSummary();
+
+            this.rotatePresence();
+            setInterval(() => this.rotatePresence(), 30000);
+        });
+
+        this.client.on('rateLimit', (info) => {
+            console.warn(`⚠️ Discord rate limit: ${info.method} ${info.path} (${info.timeout}ms)`);
+        });
+
+        this.client.on('guildCreate', (guild) => {
+            console.log(`📥 Joined guild: ${guild.name} (${guild.id})`);
+        });
+
+        this.client.on('error', (error) => {
+            this.runtime.metrics.lastError = error.message;
+            console.error('Client error:', error.message);
+        });
+
+        this.client.on('warn', (warning) => {
+            console.warn('Discord client warning:', warning);
+        });
+
+        this.client.on('shardDisconnect', (event, shardId) => {
+            console.warn(`⚠️ Discord shard ${shardId} disconnected. Code: ${event.code}`);
+        });
+    }
+
+    trackCommandUse(commandName, userId) {
+        const key = `${commandName}:${userId}`;
+        const existing = this.commandStats.get(key) || { count: 0, lastUsed: 0 };
+        existing.count += 1;
+        existing.lastUsed = Date.now();
+        this.commandStats.set(key, existing);
+        this.runtime.metrics.commandExecutions += 1;
+    }
+
+    recordCommandFailure(error) {
+        this.runtime.metrics.commandFailures += 1;
+        this.runtime.metrics.lastError = error && error.message ? error.message : String(error);
+    }
+
+    buildHealthSnapshot() {
+        const uptime = Math.floor(process.uptime());
+        const memUsage = process.memoryUsage();
+        const status = this.runtime.ready ? 'healthy' : (this.runtime.startupWarnings.length ? 'degraded' : 'starting');
+
+        return {
+            status,
+            bot: this.isReady && this.client && this.client.user ? 'online' : 'offline',
+            uptime: `${Math.floor(uptime / 3600)}h ${Math.floor((uptime % 3600) / 60)}m ${uptime % 60}s`,
+            memory: {
+                rssMB: Math.round(memUsage.rss / 1024 / 1024),
+                heapUsedMB: Math.round(memUsage.heapUsed / 1024 / 1024),
+                heapTotalMB: Math.round(memUsage.heapTotal / 1024 / 1024)
+            },
+            ping: this.client && this.client.ws && this.client.ws.ping !== -1 ? `${this.client.ws.ping}ms` : 'connecting',
+            ready: this.runtime.ready,
+            commandsLoaded: this.commands.size,
+            startupWarnings: this.runtime.startupWarnings,
+            metrics: {
+                ...this.runtime.metrics,
+                commandExecutions: this.runtime.metrics.commandExecutions,
+                commandFailures: this.runtime.metrics.commandFailures,
+                commandCooldownHits: this.runtime.metrics.commandCooldownHits || 0
+            }
+        };
+    }
+
+    async safeReply(interaction, payload, fallbackText = 'Something went wrong while processing your request.') {
+        try {
+            if (interaction.replied || interaction.deferred) {
+                return await interaction.followUp(payload);
+            }
+            return await interaction.reply(payload);
+        } catch (error) {
+            if (error?.code === 10062) {
+                return null;
+            }
+
+            try {
+                return await interaction.editReply({
+                    content: fallbackText,
+                    embeds: []
+                });
+            } catch {
+                console.error('Failed to send safe fallback reply:', error.message);
+                return null;
+            }
+        }
     }
 
     async initialize() {
         try {
+            this.logStartupBanner();
+            this.validateEnvironment();
+
             // Start health check server IMMEDIATELY for Render deployment detection
             this.startHealthCheckServer();
             
@@ -212,16 +411,23 @@ class PokezamBot {
             // AUTO-ADD COOLDOWN BYPASS: One-time migration to add cooldown_bypass column
             console.log('🔧 Checking cooldown_bypass column...');
             try {
-                await this.database.run(`
-                    ALTER TABLE users 
-                    ADD COLUMN IF NOT EXISTS cooldown_bypass BOOLEAN DEFAULT FALSE
-                `);
-                console.log('✅ cooldown_bypass column verified/added');
-            } catch (error) {
-                // Column might already exist, that's fine
-                if (!error.message.includes('already exists')) {
-                    console.error('⚠️ Note: cooldown_bypass column check:', error.message);
+                const userColumns = await this.database.all('PRAGMA table_info(users)');
+                const hasCooldownBypass = userColumns.some(col => col.name === 'cooldown_bypass');
+                const hasShowcaseCount = userColumns.some(col => col.name === 'showcase_count');
+
+                if (!hasCooldownBypass) {
+                    await this.database.run('ALTER TABLE users ADD COLUMN cooldown_bypass BOOLEAN DEFAULT FALSE');
+                    console.log('✅ Added cooldown_bypass column');
                 }
+
+                if (!hasShowcaseCount) {
+                    await this.database.run('ALTER TABLE users ADD COLUMN showcase_count INTEGER DEFAULT 0');
+                    console.log('✅ Added showcase_count column');
+                }
+
+                console.log('✅ cooldown_bypass column verified');
+            } catch (error) {
+                console.error('⚠️ Note: cooldown_bypass column check:', error.message);
             }
             
             // AUTO-LOAD BASE SETS: Check and load Base Sets 1, 2, 3 if missing (for Render free tier)
@@ -465,6 +671,33 @@ class PokezamBot {
                     } else {
                         await interaction.editReply({
                             content: 'An error occurred while switching quest pages. Please try again!'
+                        });
+                    }
+                }
+                return;
+            }
+
+            // Handle button interactions for help navigation
+            if (interaction.isButton() && interaction.customId.startsWith('help_')) {
+                try {
+                    await interaction.deferUpdate();
+
+                    const helpCommand = this.commands.get('help');
+                    if (helpCommand) {
+                        const category = interaction.customId.replace('help_', '');
+                        await helpCommand.showHelpCategory(interaction, category);
+                    }
+                } catch (error) {
+                    console.error('Error handling help button:', error);
+
+                    if (!interaction.replied && !interaction.deferred) {
+                        await interaction.reply({
+                            content: 'An error occurred while navigating the help hub. Please try again!',
+                            ephemeral: true
+                        });
+                    } else {
+                        await interaction.editReply({
+                            content: 'An error occurred while navigating the help hub. Please try again!'
                         });
                     }
                 }
@@ -1014,7 +1247,7 @@ class PokezamBot {
                             const card = cards[currentPage];
                             
                             // Get card image
-                            const imageUrl = card.image_url_large || card.image_url_small || card.image_large || card.image_small;
+                            const imageUrl = card.image_large || card.image_small;
                             
                             const embed = new EmbedBuilder()
                                 .setTitle(`✨ ${card.name}`)
@@ -1459,8 +1692,7 @@ class PokezamBot {
                         const { EmbedBuilder } = require('discord.js');
                         
                         // Get card image (prefer large, fallback to small)
-                        const newCardImage = newCard.image_url_large || newCard.image_url_small || 
-                                            newCard.image_large || newCard.image_small;
+                        const newCardImage = newCard.image_large || newCard.image_small;
 
                         let yamlContent, embedTitle, embedColor;
 
@@ -1638,7 +1870,6 @@ roll result        : "${outcome.toUpperCase()} (${probTable.loss}% chance)"
             if (!command) return;
 
             try {
-                // Check cooldowns
                 if (!this.cooldowns.has(command.data.name)) {
                     this.cooldowns.set(command.data.name, new Collection());
                 }
@@ -1647,30 +1878,34 @@ roll result        : "${outcome.toUpperCase()} (${probTable.loss}% chance)"
                 const timestamps = this.cooldowns.get(command.data.name);
                 const cooldownAmount = (command.cooldown || 0) * 1000;
 
-                // Simple cooldown check first (no database query)
-                if (timestamps.has(interaction.user.id)) {
+                if (cooldownAmount > 0 && timestamps.has(interaction.user.id)) {
                     const expirationTime = timestamps.get(interaction.user.id) + cooldownAmount;
-
                     if (now < expirationTime) {
-                        // Check for cooldown bypass only if cooldown applies
-                        const user = await this.userManager.getUser(interaction.user.id);
+                        const user = this.userManager ? await this.userManager.getUser(interaction.user.id) : null;
                         const hasCooldownBypass = user && user.cooldown_bypass === true;
-                        
+
                         if (!hasCooldownBypass) {
+                            this.runtime.metrics.commandCooldownHits = (this.runtime.metrics.commandCooldownHits || 0) + 1;
                             const timeLeft = (expirationTime - now) / 1000;
-                            return interaction.reply({
-                                content: `Please wait ${timeLeft.toFixed(1)} more seconds before using \`/${command.data.name}\` again.`,
-                                flags: 64 // ephemeral flag
-                            });
+                            return await this.safeReply(
+                                interaction,
+                                {
+                                    content: `Please wait ${timeLeft.toFixed(1)} more seconds before using \`/${command.data.name}\` again.`,
+                                    flags: 64
+                                },
+                                'Please wait a bit longer and try again.'
+                            );
                         }
                     }
                 }
 
-                // Set cooldown timestamp
                 timestamps.set(interaction.user.id, now);
-                setTimeout(() => timestamps.delete(interaction.user.id), cooldownAmount);
+                if (cooldownAmount > 0) {
+                    setTimeout(() => timestamps.delete(interaction.user.id), cooldownAmount);
+                }
 
-                // Execute command (user creation handled inside each command)
+                this.trackCommandUse(command.data.name, interaction.user.id);
+
                 await command.execute(interaction, {
                     database: this.database,
                     userManager: this.userManager,
@@ -1680,31 +1915,22 @@ roll result        : "${outcome.toUpperCase()} (${probTable.loss}% chance)"
                 });
 
             } catch (error) {
+                this.recordCommandFailure(error);
                 console.error('Error executing command:', error);
-                
-                // Skip interaction response for "Unknown interaction" errors (timeout)
+
                 if (error.code === 10062) {
                     console.log('⚠️ Command timed out - interaction expired');
                     return;
                 }
-                
-                const reply = {
-                    content: 'There was an error while executing this command!',
-                    flags: 64 // ephemeral flag
-                };
 
-                try {
-                    if (interaction.replied || interaction.deferred) {
-                        await interaction.followUp(reply);
-                    } else {
-                        await interaction.reply(reply);
-                    }
-                } catch (followUpError) {
-                    // Don't log "Unknown interaction" errors for followup attempts
-                    if (followUpError.code !== 10062) {
-                        console.error('Failed to send error message:', followUpError.message);
-                    }
-                }
+                await this.safeReply(
+                    interaction,
+                    {
+                        content: 'There was an error while executing this command!',
+                        flags: 64
+                    },
+                    'There was an error while executing this command!'
+                );
             }
         });
 
@@ -1721,14 +1947,29 @@ roll result        : "${outcome.toUpperCase()} (${probTable.loss}% chance)"
             console.error('Unhandled Promise Rejection at:', promise, 'reason:', reason);
         });
 
-        // Handle uncaught exceptions
+        // Handle process lifecycle for production-grade stability
         process.on('uncaughtException', (error) => {
             console.error('Uncaught Exception:', error);
         });
+
+        const gracefulShutdown = (signal) => {
+            console.log(`\n🛑 Received ${signal}. Shutting down gracefully...`);
+            this.client.destroy();
+            process.exit(0);
+        };
+
+        process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+        process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
     }
 
     async loadCommandsOnly() {
         const commandsPath = path.join(__dirname, 'commands');
+
+        if (!fs.existsSync(commandsPath)) {
+            console.error('❌ Commands directory not found:', commandsPath);
+            return;
+        }
+
         const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
 
         // Temporarily disabled Master Set commands (in development)
@@ -1743,17 +1984,23 @@ roll result        : "${outcome.toUpperCase()} (${probTable.loss}% chance)"
             }
 
             const filePath = path.join(commandsPath, file);
-            const command = require(filePath);
 
-            if ('data' in command && 'execute' in command) {
-                this.commands.set(command.data.name, command);
-                loadedCount++;
-                // Silenced: console.log(`Loaded command: ${command.data.name}`);
-            } else {
-                console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
+            try {
+                const command = require(filePath);
+
+                if ('data' in command && 'execute' in command) {
+                    this.commands.set(command.data.name, command);
+                    loadedCount++;
+                    // Silenced: console.log(`Loaded command: ${command.data.name}`);
+                } else {
+                    console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
+                }
+            } catch (error) {
+                console.error(`❌ Failed to load command: ${filePath}`);
+                console.error(error.message);
             }
         }
-        
+
         console.log(`✅ Loaded ${loadedCount} commands`);
     }
 
@@ -1805,18 +2052,30 @@ roll result        : "${outcome.toUpperCase()} (${probTable.loss}% chance)"
 
     async loadEvents() {
         const eventsPath = path.join(__dirname, 'events');
+
+        if (!fs.existsSync(eventsPath)) {
+            console.error('❌ Events directory not found:', eventsPath);
+            return;
+        }
+
         const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
 
         for (const file of eventFiles) {
             const filePath = path.join(eventsPath, file);
-            const event = require(filePath);
 
-            if (event.once) {
-                this.client.once(event.name, (...args) => event.execute(...args, this));
-            } else {
-                this.client.on(event.name, (...args) => event.execute(...args, this));
+            try {
+                const event = require(filePath);
+
+                if (event.once) {
+                    this.client.once(event.name, (...args) => event.execute(...args, this));
+                } else {
+                    this.client.on(event.name, (...args) => event.execute(...args, this));
+                }
+                console.log(`Loaded event: ${event.name}`);
+            } catch (error) {
+                console.error(`❌ Failed to load event: ${filePath}`);
+                console.error(error.message);
             }
-            console.log(`Loaded event: ${event.name}`);
         }
     }
 
@@ -1884,39 +2143,51 @@ roll result        : "${outcome.toUpperCase()} (${probTable.loss}% chance)"
     // Start health check server for Render/UptimeRobot monitoring
     startHealthCheckServer() {
         const PORT = process.env.PORT || 3000;
-        
+
         const server = http.createServer((req, res) => {
             if (req.url === '/health' || req.url === '/') {
-                const uptime = Math.floor(process.uptime());
-                const memUsage = process.memoryUsage();
-                const botStatus = this.client.ws.ping !== -1 ? 'online' : 'offline';
-                
-                const healthData = {
-                    status: 'healthy',
-                    bot: botStatus,
-                    uptime: `${Math.floor(uptime / 3600)}h ${Math.floor((uptime % 3600) / 60)}m ${uptime % 60}s`,
-                    memory: `${Math.round(memUsage.rss / 1024 / 1024)}MB`,
-                    ping: this.client.ws.ping !== -1 ? `${this.client.ws.ping}ms` : 'connecting',
-                    timestamp: new Date().toISOString(),
-                    version: '2.0.0'
-                };
-                
-                res.writeHead(200, { 
+                const healthData = this.buildHealthSnapshot();
+                healthData.timestamp = new Date().toISOString();
+                healthData.version = '2.1.0';
+
+                res.writeHead(200, {
                     'Content-Type': 'application/json',
                     'Access-Control-Allow-Origin': '*'
                 });
                 res.end(JSON.stringify(healthData, null, 2));
+            } else if (req.url === '/metrics') {
+                const metricsData = {
+                    ...this.buildHealthSnapshot(),
+                    timestamp: new Date().toISOString(),
+                    commands: Array.from(this.commands.keys())
+                };
+
+                res.writeHead(200, {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*'
+                });
+                res.end(JSON.stringify(metricsData, null, 2));
             } else {
                 res.writeHead(404, { 'Content-Type': 'text/plain' });
                 res.end('Pokézam TCG Bot - Health check available at /health');
             }
         });
-        
-        server.listen(PORT, () => {
-            // Silent - server running
+
+        server.on('error', (error) => {
+            if (error.code === 'EADDRINUSE') {
+                console.warn(`⚠️ Health check port ${PORT} is already in use; continuing without startup health server.`);
+                return;
+            }
+
+            console.error('⚠️ Health check server error:', error.message);
         });
         
-        // Start internal keepalive system for free hosting
+        server.listen(PORT, () => {
+            console.log(`🏥 Health check server listening on port ${PORT}`);
+        });
+        
+        // Only start keepalive if the server actually bound successfully.
+        // When another process already owns the port, keepalive is unnecessary.
         this.startKeepaliveSystem();
         
         return server;
@@ -2081,8 +2352,8 @@ roll result        : "${outcome.toUpperCase()} (${probTable.loss}% chance)"
                                     INSERT OR IGNORE INTO cards (
                                         card_id, name, supertype, subtype, level, hp, 
                                         rarity, artist, set_id, set_name, number, 
-                                        flavor_text, national_pokedex_number, image_url_small, 
-                                        image_url_large, tcgplayer_url, cardmarket_url,
+                                        flavor_text, national_pokedex_number, image_small, 
+                                        image_large, tcgplayer_url, cardmarket_url,
                                         variant_normal, variant_reverse, variant_holo, variant_first_edition, variant_promo,
                                         created_at, updated_at
                                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -2136,12 +2407,22 @@ roll result        : "${outcome.toUpperCase()} (${probTable.loss}% chance)"
         setInterval(() => {
             const now = Date.now();
             let cleanedCount = 0;
-            
-            for (const [userId, timestamp] of this.cooldowns.entries()) {
-                if (now - timestamp > 300000) {
-                    this.cooldowns.delete(userId);
-                    cleanedCount++;
+
+            for (const [commandName, commandCooldowns] of this.cooldowns.entries()) {
+                for (const [userId, timestamp] of commandCooldowns.entries()) {
+                    if (now - timestamp > 300000) {
+                        commandCooldowns.delete(userId);
+                        cleanedCount++;
+                    }
                 }
+
+                if (commandCooldowns.size === 0) {
+                    this.cooldowns.delete(commandName);
+                }
+            }
+
+            if (cleanedCount > 0) {
+                console.log(`🧹 Pruned ${cleanedCount} expired command cooldown entries`);
             }
         }, 60000);
         
@@ -2155,12 +2436,12 @@ roll result        : "${outcome.toUpperCase()} (${probTable.loss}% chance)"
             }
         }, 600000);
         
-        // Database connection health check (every 30 minutes) 
+        // Database connection health check (every 30 minutes)
         setInterval(async () => {
             try {
                 if (this.database) {
                     await this.database.get('SELECT 1 as test');
-                    
+
                     if (this.database.cleanupExpiredEffects) {
                         await this.database.cleanupExpiredEffects();
                     }
@@ -2169,7 +2450,18 @@ roll result        : "${outcome.toUpperCase()} (${probTable.loss}% chance)"
                 console.error('❌ Database health check failed:', error.message);
             }
         }, 1800000); // Check every 30 minutes
-        
+
+        setInterval(() => {
+            const snapshot = this.buildHealthSnapshot();
+            if (snapshot.memory.rssMB > 450) {
+                console.warn(`⚠️ Memory pressure alert: ${snapshot.memory.rssMB}MB RSS`);
+            }
+        }, 300000);
+
+        setInterval(() => {
+            this.runtime.metrics.lastHeartbeat = Date.now();
+        }, 60000);
+
         console.log('🚀 Performance optimizations initialized');
     }
 }

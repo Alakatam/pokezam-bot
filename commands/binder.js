@@ -257,19 +257,14 @@ module.exports = {
         content += '\n\u001b[1;36m════════════════════════════════════════════════════════\u001b[0m\n';
         content += '```';
 
-        // Create embed with enhanced appearance
-        const embed = new EmbedBuilder()
-            .setTitle('📋 Pokémon Card Binder')
-            .setDescription(content)
-            .setColor('#4A90E2') // Nice blue color
-            .setTimestamp()
-            .setFooter({ 
-                text: `Use the buttons to navigate pages or try different filters`,
-                iconURL: targetUser.displayAvatarURL({ dynamic: true })
-            });
-
-        // Add a thumbnail for visual appeal
-        embed.setThumbnail('https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png');
+        const embed = EmbedUtils.createBaseEmbed({
+            title: '📋 Pokémon Card Binder',
+            description: content,
+            color: '#4A90E2',
+            thumbnail: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png',
+            footerText: 'Use the buttons to navigate pages or try different filters',
+            footerIcon: targetUser.displayAvatarURL({ dynamic: true })
+        });
 
         // Create navigation buttons with enhanced colors
         const components = [];

@@ -317,8 +317,8 @@ class AchievementManager {
         return await this.db.all(`
             SELECT a.*, ua.progress, ua.is_completed, ua.earned_at
             FROM achievements a
-            LEFT JOIN user_achievements ua ON a.achievement_id = ua.achievement_id AND ua.user_id = ?
-            ORDER BY a.sort_order, a.name
+            LEFT JOIN user_achievements ua ON a.id = ua.achievement_id AND ua.user_id = ?
+            ORDER BY a.unlock_order, a.name
         `, [userId]);
     }
 
@@ -326,7 +326,7 @@ class AchievementManager {
         return await this.db.all(`
             SELECT a.*, ua.earned_at
             FROM achievements a
-            JOIN user_achievements ua ON a.achievement_id = ua.achievement_id
+            JOIN user_achievements ua ON a.id = ua.achievement_id
             WHERE ua.user_id = ? AND ua.is_completed = TRUE
             ORDER BY ua.earned_at DESC
         `, [userId]);
@@ -351,14 +351,14 @@ class AchievementManager {
             };
             
             allAchievements.forEach(achievement => {
-                const name = achievement.name.toLowerCase();
-                if (name.includes('draw') || name.includes('card')) categories.total_draws.push(achievement.achievement_id);
-                if (name.includes('level')) categories.level.push(achievement.achievement_id);
-                if (name.includes('gold')) categories.gold.push(achievement.achievement_id);
-                if (name.includes('rare')) categories.rare_cards.push(achievement.achievement_id);
-                if (name.includes('holo')) categories.holo_cards.push(achievement.achievement_id);
-                if (name.includes('ultra')) categories.ultra_cards.push(achievement.achievement_id);
-                if (name.includes('secret')) categories.secret_cards.push(achievement.achievement_id);
+                const name = (achievement.name || '').toLowerCase();
+                if (name.includes('draw') || name.includes('card')) categories.total_draws.push(achievement.id);
+                if (name.includes('level')) categories.level.push(achievement.id);
+                if (name.includes('gold')) categories.gold.push(achievement.id);
+                if (name.includes('rare')) categories.rare_cards.push(achievement.id);
+                if (name.includes('holo')) categories.holo_cards.push(achievement.id);
+                if (name.includes('ultra')) categories.ultra_cards.push(achievement.id);
+                if (name.includes('secret')) categories.secret_cards.push(achievement.id);
             });
             
             this.achievementCache = categories;
@@ -385,8 +385,8 @@ class AchievementManager {
             const achievements = await this.db.all(`
                 SELECT a.*, ua.is_completed
                 FROM achievements a
-                LEFT JOIN user_achievements ua ON a.achievement_id = ua.achievement_id AND ua.user_id = ?
-                WHERE a.achievement_id IN (${placeholders}) AND (ua.is_completed IS NULL OR ua.is_completed = FALSE)
+                LEFT JOIN user_achievements ua ON a.id = ua.achievement_id AND ua.user_id = ?
+                WHERE a.id IN (${placeholders}) AND (ua.is_completed IS NULL OR ua.is_completed = FALSE)
             `, [userId, ...cachedAchievementIds]);
 
             const newlyCompleted = [];
@@ -398,7 +398,7 @@ class AchievementManager {
                         INSERT OR REPLACE INTO user_achievements 
                         (user_id, achievement_id, progress, is_completed, earned_at)
                         VALUES (?, ?, ?, TRUE, ?)
-                    `, [userId, achievement.achievement_id, achievement.condition_value, Math.floor(Date.now() / 1000)]);
+                    `, [userId, achievement.id, achievement.condition_value, Math.floor(Date.now() / 1000)]);
 
                     newlyCompleted.push(achievement);
                 } else {
@@ -407,7 +407,7 @@ class AchievementManager {
                         INSERT OR REPLACE INTO user_achievements 
                         (user_id, achievement_id, progress, is_completed)
                         VALUES (?, ?, ?, FALSE)
-                    `, [userId, achievement.achievement_id, currentValue]);
+                    `, [userId, achievement.id, currentValue]);
                 }
             }
 
@@ -420,7 +420,7 @@ class AchievementManager {
     }
 
     async getAchievementStats(userId) {
-        const total = await this.db.get('SELECT COUNT(*) as count FROM achievements WHERE is_hidden = FALSE');
+        const total = await this.db.get('SELECT COUNT(*) as count FROM achievements');
         const completed = await this.db.get(`
             SELECT COUNT(*) as count FROM user_achievements 
             WHERE user_id = ? AND is_completed = TRUE
