@@ -17,7 +17,8 @@
     "migrate": "node scripts/migrateToPostgreSQL.js",
     "load:basesets": "node scripts/loadProductionBaseSets.js",
     "load:all": "node scripts/loadTCGData.js",
-    "fix:schema": "node scripts/fixPostgreSQLSchema.js"
+    "fix:schema": "node scripts/fixPostgreSQLSchema.js",
+    "test": "node --test tests/*.test.js"
   },
   "keywords": [
     "discord",

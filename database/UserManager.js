@@ -42,7 +42,10 @@ class UserManager {
         const newXP = user.xp + xp;
         const newLevel = this.calculateLevel(newXP);
         
-        await this.updateUser(userId, { xp: newXP, level: newLevel });
+        await this.db.run(
+            'UPDATE users SET xp = xp + ?, level = ? WHERE id = ?',
+            [xp, newLevel, userId]
+        );
         
         return {
             oldLevel: user.level,
@@ -52,15 +55,21 @@ class UserManager {
     }
 
     async addGold(userId, gold) {
-        const user = await this.getUser(userId);
-        if (!user) return null;
+        if (!gold) {
+            const current = await this.getUser(userId);
+            return { oldGold: current ? current.gold : 0, newGold: current ? current.gold : 0, goldAdded: 0 };
+        }
 
-        const newGold = Math.max(0, user.gold + gold); // Prevent negative gold
-        await this.updateUser(userId, { gold: newGold });
-        
+        // Atomic update preventing negative gold race conditions across both SQLite and PostgreSQL
+        await this.db.run(
+            'UPDATE users SET gold = CASE WHEN gold + ? < 0 THEN 0 ELSE gold + ? END WHERE id = ?',
+            [gold, gold, userId]
+        );
+
+        const updated = await this.getUser(userId);
         return {
-            oldGold: user.gold,
-            newGold: newGold,
+            oldGold: updated ? updated.gold - gold : 0,
+            newGold: updated ? updated.gold : 0,
             goldAdded: gold
         };
     }
@@ -88,13 +97,15 @@ class UserManager {
     }
 
     async spendGold(userId, amount) {
-        const user = await this.getUser(userId);
-        if (!user || user.gold < amount) return false;
+        if (amount <= 0) return true;
 
-        const newGold = user.gold - amount;
-        await this.updateUser(userId, { gold: newGold });
-        
-        return true;
+        // ATOMIC SPEND: Checks gold >= amount directly in SQL query to eliminate double-spend race conditions
+        const result = await this.db.run(
+            'UPDATE users SET gold = gold - ? WHERE id = ? AND gold >= ?',
+            [amount, userId, amount]
+        );
+
+        return Boolean(result && result.changes > 0);
     }
 
     calculateLevel(xp) {
