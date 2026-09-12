@@ -119,14 +119,6 @@ module.exports = {
                 fields: cardFields
             });
 
-            const embed = EmbedUtils.createBaseEmbed({
-                title: packTitle,
-                description: yamlDescription,
-                color: packColor,
-                footerText: `Opened by ${interaction.user.username} • Master Collector`,
-                footerIcon: interaction.user.displayAvatarURL({ dynamic: true })
-            });
-
             await interaction.editReply({ embeds: [embed] });
 
             // Add reactions

@@ -128,24 +128,6 @@ module.exports = {
                 footerIcon: interaction.user.displayAvatarURL({ dynamic: true }),
                 fields: cardFields
             });
-                achievementMessage = '\n🏆 **LEGENDARY PULL!** Museum-quality collection!';
-            } else if (firstEditionCount >= 3) {
-                packTitle = '🥇✨ FIRST EDITION VINTAGE PACK!';
-                packColor = '#FFA500';
-                achievementMessage = '\n🥇 **INCREDIBLE PULL!** Multiple 1st Editions!';
-            } else if (firstEditionCount >= 1) {
-                packTitle = '🏺✨ VINTAGE PACK SUCCESS!';
-                packColor = '#CD853F';
-                achievementMessage = '\n✨ **Great pull!** 1st Edition secured!';
-            }
-
-            const embed = EmbedUtils.createBaseEmbed({
-                title: packTitle,
-                description: yamlDescription + (achievementMessage ? `\n${achievementMessage}` : ''),
-                color: packColor,
-                footerText: `Opened by ${interaction.user.username} • Vintage Collector Level ${user.level}`,
-                footerIcon: interaction.user.displayAvatarURL({ dynamic: true })
-            });
 
             await interaction.editReply({ embeds: [embed] });
 

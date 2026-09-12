@@ -415,21 +415,26 @@ class PokezamBot {
             // AUTO-ADD COOLDOWN BYPASS: One-time migration to add cooldown_bypass column
             console.log('🔧 Checking cooldown_bypass column...');
             try {
-                const userColumns = await this.database.all('PRAGMA table_info(users)');
-                const hasCooldownBypass = userColumns.some(col => col.name === 'cooldown_bypass');
-                const hasShowcaseCount = userColumns.some(col => col.name === 'showcase_count');
+                if (this.databaseManager.dbType === 'postgresql') {
+                    // PostgreSQL already handles missing columns via fixPostgreSQLSchema()
+                    console.log('✅ cooldown_bypass column verified (PostgreSQL)');
+                } else {
+                    const userColumns = await this.database.all('PRAGMA table_info(users)');
+                    const hasCooldownBypass = userColumns.some(col => col.name === 'cooldown_bypass');
+                    const hasShowcaseCount = userColumns.some(col => col.name === 'showcase_count');
 
-                if (!hasCooldownBypass) {
-                    await this.database.run('ALTER TABLE users ADD COLUMN cooldown_bypass BOOLEAN DEFAULT FALSE');
-                    console.log('✅ Added cooldown_bypass column');
+                    if (!hasCooldownBypass) {
+                        await this.database.run('ALTER TABLE users ADD COLUMN cooldown_bypass BOOLEAN DEFAULT FALSE');
+                        console.log('✅ Added cooldown_bypass column');
+                    }
+
+                    if (!hasShowcaseCount) {
+                        await this.database.run('ALTER TABLE users ADD COLUMN showcase_count INTEGER DEFAULT 0');
+                        console.log('✅ Added showcase_count column');
+                    }
+
+                    console.log('✅ cooldown_bypass column verified');
                 }
-
-                if (!hasShowcaseCount) {
-                    await this.database.run('ALTER TABLE users ADD COLUMN showcase_count INTEGER DEFAULT 0');
-                    console.log('✅ Added showcase_count column');
-                }
-
-                console.log('✅ cooldown_bypass column verified');
             } catch (error) {
                 console.error('⚠️ Note: cooldown_bypass column check:', error.message);
             }

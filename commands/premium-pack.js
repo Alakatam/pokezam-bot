@@ -118,17 +118,6 @@ module.exports = {
                 footerIcon: interaction.user.displayAvatarURL({ dynamic: true }),
                 fields: cardFields
             });
-                packTitle = '🔸✨ SPECIAL Premium Pack!';
-                packColor = '#E1BEE7';
-            }
-
-            const embed = EmbedUtils.createBaseEmbed({
-                title: packTitle,
-                description: yamlDescription,
-                color: packColor,
-                footerText: `Opened by ${interaction.user.username}`,
-                footerIcon: interaction.user.displayAvatarURL({ dynamic: true })
-            });
 
             await interaction.editReply({ embeds: [embed] });
 

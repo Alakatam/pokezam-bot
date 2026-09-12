@@ -189,7 +189,7 @@ module.exports = {
             const collectList = [];
             if (totalCoins > 0) collectList.push(`• **Coins:** \`+${totalCoins.toLocaleString()}\` 🪙`);
             if (totalCards > 0) collectList.push(`• **Cards:** \`+${totalCards.toLocaleString()}\` 🎴`);
-            if (totalPacks > 0) collectList.push(`• **Packs:** \`+${totalPacks.toLocaleString()}` 🎁`);
+            if (totalPacks > 0) collectList.push(`• **Packs:** \`+${totalPacks.toLocaleString()}\` 🎁`);
 
             fields.push({
                 name: '💼 Ready to Collect Right Now!',

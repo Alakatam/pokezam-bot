@@ -288,8 +288,6 @@ error details          : "${showPageError.message}"
             footerText: `Next reset: ${resetInfo.nextResetTime} • Pokézam Quests`,
             fields
         });
-            timestamp: true
-        });
     },
 
     createProgressBar(current, total, length = 15) {

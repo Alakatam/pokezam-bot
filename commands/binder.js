@@ -241,13 +241,6 @@ module.exports = {
             footerIcon: targetUser.displayAvatarURL({ dynamic: true }),
             fields
         });
-            title: '📋 Pokémon Card Binder',
-            description: content,
-            color: '#4A90E2',
-            thumbnail: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png',
-            footerText: 'Use the buttons to navigate pages or try different filters',
-            footerIcon: targetUser.displayAvatarURL({ dynamic: true })
-        });
 
         // Create navigation buttons with enhanced colors
         const components = [];

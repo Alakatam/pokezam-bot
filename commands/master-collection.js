@@ -50,7 +50,7 @@ module.exports = {
                 },
                 {
                     name: '🌟 Master Set Variant Distribution',
-                    value: `• 🔹 **Normal:** \`${masterSetStats.owned.normal_variants || 0}\` *(${masterSetStats.completion.normal}%)\*\n• 🔸 **Reverse Holo:** \`${masterSetStats.owned.reverse_variants || 0}\` *(${masterSetStats.completion.reverse}%)\*\n• ✨ **Holographic:** \`${masterSetStats.owned.holo_variants || 0}\` *(${masterSetStats.completion.holo}%)\*\n• 🥇 **1st Edition:** \`${masterSetStats.owned.first_edition_variants || 0}\` *(${masterSetStats.completion.first_edition}%)\*\n• 🎁 **Promotional:** \`${masterSetStats.owned.promo_variants || 0}\` *(${masterSetStats.completion.promo}%)\*`,
+                    value: `• 🔹 **Normal:** \`${masterSetStats.owned.normal_variants || 0}\` *(${masterSetStats.completion.normal}%)*\n• 🔸 **Reverse Holo:** \`${masterSetStats.owned.reverse_variants || 0}\` *(${masterSetStats.completion.reverse}%)*\n• ✨ **Holographic:** \`${masterSetStats.owned.holo_variants || 0}\` *(${masterSetStats.completion.holo}%)*\n• 🥇 **1st Edition:** \`${masterSetStats.owned.first_edition_variants || 0}\` *(${masterSetStats.completion.first_edition}%)*\n• 🎁 **Promotional:** \`${masterSetStats.owned.promo_variants || 0}\` *(${masterSetStats.completion.promo}%)*`,
                     inline: false
                 }
             ];
@@ -63,7 +63,6 @@ module.exports = {
                 footerText: `Level ${user.level} Trainer • ${user.gold.toLocaleString()} 🪙 Balance`,
                 footerIcon: interaction.user.displayAvatarURL({ dynamic: true }),
                 fields
-            });
             });
 
             await interaction.editReply({ embeds: [embed] });
