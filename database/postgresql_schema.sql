@@ -11,11 +11,16 @@ CREATE TABLE IF NOT EXISTS users (
     level INTEGER DEFAULT 1,
     xp INTEGER DEFAULT 0,
     gold INTEGER DEFAULT 1000,
+    coins INTEGER DEFAULT 0,
     total_draws INTEGER DEFAULT 0,
     has_started BOOLEAN DEFAULT FALSE,
     created_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW()),
     last_daily_claim BIGINT DEFAULT 0,
-    cooldown_bypass BOOLEAN DEFAULT FALSE
+    daily_streak INTEGER DEFAULT 0,
+    cooldown_bypass BOOLEAN DEFAULT FALSE,
+    showcase_count INTEGER DEFAULT 0,
+    guild_id VARCHAR(20) DEFAULT NULL,
+    admin BOOLEAN DEFAULT FALSE
 );
 
 -- Cards table - Pokemon TCG card database

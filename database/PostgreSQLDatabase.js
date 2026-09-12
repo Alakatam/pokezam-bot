@@ -237,6 +237,38 @@ class PostgreSQLDatabase {
         
         try {
             const migrationQueries = [
+                // Fix users table - add missing columns
+                `DO $$ BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'coins') THEN
+                        ALTER TABLE users ADD COLUMN coins INTEGER DEFAULT 0;
+                    END IF;
+                END $$;`,
+                `DO $$ BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'daily_streak') THEN
+                        ALTER TABLE users ADD COLUMN daily_streak INTEGER DEFAULT 0;
+                    END IF;
+                END $$;`,
+                `DO $$ BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'cooldown_bypass') THEN
+                        ALTER TABLE users ADD COLUMN cooldown_bypass BOOLEAN DEFAULT FALSE;
+                    END IF;
+                END $$;`,
+                `DO $$ BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'showcase_count') THEN
+                        ALTER TABLE users ADD COLUMN showcase_count INTEGER DEFAULT 0;
+                    END IF;
+                END $$;`,
+                `DO $$ BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'guild_id') THEN
+                        ALTER TABLE users ADD COLUMN guild_id VARCHAR(20) DEFAULT NULL;
+                    END IF;
+                END $$;`,
+                `DO $$ BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'admin') THEN
+                        ALTER TABLE users ADD COLUMN admin BOOLEAN DEFAULT FALSE;
+                    END IF;
+                END $$;`,
+
                 // Fix active_effects table - add missing columns
                 `DO $$ BEGIN
                     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'active_effects' AND column_name = 'effect_name') THEN

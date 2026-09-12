@@ -33,10 +33,13 @@ class PostgreSQLSchemaFixer {
         if (!this.db) return { updated: 0, reason: 'no-db' };
 
         const checks = [
+            ['coins', 'INTEGER', '0'],
+            ['daily_streak', 'INTEGER', '0'],
             ['cooldown_bypass', 'BOOLEAN', 'FALSE'],
             ['showcase_count', 'INTEGER', '0'],
             ['xp', 'BIGINT', '0'],
-            ['admin', 'BOOLEAN', 'FALSE']
+            ['admin', 'BOOLEAN', 'FALSE'],
+            ['guild_id', 'VARCHAR(20)', 'NULL']
         ];
 
         let updated = 0;
