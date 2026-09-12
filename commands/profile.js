@@ -56,7 +56,6 @@ module.exports = {
                             { name: '📈 Level', value: `${newUser.level}`, inline: true },
                             { name: '💰 Gold', value: `${newUser.gold.toLocaleString()} 🪙`, inline: true },
                             { name: '🎴 Unique Cards', value: `${newCollectionStats.unique_cards.toLocaleString()}`, inline: true },
-                            { name: '⭐ Star Cards', value: `${(newCollectionStats.star_cards || 0).toLocaleString()}`, inline: true },
                             { name: '👟 Total Draws', value: `${newUser.total_draws.toLocaleString()}`, inline: true },
                             { name: 'XP Progress', value: progressBar, inline: false },
                             { name: '🧭 Generations', value: newUnlockedGenerations.length ? newUnlockedGenerations.map(g => g.name).join(', ') : 'None yet', inline: false }
@@ -124,7 +123,6 @@ module.exports = {
                     { name: '📈 Level', value: `${user.level}`, inline: true },
                     { name: '💰 Gold', value: `${user.gold.toLocaleString()} 🪙`, inline: true },
                     { name: '🎴 Unique Cards', value: `${collectionStats.unique_cards.toLocaleString()}`, inline: true },
-                    { name: '⭐ Star Cards', value: `${(collectionStats.star_cards || 0).toLocaleString()}`, inline: true },
                     { name: '👟 Total Draws', value: `${user.total_draws.toLocaleString()}`, inline: true },
                     { name: 'XP Progress', value: progressBar, inline: false },
                     { name: '🧭 Generations', value: unlockedSummary, inline: false },

@@ -202,7 +202,6 @@ class EmbedUtils {
                 { name: '💰 Gold Balance', value: `\`${user.gold.toLocaleString()}\` 🪙`, inline: true },
                 { name: '👟 Total Draws', value: `\`${user.total_draws.toLocaleString()}\``, inline: true },
                 { name: '🎴 Unique Cards', value: `\`${collectionStats.unique_cards.toLocaleString()}\``, inline: true },
-                { name: '⭐ Star Cards', value: `\`${(collectionStats.star_cards || 0).toLocaleString()}\``, inline: true },
                 { name: '📦 Total Quantity', value: `\`${(collectionStats.total_cards || 0).toLocaleString()}\``, inline: true }
             ]
         });

@@ -232,19 +232,17 @@ module.exports = {
                 })()
                 : 'Unknown';
 
-            const bonusSummary = [];
-            if (variantInfo.goldMultiplier > 1) bonusSummary.push(`${variantInfo.goldMultiplier}x Variant Gold`);
-            if (totalGoldMultiplier > 1) bonusSummary.push(`${totalGoldMultiplier}x Active Boost`);
-
             const rarityDetails = EmbedUtils.getRarityDetails(detailedCard.rarity);
             const rewardSummary = [
                 { name: '🎴 Card Name', value: `**${detailedCard.name}**`, inline: true },
                 { name: '📜 Set Info', value: `${detailedCard.set_name || setId} (\`#${cardId}\`)`, inline: true },
                 { name: '💎 Rarity', value: `${rarityDetails.emoji} ${detailedCard.rarity}`, inline: true },
-                { name: '🎁 Pull Rewards', value: `\`+${xpReward} XP\` • \`+${goldReward.toLocaleString()} 🪙\``, inline: true },
-                { name: isSpecialVariant ? '✨ Variant' : '⚡ Type', value: isSpecialVariant ? `${variantInfo.displayName} ${variantInfo.emoji}` : typeInfo, inline: true },
-                { name: '🔥 Active Multipliers', value: bonusSummary.length ? bonusSummary.join(' • ') : '1.0x Standard', inline: true }
+                { name: '🎁 Pull Rewards', value: `\`+${xpReward} XP\` • \`+${goldReward.toLocaleString()} 🪙\``, inline: true }
             ];
+
+            if (isSpecialVariant) {
+                rewardSummary.push({ name: '✨ Variant', value: `${variantInfo.displayName} ${variantInfo.emoji}`, inline: true });
+            }
 
             const imageUrl = detailedCard.image_large || detailedCard.image_small;
             const embed = EmbedUtils.createBaseEmbed({
@@ -369,15 +367,6 @@ module.exports = {
             // ASYNC PROCESSING: Run background tasks without blocking Discord response
             setImmediate(async () => {
                 try {
-                    // Initialize smart notification system
-                    const SmartNotificationManager = require('../utils/SmartNotificationManager');
-                    const notificationManager = new SmartNotificationManager();
-                    
-                    // Send enhanced rare card notifications (for Holo Rare+)
-                    await notificationManager.sendRareCardNotification(
-                        interaction, detailedCard, variant, variantInfo, rarityInfo
-                    );
-
                     // Post to Global showcase channel for rare cards (Holo Rare or above)
                     await this.checkAndPostToGlobalShowcase(interaction, detailedCard, variant, variantInfo, rarityInfo, database);
 

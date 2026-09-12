@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const EmbedUtils = require('../utils/EmbedUtils');
 const ProgressiveDailyRewards = require('../utils/ProgressiveDailyRewards');
 
 module.exports = {
