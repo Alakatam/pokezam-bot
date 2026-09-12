@@ -1,18 +1,17 @@
 /**
- * Progressive Card Loader for Render Deployment
+ * Progressive Card Loader for Local / Render Deployment
  * 
- * Loads additional cards from GitHub after initial deployment
- * to work around Render's deployment size limitations.
+ * Loads cards from bundled local tcg-data/cards/en/*.json files
+ * in background batches after deployment.
  */
 
-const axios = require('axios');
+const fs = require('fs').promises;
+const path = require('path');
 
 class ProgressiveCardLoader {
     constructor(database) {
         this.database = database;
-        this.githubRepo = 'Alakatam/pokezam-bot'; // Your actual repo
-        this.githubPath = 'database-split';
-        this.githubBranch = 'main';
+        this.dataDir = path.resolve(__dirname, '..', 'tcg-data', 'cards', 'en');
         this.loadingState = {
             coreLoaded: false,
             extendedSetsLoaded: 0,
@@ -28,13 +27,13 @@ class ProgressiveCardLoader {
             
             // Check current card count
             const currentCount = await this.database.get('SELECT COUNT(*) as count FROM cards');
-            console.log(`📊 Current cards in database: ${currentCount.count}`);
+            const total = parseInt(currentCount?.count || '0', 10);
+            console.log(`📊 Current cards in database: ${total}`);
             
-            // If we have less than 2000 cards, try to load more
-            if (currentCount.count < 2000) {
-                console.log('📚 Database appears incomplete, starting progressive loading...');
-                await this.loadManifest();
-                await this.loadExtendedCards();
+            // If database has fewer than 10,000 cards, load bundled sets
+            if (total < 10000) {
+                console.log('📚 Database incomplete, starting local progressive loading from tcg-data...');
+                await this.loadLocalSets();
             } else {
                 console.log('✅ Database appears complete, skipping progressive loading');
             }
@@ -48,172 +47,134 @@ class ProgressiveCardLoader {
         }
     }
 
-    async loadManifest() {
-        const manifestUrl = `https://raw.githubusercontent.com/${this.githubRepo}/${this.githubBranch}/${this.githubPath}/loading-manifest.json`;
-        
+    async loadLocalSets() {
         try {
-            console.log('📋 Loading manifest from GitHub...');
-            const response = await axios.get(manifestUrl, { timeout: 10000 });
-            this.manifest = response.data;
-            this.loadingState.totalSetsAvailable = this.manifest.extendedSets.length;
-            console.log(`✅ Manifest loaded: ${this.manifest.totalCards} total cards available`);
+            const files = await fs.readdir(this.dataDir);
+            const jsonFiles = files.filter(f => f.endsWith('.json')).sort();
+            this.loadingState.totalSetsAvailable = jsonFiles.length;
+            console.log(`🚀 Found ${jsonFiles.length} local set files to check/load...`);
+
+            for (const file of jsonFiles) {
+                try {
+                    const filePath = path.join(this.dataDir, file);
+                    const fileContent = await fs.readFile(filePath, 'utf8');
+                    const rawData = JSON.parse(fileContent);
+                    const cards = Array.isArray(rawData) ? rawData : (rawData.cards || []);
+
+                    if (!cards.length) continue;
+
+                    const defaultSetId = file.replace(/\.json$/, '');
+                    await this.loadSetCards(defaultSetId, cards);
+                    this.loadingState.extendedSetsLoaded++;
+
+                    // Small delay to keep event loop responsive
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                } catch (error) {
+                    console.error(`❌ Failed to load local set file ${file}:`, error.message);
+                    this.loadingState.errors.push({
+                        timestamp: new Date().toISOString(),
+                        file,
+                        error: error.message
+                    });
+                }
+            }
+
+            const finalCount = await this.database.get('SELECT COUNT(*) as count FROM cards');
+            console.log(`🎉 Progressive loading complete! Final card count: ${finalCount?.count || 0}`);
         } catch (error) {
-            console.error('❌ Failed to load manifest:', error.message);
-            throw new Error('Cannot load card manifest from GitHub');
+            console.error('❌ Failed to read tcg-data directory:', error.message);
         }
     }
 
-    async loadExtendedCards() {
-        if (!this.manifest) {
-            throw new Error('Manifest not loaded');
+    async loadSetCards(defaultSetId, cards) {
+        const setId = cards[0]?.set?.id || defaultSetId;
+        const setName = cards[0]?.set?.name || setId;
+
+        // Check if we already have cards from this set
+        const existingCountResult = await this.database.get(
+            'SELECT COUNT(*) as count FROM cards WHERE set_id = ?', 
+            [setId]
+        );
+        const existingCount = parseInt(existingCountResult?.count || '0', 10);
+
+        if (existingCount >= Math.floor(cards.length * 0.9)) {
+            return;
         }
 
-        console.log(`🚀 Starting progressive card loading (${this.manifest.extendedSets.length} sets)...`);
-        
-        for (const setInfo of this.manifest.extendedSets) {
-            try {
-                await this.loadExtendedSet(setInfo);
-                this.loadingState.extendedSetsLoaded++;
-                
-                // Small delay between sets to avoid rate limiting
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                
-            } catch (error) {
-                console.error(`❌ Failed to load set ${setInfo.setId}:`, error.message);
-                this.loadingState.errors.push({
-                    timestamp: new Date().toISOString(),
-                    setId: setInfo.setId,
-                    error: error.message
-                });
-                
-                // Continue loading other sets even if one fails
-                continue;
-            }
-        }
-        
-        // Final count
-        const finalCount = await this.database.get('SELECT COUNT(*) as count FROM cards');
-        console.log(`🎉 Progressive loading complete! Final card count: ${finalCount.count}`);
-    }
+        console.log(`📦 Loading set ${setId} (${cards.length} cards)...`);
 
-    async loadExtendedSet(setInfo) {
-        const setUrl = `https://raw.githubusercontent.com/${this.githubRepo}/${this.githubBranch}/${this.githubPath}/${setInfo.file}`;
-        
-        try {
-            console.log(`📦 Loading ${setInfo.setId} (${setInfo.count} cards)...`);
-            const response = await axios.get(setUrl, { timeout: 15000 });
-            const setData = response.data;
-            
-            // Check if we already have cards from this set
-            const existingCount = await this.database.get(
-                'SELECT COUNT(*) as count FROM cards WHERE set_id = ?', 
-                [setInfo.setId]
-            );
-            
-            if (existingCount.count >= setData.cardCount * 0.9) {
-                console.log(`   ✅ ${setInfo.setId} already loaded (${existingCount.count} cards)`);
-                return;
-            }
-            
-            // OPTIMIZED: Load cards using batch insertion for better performance
-            let newCards = 0;
-            const BATCH_SIZE = 50; // Process in smaller batches for better memory management
-            const cards = setData.cards;
-            
-            for (let i = 0; i < cards.length; i += BATCH_SIZE) {
-                const batch = cards.slice(i, i + BATCH_SIZE);
-                
-                // Check existing cards in batch
-                const apiIds = batch.map(card => card.id);
-                const existing = await this.database.all(
-                    `SELECT api_id FROM cards WHERE api_id IN (${apiIds.map(() => '?').join(',')})`,
-                    apiIds
-                );
-                const existingIds = new Set(existing.map(e => e.api_id));
-                
-                // Filter out already existing cards
-                const newCardsInBatch = batch.filter(card => !existingIds.has(card.id));
-                
-                if (newCardsInBatch.length === 0) {
-                    continue; // Skip if all cards in batch already exist
+        let newCards = 0;
+        const BATCH_SIZE = 50;
+
+        for (let i = 0; i < cards.length; i += BATCH_SIZE) {
+            const batch = cards.slice(i, i + BATCH_SIZE);
+
+            const insertPromises = batch.map(async (card) => {
+                try {
+                    const apiId = String(card.id || `${setId}-${card.number || Math.random()}`);
+                    const nowSec = Math.floor(Date.now() / 1000);
+
+                    const sql = `
+                        INSERT INTO cards (
+                            api_id, name, set_id, set_name, set_series, number, rarity,
+                            supertype, subtypes, hp, types, attacks, weaknesses, resistances,
+                            retreat_cost, artist, flavor_text, national_pokedex_numbers,
+                            image_small, image_large, tcgplayer_url, cardmarket_url,
+                            release_date, unlock_level, holo_chance, is_cached, last_updated,
+                            created_at, variant_normal, variant_reverse, variant_holo,
+                            variant_first_edition, variant_promo
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ON CONFLICT (api_id) DO NOTHING
+                    `;
+
+                    const res = await this.database.run(sql, [
+                        apiId,
+                        card.name || 'Unknown Card',
+                        card.set?.id || setId,
+                        card.set?.name || setName,
+                        card.set?.series || null,
+                        card.number || null,
+                        card.rarity || 'Common',
+                        card.supertype || null,
+                        card.subtypes ? JSON.stringify(card.subtypes) : null,
+                        card.hp ? parseInt(card.hp) : null,
+                        card.types ? JSON.stringify(card.types) : null,
+                        card.attacks ? JSON.stringify(card.attacks) : null,
+                        card.weaknesses ? JSON.stringify(card.weaknesses) : null,
+                        card.resistances ? JSON.stringify(card.resistances) : null,
+                        card.retreatCost ? JSON.stringify(card.retreatCost) : null,
+                        card.artist || null,
+                        card.flavorText || null,
+                        card.nationalPokedexNumbers ? JSON.stringify(card.nationalPokedexNumbers) : null,
+                        card.images?.small || card.image_small || null,
+                        card.images?.large || card.image_large || null,
+                        card.tcgplayer?.url || null,
+                        card.cardmarket?.url || null,
+                        card.set?.releaseDate || null,
+                        this.calculateUnlockLevel(card.set?.releaseDate),
+                        this.calculateHoloChance(card.rarity),
+                        true, // is_cached 
+                        nowSec, // last_updated
+                        nowSec, // created_at  
+                        card.variant_normal !== false,
+                        card.variant_reverse !== false,
+                        card.variant_holo !== false,
+                        card.variant_first_edition === true,
+                        card.variant_promo === true
+                    ]);
+
+                    return (res && res.changes > 0) ? 1 : 0;
+                } catch (error) {
+                    return 0;
                 }
-                
-                // Build batch insert statement
-                const insertPromises = newCardsInBatch.map(async (card) => {
-                    try {
-                        await this.database.run(`
-                            INSERT INTO cards (
-                                api_id, name, set_id, set_name, set_series, number, rarity,
-                                supertype, subtypes, hp, types, attacks, weaknesses, resistances,
-                                retreat_cost, artist, flavor_text, national_pokedex_numbers,
-                                image_small, image_large, tcgplayer_url, cardmarket_url,
-                                release_date, unlock_level, holo_chance, is_cached, last_updated,
-                                created_at, variant_normal, variant_reverse, variant_holo,
-                                variant_first_edition, variant_promo
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                            ON CONFLICT (api_id) DO NOTHING
-                        `, [
-                            card.id,
-                            card.name || 'Unknown Card',
-                            card.set?.id || setInfo.setId,
-                            card.set?.name || setInfo.setName,
-                            card.set?.series || null,
-                            card.number || null,
-                            card.rarity || 'Common',
-                            card.supertype || null,
-                            card.subtypes ? JSON.stringify(card.subtypes) : null,
-                            card.hp || null,
-                            card.types ? JSON.stringify(card.types) : null,
-                            card.attacks ? JSON.stringify(card.attacks) : null,
-                            card.weaknesses ? JSON.stringify(card.weaknesses) : null,
-                            card.resistances ? JSON.stringify(card.resistances) : null,
-                            card.retreatCost ? JSON.stringify(card.retreatCost) : null,
-                            card.artist || null,
-                            card.flavorText || null,
-                            card.nationalPokedexNumbers ? JSON.stringify(card.nationalPokedexNumbers) : null,
-                            card.images?.small || null,
-                            card.images?.large || null,
-                            card.tcgplayer?.url || null,
-                            card.cardmarket?.url || null,
-                            card.set?.releaseDate || null,
-                            this.calculateUnlockLevel(card.set?.releaseDate),
-                            this.calculateHoloChance(card.rarity),
-                            true, // is_cached 
-                            Math.floor(Date.now() / 1000), // last_updated
-                            Math.floor(Date.now() / 1000), // created_at  
-                            card.variant_normal !== false ? true : false, // boolean conversion
-                            card.variant_reverse !== false ? true : false, // boolean conversion
-                            card.variant_holo !== false ? true : false, // boolean conversion
-                            card.variant_first_edition === true, // boolean conversion
-                            card.variant_promo === true // boolean conversion
-                        ]);
-                        return 1; // Successfully inserted
-                    } catch (error) {
-                        console.error(`Failed to insert card ${card.name}:`, error.message);
-                        return 0; // Failed to insert
-                    }
-                });
-                
-                // Execute batch insert
-                const results = await Promise.all(insertPromises);
-                const batchInserted = results.reduce((sum, result) => sum + result, 0);
-                newCards += batchInserted;
-                
-                // Memory management: Force garbage collection every 200 cards
-                if (i % 200 === 0 && global.gc) {
-                    global.gc();
-                }
-                
-                // Progress reporting for large sets
-                if (cards.length > 200 && i % 100 === 0) {
-                    console.log(`   📊 Progress: ${Math.min(i + BATCH_SIZE, cards.length)}/${cards.length} cards processed...`);
-                }
-            }
-            
-            console.log(`   ✅ ${setInfo.setId}: +${newCards} new cards (batch optimized)`);
-            
-        } catch (error) {
-            throw new Error(`Failed to load ${setInfo.setId}: ${error.message}`);
+            });
+
+            const results = await Promise.all(insertPromises);
+            newCards += results.reduce((sum, r) => sum + r, 0);
+        }
+
+        if (newCards > 0) {
+            console.log(`   ✅ ${setId}: +${newCards} new cards added`);
         }
     }
 

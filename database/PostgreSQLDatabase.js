@@ -153,6 +153,14 @@ class PostgreSQLDatabase {
         // Convert JSON functions if any
         pgSql = pgSql.replace(/JSON_EXTRACT/gi, 'JSON_EXTRACT_PATH_TEXT');
         
+        // Convert SQLite INSERT OR IGNORE syntax to PostgreSQL ON CONFLICT DO NOTHING
+        if (/INSERT\s+OR\s+IGNORE\s+INTO/gi.test(pgSql)) {
+            pgSql = pgSql.replace(/INSERT\s+OR\s+IGNORE\s+INTO/gi, 'INSERT INTO');
+            if (!/ON\s+CONFLICT/gi.test(pgSql)) {
+                pgSql += ' ON CONFLICT DO NOTHING';
+            }
+        }
+        
         // Convert SQLite parameter placeholders (?) to PostgreSQL ($1, $2, $3, ...)
         let paramCount = 0;
         pgSql = pgSql.replace(/\?/g, () => {

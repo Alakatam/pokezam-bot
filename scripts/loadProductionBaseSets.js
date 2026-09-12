@@ -31,34 +31,24 @@ class ProductionTCGLoader {
             for (const rawCard of cards) {
                 try {
                     const card = this.normalizeCard(rawCard);
-                    const sql = this.db.dbType === 'postgresql'
-                        ? `
-                            INSERT INTO cards (
-                                card_id, name, supertype, subtype, level, hp,
-                                rarity, artist, set_id, set_name, number,
-                                flavor_text, national_pokedex_number, image_small,
-                                image_large, tcgplayer_url, cardmarket_url,
-                                variant_normal, variant_reverse, variant_holo,
-                                variant_first_edition, variant_promo, created_at, updated_at
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        `
-                        : `
-                            INSERT OR IGNORE INTO cards (
-                                card_id, name, supertype, subtype, level, hp,
-                                rarity, artist, set_id, set_name, number,
-                                flavor_text, national_pokedex_number, image_small,
-                                image_large, tcgplayer_url, cardmarket_url,
-                                variant_normal, variant_reverse, variant_holo,
-                                variant_first_edition, variant_promo, created_at, updated_at
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        `;
+                    const sql = `
+                        INSERT INTO cards (
+                            api_id, name, supertype, subtypes, hp,
+                            rarity, artist, set_id, set_name, number,
+                            flavor_text, national_pokedex_numbers, image_small,
+                            image_large, tcgplayer_url, cardmarket_url,
+                            variant_normal, variant_reverse, variant_holo,
+                            variant_first_edition, variant_promo, created_at, last_updated
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ON CONFLICT (api_id) DO NOTHING
+                    `;
 
-                    await this.db.run(sql, [
-                        card.card_id,
+                    const nowSec = Math.floor(Date.now() / 1000);
+                    const result = await this.db.run(sql, [
+                        card.api_id,
                         card.name,
                         card.supertype,
-                        card.subtype,
-                        card.level,
+                        card.subtypes,
                         card.hp,
                         card.rarity,
                         card.artist,
@@ -66,7 +56,7 @@ class ProductionTCGLoader {
                         card.set_name,
                         card.number,
                         card.flavor_text,
-                        card.national_pokedex_number,
+                        card.national_pokedex_numbers,
                         card.image_small,
                         card.image_large,
                         card.tcgplayer_url,
@@ -76,11 +66,13 @@ class ProductionTCGLoader {
                         card.variant_holo,
                         card.variant_first_edition,
                         card.variant_promo,
-                        Date.now(),
-                        Date.now()
+                        nowSec,
+                        nowSec
                     ]);
 
-                    totalLoaded++;
+                    if (result && result.changes > 0) {
+                        totalLoaded++;
+                    }
                 } catch (error) {
                     // Duplicate rows or malformed card entries are non-fatal.
                 }
@@ -93,26 +85,25 @@ class ProductionTCGLoader {
     normalizeCard(rawCard) {
         const setId = rawCard.set?.id || rawCard.set_id || 'base1';
         const setName = rawCard.set?.name || rawCard.set_name || this.fileNameToSetName(setId);
-        const cardId = String(rawCard.id || rawCard.card_id || `${setId}-${rawCard.number || Math.random()}`);
+        const apiId = String(rawCard.id || rawCard.api_id || rawCard.card_id || `${setId}-${rawCard.number || Math.random()}`);
 
         return {
-            card_id: cardId,
+            api_id: apiId,
             name: rawCard.name || 'Unknown',
             supertype: rawCard.supertype || '',
-            subtype: Array.isArray(rawCard.subtypes) ? rawCard.subtypes.join(', ') : (rawCard.subtype || ''),
-            level: rawCard.level ? Number(rawCard.level) : null,
+            subtypes: rawCard.subtypes ? JSON.stringify(rawCard.subtypes) : (rawCard.subtype ? JSON.stringify([rawCard.subtype]) : null),
             hp: rawCard.hp ? Number(rawCard.hp) : null,
             rarity: rawCard.rarity || 'Common',
             artist: rawCard.artist || '',
             set_id: setId,
             set_name: setName,
             number: rawCard.number || '',
-            flavor_text: rawCard.flavorText || '',
-            national_pokedex_number: Array.isArray(rawCard.nationalPokedexNumbers) ? rawCard.nationalPokedexNumbers[0] : null,
-            image_small: rawCard.images?.small || '',
-            image_large: rawCard.images?.large || '',
-            tcgplayer_url: rawCard.tcgplayer?.url || '',
-            cardmarket_url: rawCard.cardmarket?.url || '',
+            flavor_text: rawCard.flavorText || rawCard.flavor_text || '',
+            national_pokedex_numbers: rawCard.nationalPokedexNumbers ? JSON.stringify(rawCard.nationalPokedexNumbers) : (rawCard.national_pokedex_number ? JSON.stringify([rawCard.national_pokedex_number]) : null),
+            image_small: rawCard.images?.small || rawCard.image_small || '',
+            image_large: rawCard.images?.large || rawCard.image_large || '',
+            tcgplayer_url: rawCard.tcgplayer?.url || rawCard.tcgplayer_url || '',
+            cardmarket_url: rawCard.cardmarket?.url || rawCard.cardmarket_url || '',
             variant_normal: true,
             variant_reverse: false,
             variant_holo: false,

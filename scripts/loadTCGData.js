@@ -2,7 +2,7 @@ require('dotenv').config();
 
 const fs = require('fs');
 const path = require('path');
-const Database = require('../database/Database.js');
+const DatabaseManager = require('../database/DatabaseManager.js');
 
 /**
  * Loads all Pokémon TCG data from a specified directory.
@@ -75,10 +75,10 @@ class TCGDataLoader {
     }
 
     async initialize() {
-        this.db = new Database();
-        await this.db.connect();
-        await this.db.initialize();
-        console.log('✅ Database initialized');
+        this.dbManager = new DatabaseManager();
+        this.db = await this.dbManager.connect();
+        await this.dbManager.initialize();
+        console.log(`✅ Database initialized (${this.dbManager.dbType})`);
     }
 
     async loadAllData() {
@@ -212,7 +212,7 @@ class TCGDataLoader {
                 UPDATE cards SET
                     name = ?, set_id = ?, set_name = ?, number = ?, rarity = ?,
                     hp = ?, types = ?, supertype = ?, subtypes = ?,
-                    image_small = ?, image_large = ?, is_cached = 1, last_updated = ?
+                    image_small = ?, image_large = ?, is_cached = TRUE, last_updated = ?
                 WHERE api_id = ?
             `, [
                 tcgCard.name || 'Unknown Card',
@@ -240,6 +240,7 @@ class TCGDataLoader {
                     image_small, image_large, unlock_level, holo_chance,
                     is_cached, last_updated
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT (api_id) DO NOTHING
             `, [
                 tcgCard.id,
                 tcgCard.name || 'Unknown Card',
@@ -255,7 +256,7 @@ class TCGDataLoader {
                 tcgCard.images?.large || null,
                 this.calculateUnlockLevel(setInfo.releaseDate),
                 this.calculateHoloChance(tcgCard.rarity),
-                1,
+                true,
                 now
             ]);
 
@@ -480,9 +481,10 @@ async function main() {
         await loader.initialize();
         
         // Create sets table if it doesn't exist
+        const isPostgres = loader.dbManager && loader.dbManager.dbType === 'postgresql';
         await loader.db.run(`
             CREATE TABLE IF NOT EXISTS pokemon_sets (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ${isPostgres ? 'id SERIAL PRIMARY KEY' : 'id INTEGER PRIMARY KEY AUTOINCREMENT'},
                 set_id TEXT UNIQUE,
                 name TEXT,
                 series TEXT,
@@ -492,8 +494,8 @@ async function main() {
                 ptcgo_code TEXT,
                 symbol_url TEXT,
                 logo_url TEXT,
-                created_at INTEGER,
-                updated_at INTEGER
+                created_at ${isPostgres ? 'BIGINT' : 'INTEGER'},
+                updated_at ${isPostgres ? 'BIGINT' : 'INTEGER'}
             )
         `);
         

@@ -2354,21 +2354,22 @@ roll result        : "${outcome.toUpperCase()} (${probTable.loss}% chance)"
                                 const isVintageSet = ['base1', 'base2', 'base3', 'base4', 'base5', 'gym1', 'gym2'].includes(fileName.replace('.json', ''));
                                 const hasFirstEdition = isVintageSet && Math.random() < 0.3; // 30% of vintage cards have 1st ed
                                 
+                                const nowSec = Math.floor(Date.now() / 1000);
                                 await this.database.run(`
-                                    INSERT OR IGNORE INTO cards (
-                                        card_id, name, supertype, subtype, level, hp, 
+                                    INSERT INTO cards (
+                                        api_id, name, supertype, subtypes, hp, 
                                         rarity, artist, set_id, set_name, number, 
-                                        flavor_text, national_pokedex_number, image_small, 
+                                        flavor_text, national_pokedex_numbers, image_small, 
                                         image_large, tcgplayer_url, cardmarket_url,
                                         variant_normal, variant_reverse, variant_holo, variant_first_edition, variant_promo,
-                                        created_at, updated_at
+                                        created_at, last_updated
                                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                    ON CONFLICT (api_id) DO NOTHING
                                 `, [
                                     card.id,
                                     card.name || 'Unknown',
                                     card.supertype || '',
-                                    (card.subtypes || []).join(', '),
-                                    card.level ? parseInt(card.level) : null,
+                                    card.subtypes ? JSON.stringify(card.subtypes) : null,
                                     card.hp ? parseInt(card.hp) : null,
                                     card.rarity || 'Common',
                                     card.artist || '',
@@ -2376,7 +2377,7 @@ roll result        : "${outcome.toUpperCase()} (${probTable.loss}% chance)"
                                     card.set?.name || '',
                                     card.number || '',
                                     card.flavorText || '',
-                                    card.nationalPokedexNumbers?.[0] || null,
+                                    card.nationalPokedexNumbers ? JSON.stringify(card.nationalPokedexNumbers) : null,
                                     card.images?.small || '',
                                     card.images?.large || '',
                                     card.tcgplayer?.url || '',
@@ -2386,8 +2387,8 @@ roll result        : "${outcome.toUpperCase()} (${probTable.loss}% chance)"
                                     false, // variant_holo (natural rarity, not a variant)
                                     hasFirstEdition, // variant_first_edition
                                     false, // variant_promo
-                                    Date.now(),
-                                    Date.now()
+                                    nowSec,
+                                    nowSec
                                 ]);
                                 totalLoaded++;
                             } catch (cardError) {
