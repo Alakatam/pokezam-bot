@@ -27,6 +27,14 @@ module.exports = {
                 userData.coins = 0;
             }
 
+            // Helper to safely parse dates from string or numeric timestamps
+            const parseClaimDate = (val) => {
+                if (!val) return null;
+                if (typeof val === 'number') return new Date(val);
+                const num = Number(val);
+                return !isNaN(num) ? new Date(num) : new Date(val);
+            };
+
             // Check if user already claimed daily reward (resets at 20:00 ET daily)
             const now = new Date();
             const easternTime = new Date(now.toLocaleString("en-US", {timeZone: "America/New_York"}));
@@ -41,7 +49,8 @@ module.exports = {
             }
             
             const resetTimestamp = Math.floor(lastResetTime.getTime() / 1000);
-            const lastClaimTimestamp = userData.last_daily_claim ? new Date(userData.last_daily_claim).getTime() / 1000 : 0;
+            const lastClaimDate = parseClaimDate(userData.last_daily_claim);
+            const lastClaimTimestamp = lastClaimDate ? Math.floor(lastClaimDate.getTime() / 1000) : 0;
             
             if (lastClaimTimestamp > resetTimestamp) {
                 // Calculate next reset time (20:00 ET)
@@ -66,7 +75,7 @@ module.exports = {
                         footerText: 'Daily rewards reset at 20:00 ET daily • Pokézam',
                         footerIcon: interaction.user.displayAvatarURL({ dynamic: true }),
                         fields: [
-                            { name: '📅 Last Claim', value: `\`${new Date(userData.last_daily_claim).toLocaleString("en-US", {timeZone: "America/New_York", dateStyle: "short", timeStyle: "short"})}\``, inline: true },
+                            { name: '📅 Last Claim', value: `\`${lastClaimDate ? lastClaimDate.toLocaleString("en-US", {timeZone: "America/New_York", dateStyle: "short", timeStyle: "short"}) : 'Never'}\``, inline: true },
                             { name: '🔥 Current Streak', value: `\`${userData.daily_streak || 1} Days\``, inline: true }
                         ]
                     })],
@@ -81,28 +90,30 @@ module.exports = {
             let streakCount = 1;
             
             if (userData.last_daily_claim) {
-                const lastClaimTime = new Date(userData.last_daily_claim);
-                const lastClaimEastern = new Date(lastClaimTime.toLocaleString("en-US", {timeZone: "America/New_York"}));
+                const lastClaimTime = parseClaimDate(userData.last_daily_claim);
+                const lastClaimEastern = lastClaimTime ? new Date(lastClaimTime.toLocaleString("en-US", {timeZone: "America/New_York"})) : null;
                 
-                // Calculate expected previous reset time (yesterday at 20:00 ET)
-                const expectedPrevReset = new Date(easternTime);
-                expectedPrevReset.setHours(22, 0, 0, 0);
-                expectedPrevReset.setDate(expectedPrevReset.getDate() - 1);
-                
-                // If current time is before today's 22:00 ET, subtract one more day
-                if (easternTime.getHours() < 22) {
+                if (lastClaimEastern) {
+                    // Calculate expected previous reset time (yesterday at 20:00 ET)
+                    const expectedPrevReset = new Date(easternTime);
+                    expectedPrevReset.setHours(22, 0, 0, 0);
                     expectedPrevReset.setDate(expectedPrevReset.getDate() - 1);
-                }
-                
-                // Check if last claim was within the previous reset period (streak continues)
-                const timeDiffHours = Math.abs(lastClaimEastern.getTime() - expectedPrevReset.getTime()) / (1000 * 60 * 60);
-                
-                if (timeDiffHours <= 24) {
-                    // User claimed within the last reset period, increment streak
-                    streakCount = (userData.daily_streak || 0) + 1;
-                } else {
-                    // User missed days, reset streak
-                    streakCount = 1;
+                    
+                    // If current time is before today's 22:00 ET, subtract one more day
+                    if (easternTime.getHours() < 22) {
+                        expectedPrevReset.setDate(expectedPrevReset.getDate() - 1);
+                    }
+                    
+                    // Check if last claim was within the previous reset period (streak continues)
+                    const timeDiffHours = Math.abs(lastClaimEastern.getTime() - expectedPrevReset.getTime()) / (1000 * 60 * 60);
+                    
+                    if (timeDiffHours <= 24) {
+                        // User claimed within the last reset period, increment streak
+                        streakCount = (userData.daily_streak || 0) + 1;
+                    } else {
+                        // User missed days, reset streak
+                        streakCount = 1;
+                    }
                 }
             }
 
@@ -128,7 +139,7 @@ module.exports = {
             const leveledUp = newLevel > userData.level;
 
             // Update database with current timestamp and new streak
-            const claimTimestamp = now.toISOString();
+            const claimTimestamp = now.getTime();
             await database.run(`
                 UPDATE users 
                 SET xp = ?, coins = ?, gold = ?, level = ?, last_daily_claim = ?, daily_streak = ?

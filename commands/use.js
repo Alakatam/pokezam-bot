@@ -292,7 +292,7 @@ module.exports = {
         await database.run(`
             INSERT INTO user_items (user_id, item_id, quantity) 
             VALUES (?, ?, ?)
-            ON CONFLICT(user_id, item_id) DO UPDATE SET quantity = quantity + ?
+            ON CONFLICT(user_id, item_id) DO UPDATE SET quantity = user_items.quantity + ?
         `, [userId, itemId, quantity, quantity]);
     },
 
