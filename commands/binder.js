@@ -201,63 +201,46 @@ module.exports = {
     async displayBinder(interaction, targetUser, cards, filters) {
         const { setFilter, pokemonFilter, rarityFilter, typeFilter, currentPage, totalCards, totalPages } = filters;
 
-        // Create header with enhanced colors
-        let content = '```ansi\n';
-        content += '\u001b[1;36m════════════════════════════════════════════════════════\u001b[0m\n';
-        content += `\u001b[1;33m          ${targetUser.username.toUpperCase()}'S BINDER\u001b[0m\n`;
-        content += '\u001b[1;36m════════════════════════════════════════════════════════\u001b[0m\n\n';
-
-        // Show active filters with colors
         const activeFilters = [];
-        if (setFilter) activeFilters.push(`Set: ${setFilter}`);
-        if (pokemonFilter) activeFilters.push(`Pokémon: ${pokemonFilter}`);
-        if (rarityFilter) activeFilters.push(`Rarity: ${rarityFilter}`);
-        if (typeFilter !== 'owned') activeFilters.push(`Filter: ${typeFilter}`);
+        if (setFilter) activeFilters.push(`Set: \`${setFilter}\``);
+        if (pokemonFilter) activeFilters.push(`Search: \`${pokemonFilter}\``);
+        if (rarityFilter) activeFilters.push(`Rarity: \`${rarityFilter}\``);
+        if (typeFilter !== 'owned') activeFilters.push(`Filter: \`${typeFilter}\``);
+
+        const cardLines = cards.length > 0
+            ? cards.map(card => {
+                const rarityDetails = EmbedUtils.getRarityDetails(card.rarity);
+                const numStr = card.number ? `\`#${card.number}\`` : '`#???`';
+                const qtyStr = card.quantity > 0 ? `\`x${card.quantity}\`` : '❌';
+                return `• ${numStr} **${card.name}** (${rarityDetails.emoji} *${card.rarity || 'Common'}*) — ${qtyStr}`;
+            }).join('\n')
+            : 'No cards found matching your binder search criteria.';
+
+        const fields = [];
 
         if (activeFilters.length > 0) {
-            content += '\u001b[1;35mACTIVE FILTERS: \u001b[0m' + activeFilters.join(' | ') + '\n';
-        }
-        content += `\u001b[1;32mPAGE ${currentPage} OF ${totalPages} | SHOWING ${cards.length} OF ${totalCards} CARDS\u001b[0m\n\n`;
-
-        // Table header with colors
-        content += '\u001b[1;37mRRT SET ID  #   CARD NAME                    QTY\u001b[0m\n';
-        content += '\u001b[2;37m────────────────────────────────────────────────────\u001b[0m\n';
-
-        // Display cards in table format with colors
-        if (cards.length === 0) {
-            content += '\u001b[1;31m                NO CARDS FOUND\u001b[0m\n';
-            content += '\n';
-            if (typeFilter === 'owned') {
-                content += '\u001b[1;33m💡 TIP: Use /draw to collect cards!\u001b[0m\n';
-            } else if (typeFilter === 'missing') {
-                content += '\u001b[1;32m✅ Great! No missing cards here.\u001b[0m\n';
-            } else if (typeFilter === 'duplicates') {
-                content += '\u001b[1;34m📚 No duplicates found.\u001b[0m\n';
-            }
-        } else {
-            cards.forEach(card => {
-                const rarity = this.formatRarity(card.rarity);
-                const setId = this.formatSetId(card.set_id);
-                const cardId = this.formatCardId(card.number || card.card_id);
-                const cardName = this.formatCardName(card.name, '');
-                const owned = this.formatOwned(card.quantity);
-
-                // Color based on rarity
-                let rarityColor = '\u001b[0m'; // default
-                if (card.rarity?.includes('Secret')) rarityColor = '\u001b[1;31m'; // bright red
-                else if (card.rarity?.includes('Ultra')) rarityColor = '\u001b[1;35m'; // bright magenta
-                else if (card.rarity?.includes('Holo')) rarityColor = '\u001b[1;36m'; // bright cyan
-                else if (card.rarity?.includes('Rare')) rarityColor = '\u001b[1;33m'; // bright yellow
-                else if (card.rarity?.includes('Uncommon')) rarityColor = '\u001b[1;32m'; // bright green
-
-                content += `${rarityColor}${rarity}\u001b[0m ${setId} ${cardId} ${cardName} ${owned > 0 ? '\u001b[1;32m' : '\u001b[2;31m'}${owned}\u001b[0m\n`;
+            fields.push({
+                name: '🔍 Active Filters',
+                value: activeFilters.join(' • '),
+                inline: false
             });
         }
 
-        content += '\n\u001b[1;36m════════════════════════════════════════════════════════\u001b[0m\n';
-        content += '```';
+        fields.push({
+            name: `📋 Binder Cards — Page ${currentPage}/${totalPages} (\`${totalCards.toLocaleString()}\` Total Cards)`,
+            value: cardLines,
+            inline: false
+        });
 
         const embed = EmbedUtils.createBaseEmbed({
+            author: { name: `${targetUser.displayName || targetUser.username}'s Card Binder`, iconURL: targetUser.displayAvatarURL({ dynamic: true }) },
+            title: '📋 Pokémon Card Binder',
+            description: `Showing **${cards.length}** cards on this page. Use the filter menu below to search by set or rarity.`,
+            color: EmbedUtils.palette.brand,
+            footerText: `Page ${currentPage} of ${totalPages} • Total: ${totalCards.toLocaleString()} cards`,
+            footerIcon: targetUser.displayAvatarURL({ dynamic: true }),
+            fields
+        });
             title: '📋 Pokémon Card Binder',
             description: content,
             color: '#4A90E2',

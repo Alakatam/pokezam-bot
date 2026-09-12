@@ -2,15 +2,17 @@ const { EmbedBuilder } = require('discord.js');
 
 class EmbedUtils {
     static palette = {
-        brand: '#7C3AED',
-        accent: '#22D3EE',
-        success: '#34D399',
-        warning: '#FBBF24',
-        error: '#F87171',
-        text: '#E5E7EB',
-        muted: '#94A3B8',
-        surface: '#111827',
-        highlight: '#F8FAFC'
+        brand: '#8B5CF6',     // Electric Purple / Main Pokézam Theme
+        accent: '#06B6D4',    // Bright Cyan / Ice
+        success: '#10B981',   // Emerald Green
+        warning: '#F59E0B',   // Amber Gold
+        error: '#EF4444',     // Crimson Red
+        gold: '#FFD700',      // Shining Gold
+        purple: '#A855F7',    // Royal Purple
+        pink: '#EC4899',      // Magenta / Pink
+        dark: '#1E1E2E',      // Obsidian Dark
+        muted: '#94A3B8',     // Slate Gray
+        surface: '#2D3748'    // Dark Card Surface
     };
 
     static resolveAvatarURL(user) {
@@ -27,20 +29,41 @@ class EmbedUtils {
         return null;
     }
 
-    static createBaseEmbed({ title, description = '', color = this.palette.brand, thumbnail = null, image = null, footerText = null, footerIcon = null, fields = [], timestamp = true }) {
-        const embed = new EmbedBuilder()
-            .setColor(color)
-            .setTitle(title)
-            .setDescription(description || ' ')
-            .setTimestamp();
+    static createBaseEmbed({
+        title = null,
+        description = '',
+        color = this.palette.brand,
+        thumbnail = null,
+        image = null,
+        author = null,
+        footerText = null,
+        footerIcon = null,
+        fields = [],
+        timestamp = true
+    }) {
+        const embed = new EmbedBuilder().setColor(color);
+
+        if (title) embed.setTitle(title);
+        if (description) embed.setDescription(description);
+
+        if (author) {
+            if (typeof author === 'string') {
+                embed.setAuthor({ name: author });
+            } else if (typeof author === 'object' && author.name) {
+                embed.setAuthor(author);
+            }
+        }
 
         if (thumbnail) embed.setThumbnail(thumbnail);
         if (image) embed.setImage(image);
-        if (fields.length > 0) embed.addFields(fields.map(field => ({
-            name: `> ${field.name}`,
-            value: String(field.value),
-            inline: field.inline ?? true
-        })));
+
+        if (fields.length > 0) {
+            embed.addFields(fields.map(field => ({
+                name: field.name,
+                value: String(field.value || ' '),
+                inline: field.inline ?? true
+            })));
+        }
 
         if (footerText) {
             const footerConfig = { text: footerText };
@@ -48,136 +71,152 @@ class EmbedUtils {
             embed.setFooter(footerConfig);
         }
 
-        if (!timestamp) embed.setTimestamp(null);
+        if (timestamp) {
+            embed.setTimestamp();
+        }
 
         return embed;
     }
 
-    static createSuccessEmbed(title, description, footerText = null) {
+    static createSuccessEmbed(title, description, footerText = null, footerIcon = null) {
         return this.createBaseEmbed({
-            title,
+            title: `✅  ${title}`,
             description,
             color: this.palette.success,
-            footerText
+            footerText,
+            footerIcon
         });
     }
 
-    static createErrorEmbed(title, description, footerText = null) {
+    static createErrorEmbed(title, description, footerText = null, footerIcon = null) {
         return this.createBaseEmbed({
-            title,
+            title: `❌  ${title}`,
             description,
             color: this.palette.error,
-            footerText
+            footerText,
+            footerIcon
         });
     }
 
-    static createInfoEmbed(title, description, footerText = null) {
+    static createInfoEmbed(title, description, footerText = null, footerIcon = null) {
         return this.createBaseEmbed({
-            title,
+            title: `ℹ️  ${title}`,
             description,
             color: this.palette.accent,
-            footerText
+            footerText,
+            footerIcon
         });
+    }
+
+    static createWarningEmbed(title, description, footerText = null, footerIcon = null) {
+        return this.createBaseEmbed({
+            title: `⚠️  ${title}`,
+            description,
+            color: this.palette.warning,
+            footerText,
+            footerIcon
+        });
+    }
+
+    static getRarityDetails(rarity) {
+        const norm = String(rarity || 'common').toLowerCase();
+        if (norm.includes('secret') || norm.includes('rainbow')) {
+            return { color: '#FDE68A', badge: '✦ SECRET RARE', emoji: '🌈' };
+        }
+        if (norm.includes('ultra') || norm.includes('vmax') || norm.includes('hyper') || norm.includes('star')) {
+            return { color: '#C084FC', badge: '★ ULTRA RARE', emoji: '✨' };
+        }
+        if (norm.includes('holo')) {
+            return { color: '#F59E0B', badge: '◆ HOLO RARE', emoji: '🌟' };
+        }
+        if (norm.includes('rare')) {
+            return { color: '#60A5FA', badge: '▲ RARE', emoji: '🔷' };
+        }
+        if (norm.includes('uncommon')) {
+            return { color: '#34D399', badge: '♦ UNCOMMON', emoji: '🟢' };
+        }
+        return { color: '#94A3B8', badge: '● COMMON', emoji: '⚪' };
+    }
+
+    static getRarityColor(rarity) {
+        return this.getRarityDetails(rarity).color;
     }
 
     static createCardEmbed(card, userCard = null, user = null) {
-        const title = userCard && userCard.star_level > 0
-            ? `${card.name} ${'★'.repeat(userCard.star_level)}`
-            : card.name;
+        const rarityDetails = this.getRarityDetails(card.rarity);
+        const starRating = userCard && userCard.star_level > 0 ? ` ${'★'.repeat(userCard.star_level)}` : '';
+        const title = `${rarityDetails.emoji} ${card.name}${starRating}`;
 
-        const rarity = card.rarity || 'Unknown';
-        const descriptionParts = [];
-        if (card.set_name) descriptionParts.push(`Set • ${card.set_name}`);
-        if (card.rarity) descriptionParts.push(`Rarity • ${card.rarity}`);
-        if (card.supertype === 'Pokémon' && card.hp) descriptionParts.push(`HP • ${card.hp}`);
+        const headerBits = [];
+        if (card.set_name) headerBits.push(`**Set:** ${card.set_name}`);
+        if (card.rarity) headerBits.push(`**Rarity:** ${card.rarity}`);
+        if (card.hp) headerBits.push(`**HP:** ${card.hp}`);
 
         const fields = [];
-        if (card.number) fields.push({ name: 'Number', value: String(card.number), inline: true });
+        if (card.number) fields.push({ name: '🔢 Card Number', value: `#${card.number}`, inline: true });
+        
         if (card.types) {
             let types = card.types;
             if (typeof types === 'string') {
                 try { types = JSON.parse(types); } catch { types = [types]; }
             }
             if (Array.isArray(types) && types.length > 0) {
-                fields.push({ name: 'Type', value: types.join(', '), inline: true });
+                fields.push({ name: '⚡ Type', value: types.join(', '), inline: true });
             }
         }
-        if (card.artist) fields.push({ name: 'Artist', value: card.artist, inline: true });
-        if (userCard) fields.push({ name: 'Quantity', value: String(userCard.quantity || 1), inline: true });
+
+        if (card.artist) fields.push({ name: '🎨 Artist', value: card.artist, inline: true });
+        if (userCard) fields.push({ name: '📦 Quantity Owned', value: `${userCard.quantity || 1}x`, inline: true });
 
         const imageUrl = card.image_large || card.image_small || card.image_url || card.image;
-        const thumbnail = card.image_small || card.image_url || null;
+        const avatar = user ? this.resolveAvatarURL(user) : null;
 
         return this.createBaseEmbed({
+            author: { name: 'Pokézam TCG Collection' },
             title,
-            description: descriptionParts.join('   •   ') || 'Pokémon card',
-            color: this.getRarityColor(rarity),
-            thumbnail,
+            description: headerBits.join('  •  ') || 'Pokémon TCG Card',
+            color: rarityDetails.color,
             image: imageUrl,
-            footerText: user ? `Collected by ${user.username}` : null,
-            footerIcon: this.resolveAvatarURL(user),
+            thumbnail: card.image_small || null,
+            footerText: user ? `Collected by ${user.username || user.displayName}` : 'Pokézam TCG Bot',
+            footerIcon: avatar,
             fields
         });
-    }
-
-    static getRarityColor(rarity) {
-        const normalized = String(rarity || 'unknown').toLowerCase();
-
-        switch (normalized) {
-            case 'common':
-                return '#94A3B8';
-            case 'uncommon':
-                return '#34D399';
-            case 'rare':
-                return '#60A5FA';
-            case 'holo rare':
-                return '#F59E0B';
-            case 'ultra rare':
-                return '#C084FC';
-            case 'secret rare':
-                return '#FDE68A';
-            case 'legendary':
-                return '#F472B6';
-            case 'shiny':
-                return '#FB7185';
-            default:
-                return this.palette.brand;
-        }
     }
 
     static createProfileEmbed(user, userManager, collectionStats) {
         const xpInfo = userManager.getXPForNextLevel(user.xp, user.level);
         const avatarUrl = this.resolveAvatarURL(user);
-        const progressBar = this.createProgressBar(xpInfo.current, xpInfo.required);
+        const progressBar = this.createProgressBar(xpInfo.current, xpInfo.required, 14);
 
         return this.createBaseEmbed({
-            title: `${user.username}'s Trainer Profile`,
-            description: `Level ${user.level} • ${user.gold.toLocaleString()} 🪙 Gold`,
-            color: this.palette.warning,
+            author: { name: `${user.username}'s Trainer Profile`, iconURL: avatarUrl },
+            title: `🏆 Level ${user.level} Trainer`,
+            description: `**XP Progress:** ${progressBar}\n\`${xpInfo.current.toLocaleString()} / ${xpInfo.required.toLocaleString()} XP\` (${xpInfo.remaining.toLocaleString()} XP remaining)`,
+            color: this.palette.brand,
             thumbnail: avatarUrl,
-            footerText: `${user.total_draws.toLocaleString()} total draws`,
+            footerText: `Member of Pokézam • ${user.total_draws.toLocaleString()} Total Draws`,
             footerIcon: avatarUrl,
             fields: [
-                { name: 'Level', value: user.level.toString(), inline: true },
-                { name: 'XP', value: `${xpInfo.current.toLocaleString()} / ${xpInfo.required.toLocaleString()}`, inline: true },
-                { name: 'Unique Cards', value: collectionStats.unique_cards.toString(), inline: true },
-                { name: 'Star Cards', value: String(collectionStats.star_cards || 0), inline: true },
-                { name: 'Total Draws', value: user.total_draws.toString(), inline: true },
-                { name: 'Gold', value: user.gold.toString(), inline: true },
-                { name: 'XP Progress', value: progressBar, inline: false }
+                { name: '🎖️ Level', value: `\`${user.level}\``, inline: true },
+                { name: '💰 Gold Balance', value: `\`${user.gold.toLocaleString()}\` 🪙`, inline: true },
+                { name: '👟 Total Draws', value: `\`${user.total_draws.toLocaleString()}\``, inline: true },
+                { name: '🎴 Unique Cards', value: `\`${collectionStats.unique_cards.toLocaleString()}\``, inline: true },
+                { name: '⭐ Star Cards', value: `\`${(collectionStats.star_cards || 0).toLocaleString()}\``, inline: true },
+                { name: '📦 Total Quantity', value: `\`${(collectionStats.total_cards || 0).toLocaleString()}\``, inline: true }
             ]
         });
     }
 
-    static createProgressBar(current, total, length = 18) {
+    static createProgressBar(current, total, length = 12) {
         const safeTotal = Math.max(total, 1);
-        const percentage = Math.min(current / safeTotal, 1);
+        const percentage = Math.min(Math.max(current / safeTotal, 0), 1);
         const filledLength = Math.round(length * percentage);
         const emptyLength = length - filledLength;
-        const filledBar = '█'.repeat(Math.max(filledLength, 0));
-        const emptyBar = '░'.repeat(Math.max(emptyLength, 0));
+        const filledBar = '▰'.repeat(Math.max(filledLength, 0));
+        const emptyBar = '▱'.repeat(Math.max(emptyLength, 0));
 
-        return `${filledBar}${emptyBar} ${Math.round(percentage * 100)}%`;
+        return `\`${filledBar}${emptyBar}\` **${Math.round(percentage * 100)}%**`;
     }
 }
 

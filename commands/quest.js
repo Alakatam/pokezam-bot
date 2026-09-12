@@ -236,88 +236,58 @@ error details          : "${showPageError.message}"
             'monthly': 'MONTHLY LEGENDS'
         };
 
-        // COMPACT VERSION - Limit quests to fit 4096 character limit
-        let yamlContent = `\`\`\`yaml\n#═══════════════════════════════════════════════════\n`;
-        yamlContent += `# ${typeEmojis[questType]} ${username.toUpperCase()}'S ${typeTitles[questType]}\n`;
-        yamlContent += `#═══════════════════════════════════════════════════\n\n`;
-
-        // Add reset information for the current quest type
         const resetInfo = this.getNextResetInfo(questType);
-        yamlContent += `⏰ ${questType.toUpperCase()} RESET SCHEDULE:\n`;
-        yamlContent += `   next reset         : ${resetInfo.nextResetTime}\n`;
-        yamlContent += `   frequency          : ${resetInfo.frequency}\n`;
-        yamlContent += `   time until reset   : ${resetInfo.timeUntilReset}\n\n`;
-        
-        yamlContent += `#───────────────────────────────────────────────────\n`;
-        yamlContent += `# 🎯 QUEST LIST (${quests.length} total)\n`;
-        yamlContent += `#───────────────────────────────────────────────────\n\n`;
+        const fields = [];
 
-        // Calculate character budget per quest to stay under 4096
-        const headerSize = yamlContent.length + 100; // 100 for closing
-        const maxQuestChars = 4090 - headerSize; // Leave 6 char buffer
-        const avgCharsPerQuest = 280; // Approximate
-        const maxQuests = Math.floor(maxQuestChars / avgCharsPerQuest);
-
-        // Show only first N quests to stay under limit
-        const displayQuests = quests.slice(0, Math.min(quests.length, maxQuests));
-        const hiddenCount = quests.length - displayQuests.length;
-
-        // Separate quests into active and completed
-        const activeQuests = displayQuests.filter(q => !q.completed);
-        const completedQuests = displayQuests.filter(q => q.completed);
-
-        // Show active quests first
-        activeQuests.forEach((quest, index) => {
-            const progressBar = this.createProgressBar(quest.progress, quest.target_value);
-            const progressPercent = Math.round((quest.progress / quest.target_value) * 100);
-            
-            yamlContent += `🎯 quest ${index + 1}:\n`;
-            yamlContent += `   title      : "${quest.name}"\n`;
-            yamlContent += `   goal       : "${quest.description || 'Complete the objective'}"\n`;
-            yamlContent += `   progress   : ${progressBar} ${progressPercent}%\n`;
-            yamlContent += `   completion : ${quest.progress} / ${quest.target_value}\n`;
-            yamlContent += `   rewards    : ${quest.reward_gold} 🪙 | ${quest.reward_xp || 0} ✨\n`;
-            
-            if (index < activeQuests.length - 1) {
-                yamlContent += `\n# ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈\n\n`;
-            }
+        fields.push({
+            name: '⏰ Reset Schedule',
+            value: `• **Next Reset:** \`${resetInfo.nextResetTime}\` (${resetInfo.timeUntilReset})\n• **Frequency:** \`${resetInfo.frequency}\``,
+            inline: false
         });
 
-        // Add completed quests section
-        if (completedQuests.length > 0) {
-            if (activeQuests.length > 0) {
-                yamlContent += `\n\n# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
-            }
-            
-            yamlContent += `# ✅ COMPLETED QUESTS (${completedQuests.length})\n\n`;
-            
-            completedQuests.forEach((quest, index) => {
-                yamlContent += `✅ quest ${activeQuests.length + index + 1}:\n`;
-                yamlContent += `   status     : "Quest Done - Reward Received"\n`;
-                yamlContent += `   rewards    : ${quest.reward_gold} 🪙 | ${quest.reward_xp || 0} ✨\n`;
-                
-                if (index < completedQuests.length - 1) {
-                    yamlContent += `\n`;
-                }
+        // Separate quests into active and completed
+        const activeQuests = quests.filter(q => !q.completed);
+        const completedQuests = quests.filter(q => q.completed);
+
+        if (activeQuests.length > 0) {
+            const activeLines = activeQuests.map((quest) => {
+                const bar = EmbedUtils.createProgressBar(quest.progress, quest.target_value, 10);
+                return `🎯 **${quest.name}**\n  *${quest.description || 'Complete objective'}*\n  ${bar} \`(${quest.progress}/${quest.target_value})\` • \`+${quest.reward_gold} Gold\` 🪙 \`+${quest.reward_xp || 0} XP\` ✨`;
+            }).join('\n\n');
+
+            fields.push({
+                name: `🎯 Active Objectives (${activeQuests.length})`,
+                value: activeLines,
+                inline: false
             });
         }
 
-        if (hiddenCount > 0) {
-            yamlContent += `\n\n# ... ${hiddenCount} more quests (use buttons to view)\n`;
+        if (completedQuests.length > 0) {
+            const completedLines = completedQuests.map((quest) => {
+                return `✅ **${quest.name}** — \`+${quest.reward_gold} Gold\` 🪙 \`+${quest.reward_xp || 0} XP\` ✨ *(Completed)*`;
+            }).join('\n');
+
+            fields.push({
+                name: `✅ Completed (${completedQuests.length})`,
+                value: completedLines,
+                inline: false
+            });
         }
-        
-        yamlContent += `\n#═══════════════════════════════════════════════════\n\`\`\``;
 
         const typeColors = {
-            'daily': '#00ff00',
-            'weekly': '#0099ff',
-            'monthly': '#ffd700'
+            'daily': EmbedUtils.palette.success,
+            'weekly': EmbedUtils.palette.accent,
+            'monthly': EmbedUtils.palette.gold
         };
 
         return EmbedUtils.createBaseEmbed({
+            author: { name: `${username}'s Quests` },
             title: `${typeEmojis[questType]} ${typeTitles[questType]}`,
-            description: yamlContent,
+            description: `Complete objectives to claim gold and XP rewards!`,
             color: typeColors[questType] || EmbedUtils.palette.brand,
+            footerText: `Next reset: ${resetInfo.nextResetTime} • Pokézam Quests`,
+            fields
+        });
             timestamp: true
         });
     },

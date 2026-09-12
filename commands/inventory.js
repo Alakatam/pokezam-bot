@@ -147,98 +147,44 @@ module.exports = {
 
             // Check if user has started their adventure (only for self-check)
             if (userId === interaction.user.id && !user.has_started) {
-                const yamlContent = `\`\`\`yaml
-#═══════════════════════════════════════════════════
-# 🎒 INVENTORY SYSTEM LOCKED - BEGIN YOUR JOURNEY!
-#═══════════════════════════════════════════════════
-
-inventory access       : "RESTRICTED"
-current items          : "None - Adventure not started"
-trainer bag status     : "Empty - Awaiting onboarding"
-
-#───────────────────────────────────────────────────
-# 🎁 YOUR STARTER INVENTORY AWAITS
-#───────────────────────────────────────────────────
-
-starter package includes:
-  welcome charm:
-    type               : "Multi-boost item"  
-    uses               : "125 charges"
-    effect             : "Boosts all activities!"
-    
-  initial resources:
-    starting gold      : "500 🪙 coins"
-    trainer kit        : "Essential items"
-    inventory slots    : "Full access unlocked"
-
-#───────────────────────────────────────────────────
-# 🌟 INVENTORY FEATURES TO UNLOCK
-#───────────────────────────────────────────────────
-
-item management:
-  view items           : "See all owned items"
-  active effects       : "Check boost status" 
-  usage tracking       : "Monitor item consumption"
-
-item categories:
-  gold boosts          : "Earn more coins faster"
-  luck boosts          : "Increase rare card chances"
-  special items        : "Unique effects & surprises"
-
-#───────────────────────────────────────────────────
-# 🚀 START COLLECTING NOW!
-#───────────────────────────────────────────────────
-
-unlock command         : "Type '/start' to get your bag!"
-adventure awaits       : "Items + Cards + Quests + More!"
-
-#═══════════════════════════════════════════════════
-\`\`\``;
-
                 return await interaction.editReply({
-                    embeds: [{
-                        title: '🎒 Inventory System Locked - Begin Your Journey!',
-                        description: yamlContent,
-                        color: 0x9932cc,
-                        timestamp: new Date().toISOString(),
-                        footer: {
-                            text: `${interaction.user.username}, your trainer bag awaits!`,
-                            icon_url: interaction.user.displayAvatarURL()
-                        }
-                    }]
+                    embeds: [EmbedUtils.createBaseEmbed({
+                        author: { name: `${interaction.user.displayName}'s Inventory`, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) },
+                        title: '🔒 Trainer Bag Locked',
+                        description: `**Welcome, ${interaction.user.displayName}!** You haven't started your adventure yet.\n\nType **/start** to receive your starter bag with starting gold, treasure chest, and welcome charm!`,
+                        color: EmbedUtils.palette.brand,
+                        footerText: 'Type /start to unlock your inventory',
+                        footerIcon: interaction.user.displayAvatarURL({ dynamic: true }),
+                        fields: [
+                            { name: '🎁 Starter Rewards', value: '• **1,500** 🪙 Starting Gold\n• **Treasure Chest** 📦\n• **Welcome Charm** 🍀 (125 Uses)', inline: true },
+                            { name: '🎒 Bag Features', value: '• Boost Items & Charms\n• Container Chests\n• Quality of Life Perks', inline: true }
+                        ]
+                    })]
                 });
             }
 
             const userItems = await database.getAllUserItems(userId);
             
-            // Debug: Log user items to help troubleshoot
-            console.log(`Inventory Debug - User ${userId} items:`, userItems.map(item => `${item.item_id} (qty: ${item.quantity})`));
-
-            // Create YAML inventory display
-            let yamlDescription = '```yaml\n';
-            yamlDescription += '#═══════════════════════════════════════════════════\n';
-            yamlDescription += `# 🎒 ${targetUser.displayName.toUpperCase()}'S INVENTORY\n`;
-            yamlDescription += '#═══════════════════════════════════════════════════\n\n';
-            
-            yamlDescription += '💰 WALLET INFO:\n';
-            yamlDescription += `   Current Balance    : ${user.gold.toLocaleString()} Gold\n`;
-            yamlDescription += `   Items Owned        : ${userItems.length}\n`;
-            yamlDescription += `   Account Type       : "${user.level >= 10 ? 'Veteran Trainer' : 'Novice Trainer'}"\n\n`;
+            // Create sleek modern inventory display
+            const fields = [];
+            fields.push({
+                name: '👛 Wallet Summary',
+                value: `• **Gold Balance:** \`${user.gold.toLocaleString()}\` 🪙\n• **Items Owned:** \`${userItems.length}\`\n• **Rank:** \`${user.level >= 10 ? 'Veteran Trainer' : 'Novice Trainer'}\``,
+                inline: false
+            });
 
             if (userItems.length === 0) {
-                yamlDescription += '📦 INVENTORY STATUS:\n';
-                yamlDescription += '   Status             : "EMPTY"\n';
-                yamlDescription += '   Message            : "No items found"\n';
-                yamlDescription += '   Suggestion         : "Visit /shop to purchase items"\n\n';
+                fields.push({
+                    name: '📦 Inventory Contents',
+                    value: 'Your inventory is currently empty! Visit the **/shop** to purchase boost items, charms, and chests.',
+                    inline: false
+                });
             } else {
                 // Group items by category
                 const groupedItems = {};
                 userItems.forEach(userItem => {
                     const item = SHOP_ITEMS[userItem.item_id];
-                    if (!item) {
-                        console.log(`Unknown item in inventory: ${userItem.item_id}`); // Debug log
-                        return;
-                    }
+                    if (!item) return;
 
                     if (!groupedItems[item.category]) {
                         groupedItems[item.category] = [];
@@ -246,37 +192,30 @@ adventure awaits       : "Items + Cards + Quests + More!"
                     groupedItems[item.category].push({ ...userItem, ...item });
                 });
 
-                yamlDescription += '📦 INVENTORY CONTENTS:\n\n';
-
-                // Display items by category
                 Object.entries(groupedItems).forEach(([categoryId, categoryItems]) => {
-                    const categoryInfo = CATEGORIES[categoryId];
-                    yamlDescription += `${categoryInfo.emoji} ${categoryInfo.name.toUpperCase()}:\n`;
-                    
-                    categoryItems.forEach(item => {
-                        const quantityText = item.quantity > 1 ? ` (x${item.quantity})` : '';
-                        yamlDescription += `   - Item Name        : "${item.emoji} ${item.name}${quantityText}"\n`;
-                        yamlDescription += `     Description      : "${item.description}"\n`;
-                        yamlDescription += `     Item ID          : "${item.item_id}"\n`;
-                        yamlDescription += `     Category         : "${item.category}"\n`;
+                    const categoryInfo = CATEGORIES[categoryId] || { name: 'Other Items', emoji: '📦' };
+                    const itemList = categoryItems.map(item => {
+                        const qty = item.quantity > 1 ? ` \`(x${item.quantity})\`` : '';
+                        return `• **${item.emoji} ${item.name}**${qty}\n  *${item.description}* \`(/use ${item.item_id})\``;
+                    }).join('\n\n');
+
+                    fields.push({
+                        name: `${categoryInfo.emoji} ${categoryInfo.name}`,
+                        value: itemList,
+                        inline: false
                     });
-                    yamlDescription += '\n';
                 });
             }
 
-            yamlDescription += '💡 USAGE INSTRUCTIONS:\n';
-            yamlDescription += '   Use Command        : "/use <item_name>"\n';
-            yamlDescription += '   Active Effects     : "/active-boosts"\n';
-            yamlDescription += '   Shop Visit         : "/shop"\n\n';
-            yamlDescription += '#═══════════════════════════════════════════════════\n';
-            yamlDescription += '```';
-
             const embed = EmbedUtils.createBaseEmbed({
-                title: `🎒 ${targetUser.displayName}'s Inventory`,
-                description: yamlDescription,
-                color: EmbedUtils.palette.accent,
-                footerText: 'Inventory System • Use /use to activate items',
-                footerIcon: targetUser.displayAvatarURL({ dynamic: true })
+                author: { name: `${targetUser.displayName}'s Trainer Inventory`, iconURL: targetUser.displayAvatarURL({ dynamic: true }) },
+                title: '🎒 Trainer Inventory',
+                description: 'Manage your active items, charms, and boosters below.',
+                color: EmbedUtils.palette.brand,
+                thumbnail: targetUser.displayAvatarURL({ dynamic: true }),
+                footerText: 'Use /use <item_id> to activate an item • Pokézam',
+                footerIcon: targetUser.displayAvatarURL({ dynamic: true }),
+                fields
             });
 
             // Create action buttons if viewing own inventory

@@ -85,18 +85,10 @@ module.exports = {
 
             if (!leaderboardData || leaderboardData.length === 0) {
                 return await interaction.editReply({
-                    embeds: [{
-                        title: `${emoji} ${title}`,
-                        description: '```yaml\n' +
-                            '#═══════════════════════════════════════════════════\n' +
-                            '# 🏆 LEADERBOARD - NO DATA\n' +
-                            '#═══════════════════════════════════════════════════\n\n' +
-                            'status             : No trainers found\n' +
-                            'suggestion         : Use /start to begin your journey!\n' +
-                            '```',
-                        color: 0xffd700,
-                        timestamp: new Date().toISOString()
-                    }]
+                    embeds: [EmbedUtils.createInfoEmbed(
+                        `${emoji} ${title}`,
+                        'No trainers found on the leaderboard yet! Use **/start** to begin your journey and climb the ranks.'
+                    )]
                 });
             }
 
@@ -126,71 +118,51 @@ module.exports = {
                 userStats = allUsers.find(u => u.id === interaction.user.id);
             }
 
-            // Build YAML leaderboard
-            let yamlContent = '```yaml\n';
-            yamlContent += '#═══════════════════════════════════════════════════\n';
-            yamlContent += `# ${emoji} ${title.toUpperCase()}\n`;
-            yamlContent += '#═══════════════════════════════════════════════════\n\n';
-
-            leaderboardData.forEach((user, index) => {
+            // Build modern clean leaderboard display
+            const lines = leaderboardData.map((user, index) => {
                 const rank = index + 1;
-                const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`;
+                const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `\`#${rank}\``;
                 const isCurrentUser = user.id === interaction.user.id;
-                const indicator = isCurrentUser ? ' ← YOU' : '';
+                const nameTag = isCurrentUser ? `**${user.username}** *(YOU)*` : `**${user.username}**`;
 
-                yamlContent += `${medal} rank ${rank}:\n`;
-                yamlContent += `   trainer            : "${user.username}"${indicator}\n`;
-                yamlContent += `   level              : ${user.level}\n`;
-
+                let statDisplay = '';
                 switch (type) {
                     case 'level':
-                        yamlContent += `   total xp           : ${user.xp.toLocaleString()}\n`;
-                        break;
                     case 'xp':
-                        yamlContent += `   total xp           : ${user.xp.toLocaleString()}\n`;
+                        statDisplay = `Lvl \`${user.level}\` • \`${user.xp.toLocaleString()} XP\``;
                         break;
                     case 'gold':
-                        yamlContent += `   gold balance       : ${user.gold.toLocaleString()} 🪙\n`;
+                        statDisplay = `\`${user.gold.toLocaleString()}\` 🪙`;
                         break;
                     case 'collection':
-                        yamlContent += `   unique cards       : ${user.card_count.toLocaleString()}\n`;
+                        statDisplay = `\`${user.card_count.toLocaleString()}\` Unique Cards`;
                         break;
                 }
 
-                if (index < leaderboardData.length - 1) {
-                    yamlContent += '\n# ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈\n\n';
-                }
+                return `${medal} ${nameTag} — ${statDisplay}`;
             });
 
-            // Add user's rank if not in top 10
+            let description = lines.join('\n');
+
             if (userRank && userRank > limit && userStats) {
-                yamlContent += '\n\n#───────────────────────────────────────────────────\n';
-                yamlContent += '# YOUR RANK\n';
-                yamlContent += '#───────────────────────────────────────────────────\n\n';
-                yamlContent += `rank ${userRank}:\n`;
-                yamlContent += `   trainer            : "${interaction.user.username}"\n`;
-                
+                let myStat = '';
                 if (type === 'collection') {
-                    yamlContent += `   unique cards       : ${userStats.card_count.toLocaleString()}\n`;
+                    myStat = `\`${userStats.card_count.toLocaleString()}\` Unique Cards`;
+                } else if (type === 'gold') {
+                    myStat = `\`${userStats.gold.toLocaleString()}\` 🪙`;
                 } else {
-                    yamlContent += `   level              : ${userStats.level}\n`;
-                    if (type === 'level' || type === 'xp') {
-                        yamlContent += `   total xp           : ${userStats.xp.toLocaleString()}\n`;
-                    } else if (type === 'gold') {
-                        yamlContent += `   gold balance       : ${userStats.gold.toLocaleString()} 🪙\n`;
-                    }
+                    myStat = `Lvl \`${userStats.level}\` • \`${userStats.xp.toLocaleString()} XP\``;
                 }
+                description += `\n\n───────────────────────────\n📍 **Your Rank:** \`#${userRank}\` — ${myStat}`;
             }
 
-            yamlContent += '\n#═══════════════════════════════════════════════════\n';
-            yamlContent += '```';
-
             const embed = EmbedUtils.createBaseEmbed({
+                author: { name: 'Pokézam Hall of Fame' },
                 title: `${emoji} ${title}`,
-                description: yamlContent,
-                color: EmbedUtils.palette.warning,
-                footerText: userRank ? `Your rank: #${userRank}` : 'Use /start to join the leaderboard!',
-                footerIcon: interaction.user.displayAvatarURL()
+                description,
+                color: EmbedUtils.palette.gold,
+                footerText: userRank ? `Your Rank: #${userRank} • Pokézam Rankings` : 'Use /start to join the leaderboard!',
+                footerIcon: interaction.user.displayAvatarURL({ dynamic: true })
             });
 
             await interaction.editReply({ embeds: [embed] });

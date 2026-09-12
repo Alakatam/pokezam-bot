@@ -37,47 +37,18 @@ module.exports = {
 
             // Check if user has started their adventure
             if (!user.has_started) {
-                const yamlContent = `\`\`\`yaml
-#═══════════════════════════════════════════════════
-# 🚫 ADVENTURE NOT STARTED - WELCOME TO POKÉZAM! 
-#═══════════════════════════════════════════════════
-
-trainer status         : "NOT STARTED"
-required action        : "Use /start command to begin"
-adventure progress     : "0% - Journey awaits!"
-
-#───────────────────────────────────────────────────
-# 🎒 WHAT YOU'LL UNLOCK WITH /START
-#───────────────────────────────────────────────────
-
-starter package:
-  welcome charm        : "125 uses - Boosts everything!"
-  initial gold         : "500 🪙 coins"
-  starter items        : "Essential trainer kit"
-  
-gameplay features:
-  card drawing         : "Access to /zam command"
-  quest system         : "Daily/Weekly/Monthly challenges"
-  item shop           : "Purchase powerful boosts"
-  progression         : "Level up and unlock more!"
-
-#───────────────────────────────────────────────────
-# 🎯 READY TO START YOUR JOURNEY?
-#───────────────────────────────────────────────────
-
-next step              : "Type '/start' to begin!"
-experience awaiting    : "Cards, quests, and adventure!"
-
-#═══════════════════════════════════════════════════
-\`\`\``;
-
                 return await interaction.editReply({
                     embeds: [EmbedUtils.createBaseEmbed({
-                        title: '🚫 Adventure Not Started',
-                        description: `**Welcome to Pokézam!**\n\nUse **/start** to begin your trainer journey and unlock drawing, quests, and rewards.`,
-                        color: EmbedUtils.palette.error,
-                        footerText: `Welcome ${interaction.user.username}! Use /start to begin`,
-                        footerIcon: interaction.user.displayAvatarURL({ dynamic: true })
+                        author: { name: 'Welcome to Pokézam!', iconURL: interaction.user.displayAvatarURL({ dynamic: true }) },
+                        title: '🚀 Begin Your Trainer Journey',
+                        description: `**Welcome, ${interaction.user.displayName}!** You haven't started your Pokémon adventure yet.\n\nUse **/start** to claim your starter kit and unlock card draws, quests, and shop items!`,
+                        color: EmbedUtils.palette.brand,
+                        footerText: 'Type /start to begin your journey',
+                        footerIcon: interaction.user.displayAvatarURL({ dynamic: true }),
+                        fields: [
+                            { name: '🎁 Starter Package', value: '• **1,500** 🪙 Starting Gold\n• **Treasure Chest** 📦\n• **Welcome Charm** 🍀 (125 Boosts)', inline: true },
+                            { name: '🌟 Unlocks Included', value: '• Card Draws (`/zam`)\n• Daily Rewards & Quests (`/quest`)\n• Shop & Boosts (`/shop`)', inline: true }
+                        ]
                     })]
                 });
             }
@@ -262,30 +233,29 @@ experience awaiting    : "Cards, quests, and adventure!"
                 : 'Unknown';
 
             const bonusSummary = [];
-            if (variantInfo.goldMultiplier > 1) bonusSummary.push(`${variantInfo.goldMultiplier}x variant gold`);
-            if (totalGoldMultiplier > 1) bonusSummary.push(`${totalGoldMultiplier}x active boost`);
+            if (variantInfo.goldMultiplier > 1) bonusSummary.push(`${variantInfo.goldMultiplier}x Variant Gold`);
+            if (totalGoldMultiplier > 1) bonusSummary.push(`${totalGoldMultiplier}x Active Boost`);
 
+            const rarityDetails = EmbedUtils.getRarityDetails(detailedCard.rarity);
             const rewardSummary = [
-                { name: 'Card', value: detailedCard.name, inline: true },
-                { name: 'Set', value: detailedCard.set_name || setId, inline: true },
-                { name: 'No.', value: String(cardId), inline: true },
-                { name: 'Rarity', value: detailedCard.rarity, inline: true },
-                { name: isSpecialVariant ? 'Variant' : 'Status', value: isSpecialVariant ? `${variantInfo.displayName} ${variantInfo.emoji}` : rarityInfo.description.replace(/\*\*/g, '').replace('!', ''), inline: true },
-                { name: 'Type', value: typeInfo, inline: true },
-                { name: 'Rewards', value: `${xpReward} XP • ${goldReward.toLocaleString()} 🪙`, inline: true },
-                { name: 'Bonus', value: bonusSummary.length ? bonusSummary.join(' • ') : 'Standard pull', inline: true },
-                { name: 'Next Move', value: activeEffectNames.length ? `Boost active: ${activeEffectNames.join(', ')}` : 'Keep the streak alive and draw again.', inline: false }
+                { name: '🎴 Card Name', value: `**${detailedCard.name}**`, inline: true },
+                { name: '📜 Set Info', value: `${detailedCard.set_name || setId} (\`#${cardId}\`)`, inline: true },
+                { name: '💎 Rarity', value: `${rarityDetails.emoji} ${detailedCard.rarity}`, inline: true },
+                { name: '🎁 Pull Rewards', value: `\`+${xpReward} XP\` • \`+${goldReward.toLocaleString()} 🪙\``, inline: true },
+                { name: isSpecialVariant ? '✨ Variant' : '⚡ Type', value: isSpecialVariant ? `${variantInfo.displayName} ${variantInfo.emoji}` : typeInfo, inline: true },
+                { name: '🔥 Active Multipliers', value: bonusSummary.length ? bonusSummary.join(' • ') : '1.0x Standard', inline: true }
             ];
 
             const imageUrl = detailedCard.image_large || detailedCard.image_small;
             const embed = EmbedUtils.createBaseEmbed({
-                title: `${isSpecialVariant ? variantInfo.emoji : rarityInfo.emoji} ${detailedCard.name}`,
+                author: { name: `${interaction.user.displayName}'s Card Draw`, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) },
+                title: `${isSpecialVariant ? variantInfo.emoji : rarityDetails.emoji} ${detailedCard.name}`,
                 description: isSpecialVariant
-                    ? `**${variantInfo.displayName} pull acquired.** Your collection just got deeper.`
-                    : `**${detailedCard.rarity} pull acquired.** The grind is paying off.`,
-                color: isSpecialVariant ? variantInfo.color : rarityInfo.color,
+                    ? `✨ **${variantInfo.displayName} Acquired!** Your collection just got deeper.`
+                    : `🃏 **${detailedCard.rarity} Card Pulled.** Keep building your deck!`,
+                color: isSpecialVariant ? variantInfo.color : rarityDetails.color,
                 image: imageUrl,
-                footerText: `Collected by ${interaction.user.username}`,
+                footerText: `Collected by ${interaction.user.displayName} • Pokézam TCG`,
                 footerIcon: interaction.user.displayAvatarURL({ dynamic: true }),
                 fields: rewardSummary
             });

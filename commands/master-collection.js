@@ -21,24 +21,6 @@ module.exports = {
             // Get Master Set statistics
             const masterSetStats = await cardManager.getUserMasterSetStats(userId);
 
-            // Create collection overview embed
-            let yamlDescription = '```yaml\n';
-            yamlDescription += '#═══════════════════════════════════════════════════\n';
-            yamlDescription += `# 🏆 ${interaction.user.username.toUpperCase()}'S MASTER SET COLLECTION\n`;
-            yamlDescription += '#═══════════════════════════════════════════════════\n\n';
-
-            yamlDescription += '📊 COLLECTION OVERVIEW:\n';
-            yamlDescription += `   Unique Cards       : ${masterSetStats.owned.unique_cards || 0}\n`;
-            yamlDescription += `   Total Cards        : ${masterSetStats.owned.total_cards || 0}\n`;
-            yamlDescription += `   Collection Value   : ${((masterSetStats.owned.total_cards || 0) * 500).toLocaleString()} 🪙 estimated\n\n`;
-
-            yamlDescription += '🌟 MASTER SET VARIANTS:\n';
-            yamlDescription += `   🔹 Normal          : ${masterSetStats.owned.normal_variants || 0} (${masterSetStats.completion.normal}%)\n`;
-            yamlDescription += `   🔸 Reverse Holo    : ${masterSetStats.owned.reverse_variants || 0} (${masterSetStats.completion.reverse}%)\n`;
-            yamlDescription += `   ✨ Holographic     : ${masterSetStats.owned.holo_variants || 0} (${masterSetStats.completion.holo}%)\n`;
-            yamlDescription += `   🥇 1st Edition     : ${masterSetStats.owned.first_edition_variants || 0} (${masterSetStats.completion.first_edition}%)\n`;
-            yamlDescription += `   🎁 Promotional     : ${masterSetStats.owned.promo_variants || 0} (${masterSetStats.completion.promo}%)\n\n`;
-
             // Calculate overall completion
             const totalOwned = (masterSetStats.owned.normal_variants || 0) + 
                              (masterSetStats.owned.reverse_variants || 0) + 
@@ -53,71 +35,35 @@ module.exports = {
                                   (masterSetStats.available.promo_available || 0);
 
             const overallCompletion = totalAvailable > 0 ? ((totalOwned / totalAvailable) * 100).toFixed(1) : 0;
+            const progressBar = EmbedUtils.createProgressBar(totalOwned, totalAvailable, 12);
 
-            yamlDescription += '🎯 COMPLETION PROGRESS:\n';
-            yamlDescription += `   Overall Progress   : ${overallCompletion}% (${totalOwned}/${totalAvailable})\n`;
-            yamlDescription += `   Completion Rank    : ${this.getCompletionRank(parseFloat(overallCompletion))}\n\n`;
-
-            // Show rarest variants owned
-            const rareVariants = [];
-            if (masterSetStats.owned.first_edition_variants > 0) {
-                rareVariants.push(`🥇 ${masterSetStats.owned.first_edition_variants} First Edition`);
-            }
-            if (masterSetStats.owned.holo_variants > 0) {
-                rareVariants.push(`✨ ${masterSetStats.owned.holo_variants} Holographic`);
-            }
-            if (masterSetStats.owned.promo_variants > 0) {
-                rareVariants.push(`🎁 ${masterSetStats.owned.promo_variants} Promotional`);
-            }
-
-            if (rareVariants.length > 0) {
-                yamlDescription += '💎 RARE VARIANTS OWNED:\n';
-                rareVariants.forEach(variant => {
-                    yamlDescription += `   ${variant}\n`;
-                });
-                yamlDescription += '\n';
-            }
-
-            yamlDescription += '📈 COLLECTION GOALS:\n';
-            if (masterSetStats.owned.first_edition_variants < 10) {
-                yamlDescription += `   Next Goal          : Collect ${10 - (masterSetStats.owned.first_edition_variants || 0)} more 1st Edition cards\n`;
-            } else if (masterSetStats.owned.holo_variants < 25) {
-                yamlDescription += `   Next Goal          : Collect ${25 - (masterSetStats.owned.holo_variants || 0)} more Holographic cards\n`;
-            } else {
-                yamlDescription += `   Next Goal          : Complete Master Set Collection (100%)\n`;
-            }
-            
-            const nextMilestone = this.getNextMilestone(totalOwned);
-            yamlDescription += `   Next Milestone     : ${nextMilestone}\n\n`;
-
-            yamlDescription += '#═══════════════════════════════════════════════════\n';
-            yamlDescription += '```';
-
-            // Determine embed color and title based on progress
-            let embedColor = '#3498DB';
-            let embedTitle = '🏆 Master Set Collection';
-            
-            if (overallCompletion >= 75) {
-                embedColor = '#FFD700';
-                embedTitle = '🥇 Master Set Collection - Legendary Collector!';
-            } else if (overallCompletion >= 50) {
-                embedColor = '#9B59B6';
-                embedTitle = '✨ Master Set Collection - Expert Collector!';
-            } else if (overallCompletion >= 25) {
-                embedColor = '#E91E63';
-                embedTitle = '🔸 Master Set Collection - Advanced Collector!';
-            } else if (overallCompletion >= 10) {
-                embedColor = '#2ECC71';
-                embedTitle = '🔹 Master Set Collection - Rising Collector!';
-            }
+            const fields = [
+                {
+                    name: '📊 Collection Overview',
+                    value: `• **Unique Cards:** \`${(masterSetStats.owned.unique_cards || 0).toLocaleString()}\`\n• **Total Cards:** \`${(masterSetStats.owned.total_cards || 0).toLocaleString()}\`\n• **Est. Value:** \`${((masterSetStats.owned.total_cards || 0) * 500).toLocaleString()}\` 🪙`,
+                    inline: true
+                },
+                {
+                    name: '🎯 Completion Progress',
+                    value: `• **Progress:** ${progressBar} \`(${overallCompletion}%)\`\n• **Rank:** \`${this.getCompletionRank(parseFloat(overallCompletion))}\`\n• **Milestone:** \`${this.getNextMilestone(totalOwned)}\``,
+                    inline: true
+                },
+                {
+                    name: '🌟 Master Set Variant Distribution',
+                    value: `• 🔹 **Normal:** \`${masterSetStats.owned.normal_variants || 0}\` *(${masterSetStats.completion.normal}%)\*\n• 🔸 **Reverse Holo:** \`${masterSetStats.owned.reverse_variants || 0}\` *(${masterSetStats.completion.reverse}%)\*\n• ✨ **Holographic:** \`${masterSetStats.owned.holo_variants || 0}\` *(${masterSetStats.completion.holo}%)\*\n• 🥇 **1st Edition:** \`${masterSetStats.owned.first_edition_variants || 0}\` *(${masterSetStats.completion.first_edition}%)\*\n• 🎁 **Promotional:** \`${masterSetStats.owned.promo_variants || 0}\` *(${masterSetStats.completion.promo}%)\*`,
+                    inline: false
+                }
+            ];
 
             const embed = EmbedUtils.createBaseEmbed({
-                title: embedTitle,
-                description: yamlDescription,
-                color: embedColor,
-                footerText: `Level ${user.level} • ${user.gold.toLocaleString()} 🪙`,
+                author: { name: `${interaction.user.displayName}'s Master Collection`, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) },
+                title: '🏆 Master Set Collection Progress',
+                description: `Track your variant statistics, completion milestones, and rare parallel sets below.`,
+                color: overallCompletion >= 50 ? EmbedUtils.palette.gold : EmbedUtils.palette.brand,
+                footerText: `Level ${user.level} Trainer • ${user.gold.toLocaleString()} 🪙 Balance`,
                 footerIcon: interaction.user.displayAvatarURL({ dynamic: true }),
-                thumbnail: overallCompletion >= 50 ? 'https://assets.tcgdx.net/en/base/base1/4' : null
+                fields
+            });
             });
 
             await interaction.editReply({ embeds: [embed] });

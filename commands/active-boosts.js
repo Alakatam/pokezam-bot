@@ -22,34 +22,19 @@ module.exports = {
             const activeEffects = await this.getActiveEffects(database, userId);
 
             if (activeEffects.length === 0) {
-                const yamlDescription = '```yaml\n' +
-                    '#═══════════════════════════════════════════════════\n' +
-                    `# 😴 ${interaction.user.displayName.toUpperCase()}'S ACTIVE EFFECTS\n` +
-                    '#═══════════════════════════════════════════════════\n\n' +
-                    `📊 OVERVIEW:\n` +
-                    `   Total Active Effects: 0\n` +
-                    `   Status             : "NO ACTIVE BOOSTS"\n` +
-                    `   Last Updated       : "${new Date().toLocaleString()}"\n\n` +
-                    `💡 GET STARTED:\n` +
-                    `   - Visit /shop to buy useful items\n` +
-                    `   - Use /use to activate items from inventory\n` +
-                    `   - Check /inventory to see what items you own\n` +
-                    `   - Claim /daily rewards for Daily Charm bonus\n\n` +
-                    `🎯 AVAILABLE BOOSTS:\n` +
-                    `   - Gold Multipliers (Amulet Coin, Lucky Coin)\n` +
-                    `   - Luck Enhancers (Shiny Charm, Rainbow Feather)\n` +
-                    `   - Cooldown Skips (Quick Ball, Master Ball)\n` +
-                    `   - Multi Boosts (Divine Blessing, Sacred Orb)\n\n` +
-                    '#═══════════════════════════════════════════════════\n' +
-                    '```';
-                
                 return await interaction.editReply({
                     embeds: [EmbedUtils.createBaseEmbed({
-                        title: '😴 No Active Effects',
-                        description: yamlDescription,
+                        author: { name: `${interaction.user.displayName}'s Active Boosts`, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) },
+                        title: '😴 No Active Boosts',
+                        description: `**You currently have no active item effects or boosts running.**\n\nVisit the **/shop** to purchase boost items, or check your **/inventory** to activate items you already own!`,
                         color: EmbedUtils.palette.accent,
-                        footerText: 'Visit /shop to get started with boosts!',
-                        footerIcon: interaction.user.displayAvatarURL({ dynamic: true })
+                        footerText: 'Visit /shop to purchase boost items • Pokézam',
+                        footerIcon: interaction.user.displayAvatarURL({ dynamic: true }),
+                        fields: [
+                            { name: '🪙 Gold Boosts', value: 'Amulet Coin, Fortune Charm', inline: true },
+                            { name: '🍀 Luck Boosts', value: 'Shiny Charm, Rainbow Feather', inline: true },
+                            { name: '⚡ Cooldown Skips', value: 'Quick Ball, Master Ball', inline: true }
+                        ]
                     })]
                 });
             }
@@ -100,74 +85,48 @@ module.exports = {
 
     createActiveBoostsEmbed(user, activeEffects) {
         const now = Math.floor(Date.now() / 1000);
-        
-        let yamlDescription = '```yaml\n';
-        yamlDescription += '#═══════════════════════════════════════════════════\n';
-        yamlDescription += `# ⚡ ${user.username.toUpperCase()}'S ACTIVE EFFECTS\n`;
-        yamlDescription += '#═══════════════════════════════════════════════════\n\n';
-        
-        yamlDescription += `📊 OVERVIEW:\n`;
-        yamlDescription += `   Total Active Effects: ${activeEffects.length}\n`;
-        yamlDescription += `   Status             : "ENHANCED GAMEPLAY"\n`;
-        yamlDescription += `   Last Updated       : "${new Date().toLocaleString()}"\n\n`;
+        const fields = [];
 
-        // Group effects by category
-        const groupedEffects = this.groupEffectsByCategory(activeEffects);
+        const grouped = this.groupEffectsByCategory(activeEffects);
 
-        Object.entries(groupedEffects).forEach(([category, effects]) => {
-            yamlDescription += `${this.getCategoryEmoji(category)} ${category.toUpperCase()} EFFECTS:\n`;
-            
-            effects.forEach(effect => {
-                const itemName = this.getItemDisplayName(effect.effect_type);
-                const multiplierText = effect.multiplier !== 1.0 ? ` (${effect.multiplier}x)` : '';
-                
-                yamlDescription += `   ${itemName}${multiplierText}:\n`;
-                
+        Object.entries(grouped).forEach(([category, effects]) => {
+            const emoji = this.getCategoryEmoji(category);
+            const lines = effects.map(effect => {
+                const name = this.getItemDisplayName(effect.effect_type);
+                const mult = effect.multiplier && effect.multiplier !== 1.0 ? ` \`(${effect.multiplier}x)\`` : '';
+
+                let statusStr = '';
                 if (effect.expires_at && effect.expires_at > now) {
                     const timeLeft = effect.expires_at - now;
                     const hours = Math.floor(timeLeft / 3600);
-                    const minutes = Math.floor((timeLeft % 3600) / 60);
-                    const seconds = timeLeft % 60;
-                    
-                    let timeString = '';
-                    if (hours > 0) timeString += `${hours}h `;
-                    if (minutes > 0) timeString += `${minutes}m `;
-                    if (hours === 0 && minutes < 5) timeString += `${seconds}s`;
-                    
-                    yamlDescription += `     Time Remaining   : "${timeString.trim()}"\n`;
-                    yamlDescription += `     Expires At       : "${new Date(effect.expires_at * 1000).toLocaleTimeString()}"\n`;
+                    const mins = Math.floor((timeLeft % 3600) / 60);
+                    const secs = timeLeft % 60;
+                    let timeStr = hours > 0 ? `${hours}h ${mins}m` : (mins > 0 ? `${mins}m ${secs}s` : `${secs}s`);
+                    statusStr += ` ⏳ **${timeStr}** left`;
                 }
-                
+
                 if (effect.uses_remaining && effect.uses_remaining > 0) {
-                    yamlDescription += `     Uses Remaining   : ${effect.uses_remaining}\n`;
-                    yamlDescription += `     Consumption      : "Per Command Use"\n`;
+                    statusStr += ` ⚡ **${effect.uses_remaining}** uses left`;
                 }
-                
-                yamlDescription += `     Effect Status    : "ACTIVE"\n`;
-                yamlDescription += '\n';
+
+                return `• **${name}**${mult}${statusStr}`;
+            }).join('\n');
+
+            fields.push({
+                name: `${emoji} ${category}`,
+                value: lines,
+                inline: false
             });
         });
 
-        yamlDescription += '💡 TIPS:\n';
-        yamlDescription += '   • Effects stack if they\'re different categories\n';
-        yamlDescription += '   • Time-based effects run in the background\n';
-        yamlDescription += '   • Use-based effects consume on each action\n';
-        yamlDescription += '   • Check back anytime with /active-boosts\n\n';
-        yamlDescription += '#═══════════════════════════════════════════════════\n';
-        yamlDescription += '```';
-
-        // Determine embed color based on number of active effects
-        let embedColor = '#00D9FF'; // Default blue
-        if (activeEffects.length >= 5) embedColor = '#FFD700'; // Gold for lots of effects
-        else if (activeEffects.length >= 3) embedColor = '#00FF00'; // Green for several effects
-        else if (activeEffects.length >= 1) embedColor = '#FFA500'; // Orange for some effects
-
         return EmbedUtils.createBaseEmbed({
-            title: `⚡ Active Effects (${activeEffects.length})`,
-            description: yamlDescription,
-            color: embedColor,
-            footerText: 'Effects update automatically | Use /use to activate more items',
-            footerIcon: user.displayAvatarURL({ dynamic: true })
+            author: { name: `${user.displayName || user.username}'s Active Boosts`, iconURL: user.displayAvatarURL({ dynamic: true }) },
+            title: `⚡ Active Effects & Boosters (\`${activeEffects.length}\`)`,
+            description: 'Your trainer buffs and active item effects are running below:',
+            color: activeEffects.length >= 3 ? EmbedUtils.palette.gold : EmbedUtils.palette.brand,
+            footerText: 'Effects run automatically • Use /use to activate items',
+            footerIcon: user.displayAvatarURL({ dynamic: true }),
+            fields
         });
     },
 

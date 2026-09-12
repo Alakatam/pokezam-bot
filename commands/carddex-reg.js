@@ -194,65 +194,52 @@ module.exports = {
         const { cards, totalCards, totalPages, currentPage, stats, filters } = dexData;
         const { setFilter, ownershipFilter, searchQuery } = filters;
 
-        // Create YAML-formatted description
-        let yamlDescription = '```yaml\n';
-        yamlDescription += '#═══════════════════════════════════════════════════\n';
-        yamlDescription += `# 📚 ${targetUser.username.toUpperCase()}'S POKEMON TCG DEX\n`;
-        yamlDescription += '#═══════════════════════════════════════════════════\n\n';
-        
-        // Collection Stats
-        yamlDescription += '📊 COLLECTION STATS:\n';
-        yamlDescription += `   Total Cards        : ${stats.total_cards.toLocaleString()}\n`;
-        yamlDescription += `   Owned Cards        : ${stats.owned_cards.toLocaleString()}\n`;
-        yamlDescription += `   Missing Cards      : ${(stats.total_cards - stats.owned_cards).toLocaleString()}\n`;
-        yamlDescription += `   Duplicate Cards    : ${stats.duplicate_cards.toLocaleString()}\n`;
-        yamlDescription += `   Completion Rate    : ${stats.completion_percentage}%\n`;
-        
-        // Active filters
-        if (setFilter || searchQuery || ownershipFilter !== 'all') {
-            yamlDescription += '\n🔍 ACTIVE FILTERS:\n';
-            if (setFilter) yamlDescription += `   Set Filter         : "${setFilter}"\n`;
-            if (searchQuery) yamlDescription += `   Search Query       : "${searchQuery}"\n`;
-            if (ownershipFilter !== 'all') yamlDescription += `   Ownership Filter   : "${ownershipFilter}"\n`;
-        }
+        const progressBar = EmbedUtils.createProgressBar(stats.owned_cards, stats.total_cards, 12);
 
-        yamlDescription += '\n📄 PAGE INFO:\n';
-        yamlDescription += `   Current Page       : ${currentPage} of ${totalPages}\n`;
-        yamlDescription += `   Cards on Page      : ${cards.length}\n`;
-        yamlDescription += `   Total Results      : ${totalCards.toLocaleString()}\n\n`;
+        const cardLines = cards.length > 0
+            ? cards.map(card => {
+                const cardNum = card.number ? `\`#${card.number}\`` : '`#???`';
+                const ownedTag = card.is_owned ? `✅ \`x${card.owned_quantity}\`` : '❌';
+                const rarityBadge = card.rarity ? `*(${card.rarity})*` : '';
+                return `• ${cardNum} **${card.name}** — ${rarityBadge} ${ownedTag}`;
+            }).join('\n')
+            : 'No cards found matching your filter criteria.';
 
-        // Card List Header
-        yamlDescription += '🎴 CARD LISTING:\n';
-        yamlDescription += '   # | NAME                     | SET   | RARITY    | OWNED\n';
-        yamlDescription += '   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
+        const filterTags = [];
+        if (setFilter) filterTags.push(`Set: \`${setFilter}\``);
+        if (searchQuery) filterTags.push(`Search: \`${searchQuery}\``);
+        if (ownershipFilter !== 'all') filterTags.push(`Filter: \`${ownershipFilter}\``);
 
-        if (cards.length === 0) {
-            yamlDescription += '   No cards found matching your criteria.\n';
-        } else {
-            cards.forEach((card, index) => {
-                const cardNum = (card.number || '???').toString().padStart(3);
-                const cardName = card.name.length > 20 ? card.name.substring(0, 17) + '...' : card.name;
-                const setId = (card.set_id || 'N/A').toString().substring(0, 5);
-                const rarity = this.formatRarity(card.rarity);
-                const owned = card.is_owned ? `✅ (${card.owned_quantity})` : '❌';
-                
-                yamlDescription += `   ${cardNum} | ${cardName.padEnd(20)} | ${setId.padEnd(5)} | ${rarity.padEnd(8)} | ${owned}\n`;
+        const fields = [
+            {
+                name: '📊 Dex Completion Progress',
+                value: `• **Progress:** ${progressBar} \`(${stats.completion_percentage}%)\`\n• **Owned:** \`${stats.owned_cards.toLocaleString()}\` / \`${stats.total_cards.toLocaleString()}\` Cards\n• **Duplicates:** \`${stats.duplicate_cards.toLocaleString()}\``,
+                inline: false
+            }
+        ];
+
+        if (filterTags.length > 0) {
+            fields.push({
+                name: '🔍 Active Filters',
+                value: filterTags.join(' • '),
+                inline: false
             });
         }
 
-        yamlDescription += '\n#═══════════════════════════════════════════════════\n';
-        yamlDescription += '```';
+        fields.push({
+            name: `🎴 Registry Listing — Page ${currentPage}/${totalPages} (\`${totalCards.toLocaleString()}\` Matches)`,
+            value: cardLines,
+            inline: false
+        });
 
-        const progressEmoji = this.getProgressEmoji(parseFloat(stats.completion_percentage));
         const embed = EmbedUtils.createBaseEmbed({
-            title: '📚 Pokémon TCG Card Dex',
-            description: yamlDescription,
-            color: stats.completion_percentage >= 100 ? '#FFD700' : 
-                 stats.completion_percentage >= 75 ? '#00FF00' :
-                 stats.completion_percentage >= 50 ? '#FFA500' : '#FF6B6B',
-            thumbnail: `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${progressEmoji}.png`,
-            footerText: `${stats.completion_percentage}% Complete | Use buttons to navigate and filter`,
-            footerIcon: targetUser.displayAvatarURL({ dynamic: true })
+            author: { name: `${targetUser.displayName || targetUser.username}'s Card Dex`, iconURL: targetUser.displayAvatarURL({ dynamic: true }) },
+            title: '📚 Pokémon TCG Card Registry',
+            description: 'Browse cards and track collection completion below.',
+            color: parseFloat(stats.completion_percentage) >= 100 ? EmbedUtils.palette.gold : EmbedUtils.palette.brand,
+            footerText: `Page ${currentPage} of ${totalPages} • Pokézam Dex`,
+            footerIcon: targetUser.displayAvatarURL({ dynamic: true }),
+            fields
         });
 
         // Create action rows

@@ -77,47 +77,47 @@ module.exports = {
             // Update quests
             const completedQuests = await questManager.updateQuestProgress(userId, 'draw_cards', 5);
 
-            // Create pack opening embed
-            let yamlDescription = '```yaml\n';
-            yamlDescription += '#═══════════════════════════════════════════════════\n';
-            yamlDescription += '# 🏆 MASTER PACK OPENING RESULTS\n';
-            yamlDescription += '#═══════════════════════════════════════════════════\n\n';
-
-            packResults.forEach((result, index) => {
-                yamlDescription += `🎴 CARD_${index + 1}:\n`;
-                yamlDescription += `   Name               : "${result.card.name}"\n`;
-                yamlDescription += `   Rarity             : "${result.card.rarity}"\n`;
-                yamlDescription += `   Variant            : "${result.variantInfo.name}" ${result.variantInfo.emoji}\n`;
-                yamlDescription += `   Gold Earned        : ${result.goldReward.toLocaleString()} 🪙\n`;
-                yamlDescription += `   XP Earned          : ${result.xpReward} XP\n\n`;
-            });
-
-            yamlDescription += '💰 PACK TOTALS:\n';
-            yamlDescription += `   Pack Cost          : -${packCost.toLocaleString()} 🪙\n`;
-            yamlDescription += `   Gold Earned        : +${totalGold.toLocaleString()} 🪙\n`;
-            yamlDescription += `   Net Gold           : ${totalGold >= packCost ? '+' : ''}${(totalGold - packCost).toLocaleString()} 🪙\n`;
-            yamlDescription += `   Total XP           : +${totalXP} XP\n\n`;
-            yamlDescription += '#═══════════════════════════════════════════════════\n';
-            yamlDescription += '```';
-
             // Determine pack quality based on variants
             const firstEditionCount = packResults.filter(r => r.variant === 'first_edition').length;
             const holoCount = packResults.filter(r => r.variant === 'holo').length;
-            const variantCount = packResults.filter(r => r.variant !== 'normal').length;
-
+            
             let packTitle = '🏆 Master Pack Opened!';
-            let packColor = '#FF6B6B';
+            let packColor = EmbedUtils.palette.brand;
             
             if (firstEditionCount >= 2) {
                 packTitle = '🥇🏆 LEGENDARY MASTER PACK!';
-                packColor = '#FFD700';
+                packColor = EmbedUtils.palette.gold;
             } else if (firstEditionCount >= 1) {
                 packTitle = '🥇✨ FIRST EDITION Master Pack!';
-                packColor = '#FFA500';
+                packColor = EmbedUtils.palette.warning;
             } else if (holoCount >= 3) {
                 packTitle = '✨🌈 HOLOGRAPHIC MASTER PACK!';
-                packColor = '#9B59B6';
+                packColor = EmbedUtils.palette.purple;
             }
+
+            const cardFields = packResults.map((result, index) => {
+                return {
+                    name: `🎴 Card ${index + 1}: ${result.card.name}`,
+                    value: `• **Rarity:** ${result.card.rarity}\n• **Variant:** ${result.variantInfo.name} ${result.variantInfo.emoji}\n• **Rewards:** \`+${result.goldReward.toLocaleString()}\` 🪙 • \`+${result.xpReward}\` ✨`,
+                    inline: false
+                };
+            });
+
+            cardFields.push({
+                name: '💰 Pack Opening Summary',
+                value: `• **Cost:** \`-${packCost.toLocaleString()}\` 🪙\n• **Earned:** \`+${totalGold.toLocaleString()}\` 🪙\n• **Net:** \`${(totalGold - packCost) >= 0 ? '+' : ''}${(totalGold - packCost).toLocaleString()}\` 🪙\n• **Total XP:** \`+${totalXP}\` ✨`,
+                inline: false
+            });
+
+            const embed = EmbedUtils.createBaseEmbed({
+                author: { name: `${interaction.user.displayName}'s Master Pack`, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) },
+                title: packTitle,
+                description: `**5 Cards Opened!** Guaranteed special parallel variants and rare drops:`,
+                color: packColor,
+                footerText: `Net: ${(totalGold - packCost).toLocaleString()} Gold • Pokézam Master Pack`,
+                footerIcon: interaction.user.displayAvatarURL({ dynamic: true }),
+                fields: cardFields
+            });
 
             const embed = EmbedUtils.createBaseEmbed({
                 title: packTitle,

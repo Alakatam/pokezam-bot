@@ -87,52 +87,47 @@ module.exports = {
             // Update quests
             const completedQuests = await questManager.updateQuestProgress(userId, 'draw_cards', 7);
 
-            // Create pack opening embed
-            let yamlDescription = '```yaml\n';
-            yamlDescription += '#═══════════════════════════════════════════════════\n';
-            yamlDescription += '# 🏺 VINTAGE PACK OPENING RESULTS\n';
-            yamlDescription += '#═══════════════════════════════════════════════════\n\n';
-
-            packResults.forEach((result, index) => {
-                yamlDescription += `🎴 CARD_${index + 1}:\n`;
-                yamlDescription += `   Name               : "${result.card.name}"\n`;
-                yamlDescription += `   Set                : "${result.card.set_name}"\n`;
-                yamlDescription += `   Rarity             : "${result.card.rarity}"\n`;
-                yamlDescription += `   Variant            : "${result.variantInfo.name}" ${result.variantInfo.emoji}\n`;
-                yamlDescription += `   Gold Earned        : ${result.goldReward.toLocaleString()} 🪙\n`;
-                yamlDescription += `   XP Earned          : ${result.xpReward} XP\n\n`;
-            });
-
-            const netGold = totalGold - packCost;
-            yamlDescription += '💰 VINTAGE PACK TOTALS:\n';
-            yamlDescription += `   Pack Cost          : -${packCost.toLocaleString()} 🪙\n`;
-            yamlDescription += `   Gold Earned        : +${totalGold.toLocaleString()} 🪙\n`;
-            yamlDescription += `   Vintage Bonus      : +20% Gold Multiplier\n`;
-            yamlDescription += `   Net Gold           : ${netGold >= 0 ? '+' : ''}${netGold.toLocaleString()} 🪙\n`;
-            yamlDescription += `   Total XP           : +${totalXP} XP\n\n`;
-            
             // Pack statistics
             const firstEditionCount = packResults.filter(r => r.variant === 'first_edition').length;
             const holoCount = packResults.filter(r => r.variant === 'holo').length;
             const reverseCount = packResults.filter(r => r.variant === 'reverse').length;
-            
-            yamlDescription += '📊 VINTAGE PACK STATS:\n';
-            yamlDescription += `   1st Edition Cards  : ${firstEditionCount}/7\n`;
-            yamlDescription += `   Holographic Cards  : ${holoCount}/7\n`;
-            yamlDescription += `   Reverse Holo Cards : ${reverseCount}/7\n`;
-            yamlDescription += `   Normal Cards       : ${7 - firstEditionCount - holoCount - reverseCount}/7\n\n`;
-            
-            yamlDescription += '#═══════════════════════════════════════════════════\n';
-            yamlDescription += '```';
+            const netGold = totalGold - packCost;
 
             // Determine pack quality based on 1st Edition pulls
             let packTitle = '🏺 Vintage Pack Opened!';
-            let packColor = '#8B4513';
-            let achievementMessage = '';
+            let packColor = EmbedUtils.palette.brand;
             
             if (firstEditionCount >= 5) {
                 packTitle = '🥇🏆 LEGENDARY VINTAGE PACK!';
-                packColor = '#FFD700';
+                packColor = EmbedUtils.palette.gold;
+            } else if (firstEditionCount >= 3) {
+                packTitle = '🥇✨ GOD ROLL VINTAGE PACK!';
+                packColor = EmbedUtils.palette.warning;
+            }
+
+            const cardFields = packResults.map((result, index) => {
+                return {
+                    name: `🎴 Card ${index + 1}: ${result.card.name}`,
+                    value: `• **Set:** ${result.card.set_name}\n• **Rarity:** ${result.card.rarity}\n• **Variant:** ${result.variantInfo.name} ${result.variantInfo.emoji}\n• **Rewards:** \`+${result.goldReward.toLocaleString()}\` 🪙 • \`+${result.xpReward}\` ✨`,
+                    inline: false
+                };
+            });
+
+            cardFields.push({
+                name: '💰 Pack Opening Summary',
+                value: `• **Cost:** \`-${packCost.toLocaleString()}\` 🪙\n• **Earned:** \`+${totalGold.toLocaleString()}\` 🪙 (Includes 20% Vintage Bonus)\n• **Net:** \`${netGold >= 0 ? '+' : ''}${netGold.toLocaleString()}\` 🪙\n• **1st Edition Pulls:** \`${firstEditionCount}/7\`\n• **Holo Pulls:** \`${holoCount}/7\``,
+                inline: false
+            });
+
+            const embed = EmbedUtils.createBaseEmbed({
+                author: { name: `${interaction.user.displayName}'s Vintage Pack`, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) },
+                title: packTitle,
+                description: `**7 Classic Vintage Cards Opened!** 1st Edition priority booster results:`,
+                color: packColor,
+                footerText: `Net: ${netGold.toLocaleString()} Gold • Pokézam Vintage Pack`,
+                footerIcon: interaction.user.displayAvatarURL({ dynamic: true }),
+                fields: cardFields
+            });
                 achievementMessage = '\n🏆 **LEGENDARY PULL!** Museum-quality collection!';
             } else if (firstEditionCount >= 3) {
                 packTitle = '🥇✨ FIRST EDITION VINTAGE PACK!';

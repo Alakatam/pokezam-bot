@@ -149,13 +149,11 @@ module.exports = {
      * Build clean overview embed
      */
     async buildOverviewEmbed(interaction, user, shop, departments, collectorShopManager) {
-        const { EmbedBuilder } = require('discord.js');
         const nextUpgradeCost = collectorShopManager.getGlobalUpgradeCost(shop.shop_level);
 
         const unlockedDepts = departments.filter(d => d.level > 0);
         const totalAvailable = Object.keys(collectorShopManager.departments).length;
 
-        // Calculate total ready to collect
         let totalCoins = 0;
         let totalCards = 0;
         let totalPacks = 0;
@@ -174,40 +172,40 @@ module.exports = {
             }
         }
 
-        let yamlStatus = '```yaml\n';
-        yamlStatus += '#════════════════════════════════════════\n';
-        yamlStatus += "# 🏪 COLLECTOR'S SHOP OVERVIEW\n";
-        yamlStatus += '#════════════════════════════════════════\n\n';
-
-        yamlStatus += `👤 TRAINER: ${interaction.user.username}\n`;
-        yamlStatus += `� GOLD: ${user.gold.toLocaleString()}g\n\n`;
-
-        yamlStatus += `🏪 SHOP LEVEL: ${shop.shop_level}\n`;
-        yamlStatus += `   Upgrade Cost: ${nextUpgradeCost.toLocaleString()}g\n`;
-        yamlStatus += `   Departments: ${unlockedDepts.length}/${totalAvailable} Active\n\n`;
-
-        yamlStatus += `📊 LIFETIME EARNINGS:\n`;
-        yamlStatus += `   Coins: ${shop.lifetime_coins_generated.toLocaleString()}g\n`;
-        yamlStatus += `   Cards: ${shop.lifetime_cards_generated}\n\n`;
+        const fields = [
+            {
+                name: '🏪 Shop Summary',
+                value: `• **Shop Level:** \`${shop.shop_level}\`\n• **Active Departments:** \`${unlockedDepts.length}/${totalAvailable}\`\n• **Next Level Cost:** \`${nextUpgradeCost.toLocaleString()}\` 🪙`,
+                inline: true
+            },
+            {
+                name: '📊 Lifetime Generation',
+                value: `• **Coins Generated:** \`${shop.lifetime_coins_generated.toLocaleString()}\` 🪙\n• **Cards Generated:** \`${shop.lifetime_cards_generated.toLocaleString()}\` 🎴`,
+                inline: true
+            }
+        ];
 
         if (totalCoins > 0 || totalCards > 0 || totalPacks > 0) {
-            yamlStatus += `💼 READY TO COLLECT:\n`;
-            if (totalCoins > 0) yamlStatus += `   � Coins: ${totalCoins.toLocaleString()}g\n`;
-            if (totalCards > 0) yamlStatus += `   🃏 Cards: ${totalCards}\n`;
-            if (totalPacks > 0) yamlStatus += `   🎁 Packs: ${totalPacks}\n`;
-            yamlStatus += '\n';
+            const collectList = [];
+            if (totalCoins > 0) collectList.push(`• **Coins:** \`+${totalCoins.toLocaleString()}\` 🪙`);
+            if (totalCards > 0) collectList.push(`• **Cards:** \`+${totalCards.toLocaleString()}\` 🎴`);
+            if (totalPacks > 0) collectList.push(`• **Packs:** \`+${totalPacks.toLocaleString()}` 🎁`);
+
+            fields.push({
+                name: '💼 Ready to Collect Right Now!',
+                value: collectList.join('\n'),
+                inline: false
+            });
         }
 
-        yamlStatus += '💡 Click buttons below for department details!\n';
-        yamlStatus += '#════════════════════════════════════════\n';
-        yamlStatus += '```';
-
         return EmbedUtils.createBaseEmbed({
-            title: `🏪 ${interaction.user.username}'s Collector Shop`,
-            description: yamlStatus,
-            color: EmbedUtils.palette.warning,
-            footerText: `Shop Level ${shop.shop_level} • Use /collector collect to claim rewards`,
-            footerIcon: interaction.user.displayAvatarURL({ dynamic: true })
+            author: { name: `${interaction.user.displayName}'s Collector Business`, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) },
+            title: '🏪 Collector Shop Headquarters',
+            description: 'Manage your passive income departments, claim generated resources, and upgrade shop capacity below.',
+            color: EmbedUtils.palette.gold,
+            footerText: `Shop Level ${shop.shop_level} • Click department buttons below to manage`,
+            footerIcon: interaction.user.displayAvatarURL({ dynamic: true }),
+            fields
         });
     },
 

@@ -330,23 +330,25 @@ module.exports = {
             item.category === category.id && item.price > 0
         );
 
-        const itemSummary = items.length > 0
+        const fields = items.length > 0
             ? items.map(([id, item]) => {
                 const canAfford = user.gold >= item.price;
-                const status = canAfford ? '✅ Affordable' : '❌ Too expensive';
-                return `**${item.emoji} ${item.name}**\nPrice: **${item.price.toLocaleString()}g** • ${status}\nEffect: ${this.formatEffectInfo(item.effect)}`;
-            }).join('\n\n')
-            : 'No items are available in this category yet.';
+                const status = canAfford ? '🟢 Available' : '🔴 Insufficient Gold';
+                return {
+                    name: `${item.emoji} ${item.name} — ${item.price.toLocaleString()} 🪙`,
+                    value: `• **Effect:** ${this.formatEffectInfo(item.effect)}\n• **Status:** ${status}`,
+                    inline: false
+                };
+            })
+            : [{ name: '📦 Category Status', value: 'No items are available in this category yet.', inline: false }];
 
         const embed = EmbedUtils.createBaseEmbed({
+            author: { name: 'Pokézam Department Store' },
             title: `🏪 Pokézam Shop • ${category.name}`,
-            description: `**Wallet:** ${user.gold.toLocaleString()}g\n**Category:** ${category.description}\n**Page:** ${pageNumber}/${CATEGORIES.length}`,
-            color: EmbedUtils.palette.warning,
-            footerText: `Elite market access • Page ${pageNumber}/${CATEGORIES.length}`,
-            footerIcon: null,
-            fields: [
-                { name: '📦 Shop Highlights', value: itemSummary, inline: false }
-            ]
+            description: `💰 **Wallet Balance:** \`${user.gold.toLocaleString()}\` 🪙\n📂 **Category:** ${category.description}\n📄 **Category Page:** \`${pageNumber}/${CATEGORIES.length}\``,
+            color: EmbedUtils.palette.gold,
+            footerText: `Page ${pageNumber}/${CATEGORIES.length} • Select an item below to purchase`,
+            fields
         });
 
         // Create navigation buttons

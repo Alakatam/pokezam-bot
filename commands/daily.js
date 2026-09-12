@@ -57,29 +57,18 @@ module.exports = {
                 const hoursLeft = Math.floor(timeUntilReset / (1000 * 60 * 60));
                 const minutesLeft = Math.floor((timeUntilReset % (1000 * 60 * 60)) / (1000 * 60));
                 
-                // Create YAML cooldown message
-                let yamlCooldown = '```yaml\n';
-                yamlCooldown += '#════════════════════════════════\n';
-                yamlCooldown += '# ⏰ DAILY REWARD COOLDOWN\n';
-                yamlCooldown += '#════════════════════════════════\n\n';
-                yamlCooldown += `👤 USER: ${interaction.user.displayName}\n`;
-                yamlCooldown += `📅 LAST CLAIM: ${new Date(userData.last_daily_claim).toLocaleString("en-US", {timeZone: "America/New_York", dateStyle: "short", timeStyle: "short"})}\n\n`;
-                yamlCooldown += '⏳ TIME REMAINING:\n';
-                yamlCooldown += `   Hours: ${hoursLeft}h\n`;
-                yamlCooldown += `   Minutes: ${minutesLeft}m\n\n`;
-                yamlCooldown += '💡 TIP:\n';
-                yamlCooldown += '   Daily rewards reset at 20:00 ET!\n';
-                yamlCooldown += '   Come back tomorrow for more rewards!\n\n';
-                yamlCooldown += '#════════════════════════════════\n';
-                yamlCooldown += '```';
-
                 return interaction.reply({
                     embeds: [EmbedUtils.createBaseEmbed({
+                        author: { name: `${interaction.user.displayName}'s Daily Rewards`, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) },
                         title: '⏰ Daily Reward Already Claimed',
-                        description: yamlCooldown,
-                        color: EmbedUtils.palette.error,
-                        footerText: 'Daily rewards reset at 20:00 ET!',
-                        footerIcon: interaction.user.displayAvatarURL({ dynamic: true })
+                        description: `**You have already claimed your daily reward for today!**\n\nReturn in **${hoursLeft}h ${minutesLeft}m** (20:00 ET) to claim your next streak bonus!`,
+                        color: EmbedUtils.palette.warning,
+                        footerText: 'Daily rewards reset at 20:00 ET daily • Pokézam',
+                        footerIcon: interaction.user.displayAvatarURL({ dynamic: true }),
+                        fields: [
+                            { name: '📅 Last Claim', value: `\`${new Date(userData.last_daily_claim).toLocaleString("en-US", {timeZone: "America/New_York", dateStyle: "short", timeStyle: "short"})}\``, inline: true },
+                            { name: '🔥 Current Streak', value: `\`${userData.daily_streak || 1} Days\``, inline: true }
+                        ]
                     })],
                     flags: 64 // ephemeral flag
                 });
@@ -164,29 +153,20 @@ module.exports = {
 
             // Daily Charm is now a manual activation item - use /use daily-charm to activate!
 
-            // Create progressive reward display
-            const yamlRewards = progressiveRewards.createProgressiveRewardDisplay(rewards, interaction.user.displayName);
-
-            // Update progress display
-            let progressInfo = '\n📊 PROGRESS UPDATE:\n';
-            progressInfo += `   🏆 Level: ${newLevel}${leveledUp ? ' (LEVEL UP! 🎉)' : ''}\n`;
-            progressInfo += `   💰 Total Gold: ${newGold.toLocaleString()}\n`;
-            progressInfo += `   🪙 Total Coins: ${newCoins.toLocaleString()}\n`;
-            progressInfo += `   ✨ Total XP: ${newXP.toLocaleString()}\n\n`;
-            progressInfo += '💡 NEXT STEPS:\n';
-            progressInfo += '   /use daily-charm - Activate your Daily Charm! 🍀\n';
-            progressInfo += '   /quest - View daily quests\n';
-            progressInfo += '   /inventory - Check your items\n';
-            progressInfo += '   /profile - See your progress\n';
-            
-            const finalDisplay = yamlRewards.replace('#═══════════════════════════════════════════════════\n```', progressInfo + '\n#═══════════════════════════════════════════════════\n```');
+            const rewardFields = [
+                { name: '🎁 Claimed Rewards', value: `• **Gold:** \`+${totalGold.toLocaleString()}\` 🪙\n• **Coins:** \`+${rewards.coins.toLocaleString()}\` 🪙\n• **XP:** \`+${totalXP.toLocaleString()}\` ✨\n• **Item Bonus:** \`1x ${rewards.item}\``, inline: false },
+                { name: '🔥 Current Streak', value: `\`${streakCount} Days\` ${rewards.special ? '🌟 **(Special Streak Milestone!)**' : ''}`, inline: true },
+                { name: '🏆 Level Progress', value: `Level \`${newLevel}\`${leveledUp ? ' 🎉 **LEVEL UP!**' : ''}\n\`${newGold.toLocaleString()}\` Total Gold`, inline: true }
+            ];
 
             const rewardEmbed = EmbedUtils.createBaseEmbed({
-                title: `${rewards.special ? '🌟 SPECIAL ' : '🎁 '}Daily Rewards - Day ${streakCount}!`,
-                description: finalDisplay,
-                color: rewards.special ? EmbedUtils.palette.warning : EmbedUtils.palette.success,
-                footerText: `Next reward at 22:00 ET • ${rewards.streakProtection ? 'Streak Protection Active' : 'Keep your streak going!'}`,
-                footerIcon: interaction.user.displayAvatarURL({ dynamic: true })
+                author: { name: `${interaction.user.displayName}'s Daily Bonus`, iconURL: interaction.user.displayAvatarURL({ dynamic: true }) },
+                title: `${rewards.special ? '🌟 SPECIAL ' : '🎁 '}Daily Rewards Claimed — Day ${streakCount}!`,
+                description: `**Great job, ${interaction.user.displayName}!** Keep your daily streak going to unlock higher multiplier tiers and exclusive milestone rewards.`,
+                color: rewards.special ? EmbedUtils.palette.gold : EmbedUtils.palette.success,
+                footerText: `Next reward resets at 20:00 ET • ${rewards.streakProtection ? 'Streak Protection Active' : 'Pokézam Daily'}`,
+                footerIcon: interaction.user.displayAvatarURL({ dynamic: true }),
+                fields: rewardFields
             });
 
             // Add milestone bonus rewards if applicable
