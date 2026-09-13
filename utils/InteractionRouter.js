@@ -410,9 +410,21 @@ class InteractionRouter {
 
     static async handleCollectorAction(interaction, bot) {
         try {
-            const parts = interaction.customId.split('_');
-            const action = parts[1];
-            const targetUserId = parts[2];
+            const customId = interaction.customId;
+            const parts = customId.split('_');
+            let action = parts[1];
+            let targetUserId = parts[2];
+            let departmentId = null;
+
+            if (customId.startsWith('collector_upgrade_shop_')) {
+                action = 'upgrade-shop';
+                targetUserId = parts[3];
+            } else if (customId.startsWith('collector_upgrade_dept_')) {
+                action = 'upgrade-dept';
+                const lastUnderscoreIndex = customId.lastIndexOf('_');
+                targetUserId = customId.substring(lastUnderscoreIndex + 1);
+                departmentId = customId.substring('collector_upgrade_dept_'.length, lastUnderscoreIndex);
+            }
 
             if (interaction.user.id !== targetUserId) {
                 return await interaction.reply({
@@ -434,9 +446,20 @@ class InteractionRouter {
                     bot.collectorShopManager,
                     bot.cardManager
                 );
-            } else if (action === 'upgrade') {
+            } else if (action === 'upgrade' || action === 'upgrade-shop') {
                 await collectorCommand.handleUpgrade(
                     interaction,
+                    user,
+                    bot.userManager,
+                    bot.collectorShopManager
+                );
+            } else if (action === 'upgrade-dept') {
+                const upgradeInteraction = {
+                    ...interaction,
+                    options: { getString: name => name === 'department' ? departmentId : null }
+                };
+                await collectorCommand.handleUpgradeDept(
+                    upgradeInteraction,
                     user,
                     bot.userManager,
                     bot.collectorShopManager
@@ -587,7 +610,8 @@ class InteractionRouter {
 
             const embed = await command.buildDepartmentEmbed(interaction, deptId, cacheData.shop, cacheData.departments, bot.collectorShopManager);
             const row = new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId(`collector_overview_${targetUserId}`).setLabel('◀ Back to Overview').setStyle(ButtonStyle.Success)
+                new ButtonBuilder().setCustomId(`collector_overview_${targetUserId}`).setLabel('◀ Back to Overview').setStyle(ButtonStyle.Success),
+                new ButtonBuilder().setCustomId(`collector_upgrade_dept_${deptId}_${targetUserId}`).setLabel('Upgrade Department').setEmoji('⬆️').setStyle(ButtonStyle.Primary)
             );
             await interaction.editReply({ embeds: [embed], components: [row] });
         } catch (error) {
@@ -612,7 +636,21 @@ class InteractionRouter {
 
             const user = await bot.userManager.getUser(targetUserId);
             const embed = await command.buildOverviewEmbed(interaction, user, cacheData.shop, cacheData.departments, bot.collectorShopManager);
-            const components = command.buildDepartmentButtons(cacheData.departments, bot.collectorShopManager, targetUserId);
+            const components = [
+                new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`collector_collect_${targetUserId}`)
+                        .setLabel('Collect Resources')
+                        .setEmoji('📦')
+                        .setStyle(ButtonStyle.Success),
+                    new ButtonBuilder()
+                        .setCustomId(`collector_upgrade_shop_${targetUserId}`)
+                        .setLabel('Upgrade Shop')
+                        .setEmoji('⬆️')
+                        .setStyle(ButtonStyle.Primary)
+                ),
+                ...command.buildDepartmentButtons(cacheData.departments, bot.collectorShopManager, targetUserId)
+            ];
             await interaction.editReply({ embeds: [embed], components });
         } catch (error) {
             console.error('Error handling collector overview button:', error);

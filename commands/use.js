@@ -43,6 +43,15 @@ module.exports = {
             const userId = interaction.user.id;
             const itemId = interaction.options.getString('item');
 
+            if (itemId === 'store_key') {
+                return await interaction.editReply({
+                    embeds: [EmbedUtils.createErrorEmbed(
+                        '🔑 Store Key',
+                        'This key permanently unlocks `/collector`; it does not need to be used.'
+                    )]
+                });
+            }
+
             // Ensure user exists
             let user = await userManager.getUser(userId);
             if (!user) {

@@ -108,6 +108,12 @@ const SHOP_ITEMS = {
         description: '+25% gold & 2x rare chance for 125 card draws',
         category: 'special',
         emoji: '🎁'
+    },
+    'store_key': {
+        name: 'Store Key',
+        description: 'Permanently unlocks the Collector Shop',
+        category: 'special',
+        emoji: '🔑'
     }
 };
 
@@ -224,7 +230,7 @@ module.exports = {
                 // Filter for usable items and create quick-use buttons for first 3 items
                 const usableItems = userItems.filter(userItem => {
                     const item = SHOP_ITEMS[userItem.item_id];
-                    return item && userItem.quantity > 0;
+                    return item && userItem.item_id !== 'store_key' && userItem.quantity > 0;
                 }).slice(0, 3);
 
                 const buttons = usableItems.map(userItem => {

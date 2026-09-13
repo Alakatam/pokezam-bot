@@ -80,10 +80,7 @@ The ultimate Discord bot for Pokemon Trading Card Game enthusiasts! Collect auth
 ### 🏬 Collector Shop (NEW!)
 | Command | Description |
 |---------|-------------|
-| `/collector` | View shop status, departments, and collect rewards |
-| `/collector collect` | Collect from all departments (only when shops are closed) |
-| `/collector upgrade <dept>` | Upgrade department level (max 15) |
-| `/collector upgrade shop` | Increase global shop level cap |
+| `/collector` | Open the unlocked shop dashboard and use its buttons to view, collect, and upgrade |
 
 ### 📊 Collection Management
 | Command | Description |

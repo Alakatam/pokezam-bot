@@ -4,35 +4,7 @@ const EmbedUtils = require('../utils/EmbedUtils');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('collector')
-        .setDescription("Manage your Collector's Shop - passive income tycoon!")
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('status')
-                .setDescription('View your shop status and all departments'))
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('collect')
-                .setDescription('Collect generated resources from your departments'))
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('upgrade')
-                .setDescription('Upgrade your global shop level'))
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('upgrade-dept')
-                .setDescription('Upgrade a specific department')
-                .addStringOption(option =>
-                    option
-                        .setName('department')
-                        .setDescription('Choose which department to upgrade')
-                        .setRequired(true)
-                        .addChoices(
-                            { name: '💰 Trade Counter', value: 'trade_counter' },
-                            { name: '📦 Bulk Bin', value: 'bulk_bin' },
-                            { name: '💎 Glass Display Case', value: 'glass_case' },
-                            { name: '🎁 Pack Storage Room', value: 'pack_storage' },
-                            { name: '⭐ Expert Grader', value: 'expert_grader' }
-                        ))),
+        .setDescription("Open your Collector's Shop dashboard"),
 
     async execute(interaction, { database, userManager, collectorShopManager, cardManager }) {
         try {
@@ -65,34 +37,27 @@ module.exports = {
                 });
             }
 
-            const subcommand = interaction.options.getSubcommand();
-            
-            // Run auto-unlock for ALL commands (await for upgrade-dept to ensure departments are unlocked)
-            if (subcommand === 'upgrade-dept' || subcommand === 'collect') {
-                await this.autoUnlockDepartments(interaction.user.id, collectorShopManager, database);
-            } else if (subcommand === 'status') {
-                // Background unlock for status (don't block response)
-                this.autoUnlockDepartments(interaction.user.id, collectorShopManager, database).catch(err => 
-                    console.error('Background auto-unlock error:', err)
-                );
+            const storeKey = await database.get(
+                'SELECT quantity FROM user_items WHERE user_id = ? AND item_id = ? AND quantity > 0',
+                [interaction.user.id, 'store_key']
+            );
+
+            if (!storeKey) {
+                return await interaction.editReply({
+                    embeds: [EmbedUtils.createBaseEmbed({
+                        title: '🔒 Collector Shop Locked',
+                        description: 'Find a **Store Key** to unlock your Collector Shop permanently.',
+                        color: EmbedUtils.palette.warning,
+                        fields: [
+                            { name: '🔑 How to Find One', value: 'Draw a **Holo rarity or higher** card. Each qualifying draw has a **1 in 300** chance to reveal a Store Key.', inline: false },
+                            { name: '🎴 Keep Drawing', value: 'Store Keys are added automatically to your inventory when discovered.', inline: false }
+                        ]
+                    })]
+                });
             }
 
-            switch (subcommand) {
-                case 'status':
-                    await this.handleStatus(interaction, user, collectorShopManager);
-                    break;
-                case 'collect':
-                    await this.handleCollect(interaction, user, userManager, database, collectorShopManager, cardManager);
-                    break;
-                case 'upgrade':
-                    await this.handleUpgrade(interaction, user, userManager, collectorShopManager);
-                    break;
-                case 'upgrade-dept':
-                    await this.handleUpgradeDept(interaction, user, userManager, collectorShopManager);
-                    break;
-                default:
-                    await interaction.editReply({ content: '❌ Unknown subcommand!' });
-            }
+            await this.autoUnlockDepartments(interaction.user.id, collectorShopManager, database);
+            await this.handleStatus(interaction, user, collectorShopManager);
 
         } catch (error) {
             console.error('Error in collector command:', error);
@@ -106,7 +71,7 @@ module.exports = {
     },
 
     /**
-     * Handle /collector status
+    * Render the /collector dashboard
      */
     async handleStatus(interaction, user, collectorShopManager) {
         try {
@@ -117,7 +82,21 @@ module.exports = {
             const embed = await this.buildOverviewEmbed(interaction, user, shop, departments, collectorShopManager);
             
             // Build department navigation buttons
-            const components = this.buildDepartmentButtons(departments, collectorShopManager, interaction.user.id);
+            const components = [
+                new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`collector_collect_${interaction.user.id}`)
+                        .setLabel('Collect Resources')
+                        .setEmoji('📦')
+                        .setStyle(ButtonStyle.Success),
+                    new ButtonBuilder()
+                        .setCustomId(`collector_upgrade_shop_${interaction.user.id}`)
+                        .setLabel('Upgrade Shop')
+                        .setEmoji('⬆️')
+                        .setStyle(ButtonStyle.Primary)
+                ),
+                ...this.buildDepartmentButtons(departments, collectorShopManager, interaction.user.id)
+            ];
 
             // Cache shop data for button handlers
             if (!this.collectorStatusCache) this.collectorStatusCache = new Map();
@@ -258,7 +237,7 @@ module.exports = {
     },
 
     /**
-     * Handle /collector collect
+    * Handle dashboard resource collection
      */
     async handleCollect(interaction, user, userManager, database, collectorShopManager, cardManager) {
         try {
@@ -401,7 +380,7 @@ module.exports = {
     },
 
     /**
-     * Handle /collector upgrade (global shop level)
+    * Handle dashboard shop upgrade
      */
     async handleUpgrade(interaction, user, userManager, collectorShopManager) {
         try {
@@ -448,7 +427,7 @@ module.exports = {
             }
 
             yamlUpgrade += `💡 TIP:\n`;
-            yamlUpgrade += `   Use /collector upgrade-dept to improve\n`;
+            yamlUpgrade += `   Return to /collector and select a department to improve\n`;
             yamlUpgrade += `   your departments up to level ${result.newLevel}!\n\n`;
             yamlUpgrade += '#════════════════════════════════════════\n';
             yamlUpgrade += '```';
@@ -470,7 +449,7 @@ module.exports = {
     },
 
     /**
-     * Handle /collector upgrade-dept
+    * Handle dashboard department upgrade
      */
     async handleUpgradeDept(interaction, user, userManager, collectorShopManager) {
         try {
@@ -497,7 +476,7 @@ module.exports = {
             // Check if at level cap
             if (dept.level >= shop.shop_level) {
                 return await interaction.editReply({
-                    content: `❌ **Level Cap Reached!**\n\n${config.name} is at max level (${dept.level}/${shop.shop_level}).\nUpgrade your Shop Level first with \`/collector upgrade\`.`
+                    content: `❌ **Level Cap Reached!**\n\n${config.name} is at max level (${dept.level}/${shop.shop_level}).\nUpgrade your Shop Level first from the \`/collector\` dashboard.`
                 });
             }
 
@@ -600,7 +579,7 @@ module.exports = {
             yamlStatus += `   Shop Level: ${config.unlockLevel}\n`;
             yamlStatus += `   Unlock Cost: ${config.upgradeCost.toLocaleString()}g\n\n`;
 
-            yamlStatus += `💡 Use /collector upgrade-dept to unlock!\n`;
+            yamlStatus += '💡 Return to /collector and select this department after unlocking it!\n';
             yamlStatus += '#════════════════════════════════════════\n';
             yamlStatus += '```';
 
@@ -684,7 +663,7 @@ module.exports = {
         yamlStatus += `   Upgrade Cost: ${upgradeCost.toLocaleString()}g\n`;
         yamlStatus += `   Max Level: ${shop.shop_level}\n\n`;
 
-        yamlStatus += '💡 Use /collector upgrade-dept to improve!\n';
+        yamlStatus += '💡 Return to /collector and use Upgrade Department to improve!\n';
         yamlStatus += '#════════════════════════════════════════\n';
         yamlStatus += '```';
 

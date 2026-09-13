@@ -106,6 +106,26 @@ module.exports = {
                 ON CONFLICT (user_id, rarity)
                 DO UPDATE SET draw_count = draw_count + 1
             `, [userId, drawnCard.rarity || 'Unknown']);
+
+            const rarityName = String(drawnCard.rarity || '').toLowerCase();
+            const isHoloOrHigher = rarityName.includes('holo') ||
+                rarityName.includes('ultra') ||
+                rarityName.includes('secret') ||
+                rarityName.includes('amazing') ||
+                rarityName.includes('radiant') ||
+                rarityName.includes('shiny') ||
+                rarityName.includes('legend');
+            let foundStoreKey = false;
+
+            if (isHoloOrHigher && Math.floor(Math.random() * 300) === 0) {
+                await database.run(`
+                    INSERT INTO user_items (user_id, item_id, quantity)
+                    VALUES (?, 'store_key', 1)
+                    ON CONFLICT (user_id, item_id)
+                    DO UPDATE SET quantity = user_items.quantity + 1
+                `, [userId]);
+                foundStoreKey = true;
+            }
             
             // Calculate rewards with rarity-based XP and variant bonuses
             const baseXpReward = this.getXPReward(drawnCard.rarity);
@@ -249,6 +269,14 @@ module.exports = {
 
             if (isSpecialVariant) {
                 rewardSummary.push({ name: '✨ Variant', value: `${variantInfo.displayName} ${variantInfo.emoji}`, inline: true });
+            }
+
+            if (foundStoreKey) {
+                rewardSummary.push({
+                    name: '🔑 Rare Discovery',
+                    value: '**Store Key found!** `/collector` is now unlocked.',
+                    inline: false
+                });
             }
 
             const imageUrl = detailedCard.image_large || detailedCard.image_small;

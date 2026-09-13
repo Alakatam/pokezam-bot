@@ -391,15 +391,15 @@ variance levels:
 impact                 : "Makes each collection unique and exciting!"
 
 ❓ "How do I collect resources?"
-command                : "/collector collect"
+command                : "/collector" (then select Collect Resources)
 restriction            : "Can ONLY collect when shop is closed"
 error message          : "Shows time remaining if shop still open"
 automatic variance     : "New variance generated each collection"
 shop reopens           : "Operating hours restart after collection"
 
 ❓ "How do I upgrade departments?"
-shop level             : "/collector upgrade shop"
-departments            : "/collector upgrade <department_name>"
+shop level             : "/collector" (then select Upgrade Shop)
+departments            : "/collector" (then select a department)
 level cap              : "15 for all departments"
 requirement            : "Department level cannot exceed shop level"
 
