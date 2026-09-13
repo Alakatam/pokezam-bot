@@ -244,6 +244,23 @@ class PostgreSQLDatabase {
                     END IF;
                 END $$;`,
                 `DO $$ BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'last_draw') THEN
+                        ALTER TABLE users ADD COLUMN last_draw BIGINT DEFAULT 0;
+                    END IF;
+                END $$;`,
+                `DO $$ BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'risky_deals') THEN
+                        ALTER TABLE users ADD COLUMN risky_deals INTEGER DEFAULT 0;
+                    END IF;
+                END $$;`,
+                `CREATE TABLE IF NOT EXISTS user_rarity_draws (
+                    user_id VARCHAR(20) NOT NULL,
+                    rarity VARCHAR(100) NOT NULL,
+                    draw_count INTEGER DEFAULT 0,
+                    PRIMARY KEY (user_id, rarity),
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                );`,
+                `DO $$ BEGIN
                     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'daily_streak') THEN
                         ALTER TABLE users ADD COLUMN daily_streak INTEGER DEFAULT 0;
                     END IF;

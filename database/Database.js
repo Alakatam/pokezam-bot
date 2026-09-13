@@ -183,6 +183,7 @@ class Database {
                 { name: 'last_daily_claim', type: 'TEXT' },
                 { name: 'daily_streak', type: 'INTEGER DEFAULT 0' },
                 { name: 'coins', type: 'INTEGER DEFAULT 0' },
+                { name: 'risky_deals', type: 'INTEGER DEFAULT 0' },
                 { name: 'cooldown_bypass', type: this.dbType === 'postgresql' ? 'BOOLEAN DEFAULT FALSE' : 'BOOLEAN DEFAULT 0' },
                 { name: 'showcase_count', type: 'INTEGER DEFAULT 0' }
             ];
@@ -347,10 +348,19 @@ class Database {
                 scout_start_time INTEGER DEFAULT NULL,
                 scout_duration INTEGER DEFAULT NULL,
                 last_draw INTEGER DEFAULT 0,
+                risky_deals INTEGER DEFAULT 0,
                 has_started BOOLEAN DEFAULT FALSE,
                 last_daily_claim TEXT,
                 daily_streak INTEGER DEFAULT 0,
                 created_at INTEGER DEFAULT (strftime('%s', 'now'))
+            )`,
+
+            `CREATE TABLE IF NOT EXISTS user_rarity_draws (
+                user_id TEXT NOT NULL,
+                rarity TEXT NOT NULL,
+                draw_count INTEGER DEFAULT 0,
+                PRIMARY KEY (user_id, rarity),
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             )`,
 
             // Cards table - master card definitions with real TCG data + Master Set variants

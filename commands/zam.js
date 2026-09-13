@@ -99,6 +99,13 @@ module.exports = {
             
             // Add card variant to user's collection
             await cardManager.addVariantToUser(userId, drawnCard.id, variant);
+
+            await database.run(`
+                INSERT INTO user_rarity_draws (user_id, rarity, draw_count)
+                VALUES (?, ?, 1)
+                ON CONFLICT (user_id, rarity)
+                DO UPDATE SET draw_count = draw_count + 1
+            `, [userId, drawnCard.rarity || 'Unknown']);
             
             // Calculate rewards with rarity-based XP and variant bonuses
             const baseXpReward = this.getXPReward(drawnCard.rarity);

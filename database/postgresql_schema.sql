@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS users (
     gold INTEGER DEFAULT 1000,
     coins INTEGER DEFAULT 0,
     total_draws INTEGER DEFAULT 0,
+    last_draw BIGINT DEFAULT 0,
+    risky_deals INTEGER DEFAULT 0,
     has_started BOOLEAN DEFAULT FALSE,
     created_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW()),
     last_daily_claim BIGINT DEFAULT 0,
@@ -77,6 +79,14 @@ CREATE TABLE IF NOT EXISTS user_cards (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (card_id) REFERENCES cards(id) ON DELETE CASCADE,
     UNIQUE(user_id, card_id, is_holo)
+);
+
+CREATE TABLE IF NOT EXISTS user_rarity_draws (
+    user_id VARCHAR(20) NOT NULL,
+    rarity VARCHAR(100) NOT NULL,
+    draw_count INTEGER DEFAULT 0,
+    PRIMARY KEY (user_id, rarity),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 -- Quest system

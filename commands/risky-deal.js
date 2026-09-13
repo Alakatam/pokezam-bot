@@ -168,6 +168,11 @@ module.exports = {
             // Add new card
             await cardManager.addCardToUser(userId, newCard.id, 1);
 
+            await database.run(
+                'UPDATE users SET risky_deals = COALESCE(risky_deals, 0) + 1 WHERE id = ?',
+                [userId]
+            );
+
             // Show enhanced result with card image
             const newCardImage = newCard.image_large || newCard.image_small;
 
