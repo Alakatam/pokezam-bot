@@ -104,7 +104,7 @@ module.exports = {
                 INSERT INTO user_rarity_draws (user_id, rarity, draw_count)
                 VALUES (?, ?, 1)
                 ON CONFLICT (user_id, rarity)
-                DO UPDATE SET draw_count = draw_count + 1
+                DO UPDATE SET draw_count = user_rarity_draws.draw_count + 1
             `, [userId, drawnCard.rarity || 'Unknown']);
 
             const rarityName = String(drawnCard.rarity || '').toLowerCase();
