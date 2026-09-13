@@ -205,6 +205,16 @@ Build and manage your own Pokemon card shop empire:
 - **Pack Boosts**: Booster Box, Premium Ticket, Vintage Key
 - **Special Items**: Welcome Charm, Mystery Box, Golden Ticket
 
+## 📄 Terms & Privacy Pages
+
+The GitHub Pages-ready policy site is in [`docs/`](docs/):
+
+- [`docs/tos.html`](docs/tos.html) - Terms of Service
+- [`docs/privacy.html`](docs/privacy.html) - Privacy Policy
+- [`docs/index.html`](docs/index.html) - Policy landing page
+
+To publish it, open the repository's **Settings → Pages**, select **Deploy from a branch**, choose `main`, and select the `/docs` folder. GitHub will then provide the Pages URL for these documents.
+
 ## � Why Choose Pokézam?
 
 ✅ **Authentic Pokemon TCG Experience** - Real cards from official sets  
