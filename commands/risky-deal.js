@@ -36,6 +36,33 @@ module.exports = {
         'PROMO': { loss: 30, draw: 70, win: 0, downgrade: 'RARE_HOLO', upgrade: null }
     },
 
+    async handleConfirmation(interaction, { database, userManager, cardManager }, cardId) {
+        const card = await database.get(
+            'SELECT set_id, number FROM cards WHERE id = ?',
+            [parseInt(cardId)]
+        );
+
+        if (!card) {
+            throw new Error('Card not found');
+        }
+
+        const confirmationInteraction = {
+            ...interaction,
+            options: {
+                getString: name => name === 'card' ? `${card.set_id}-${card.number}` : null
+            },
+            deferReply: async () => interaction.deferUpdate(),
+            editReply: async options => interaction.editReply(options),
+            reply: async options => interaction.reply(options)
+        };
+
+        return await this.execute(confirmationInteraction, {
+            database,
+            userManager,
+            cardManager
+        });
+    },
+
     // Helper: Get category for a specific rarity
     getRarityCategory(rarity) {
         for (const [category, rarities] of Object.entries(this.rarityCategories)) {
