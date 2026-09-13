@@ -253,6 +253,20 @@ class PostgreSQLDatabase {
                         ALTER TABLE users ADD COLUMN risky_deals INTEGER DEFAULT 0;
                     END IF;
                 END $$;`,
+                `DO $$ BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'showcase_visibility') THEN
+                        ALTER TABLE users ADD COLUMN showcase_visibility VARCHAR(10) DEFAULT 'public';
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'draw_image_mode') THEN
+                        ALTER TABLE users ADD COLUMN draw_image_mode VARCHAR(10) DEFAULT 'big';
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'profile_visibility') THEN
+                        ALTER TABLE users ADD COLUMN profile_visibility VARCHAR(10) DEFAULT 'public';
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'stats_visibility') THEN
+                        ALTER TABLE users ADD COLUMN stats_visibility VARCHAR(10) DEFAULT 'public';
+                    END IF;
+                END $$;`,
                 `CREATE TABLE IF NOT EXISTS user_rarity_draws (
                     user_id VARCHAR(20) NOT NULL,
                     rarity VARCHAR(100) NOT NULL,

@@ -173,6 +173,14 @@ module.exports = {
                 [userId]
             );
 
+            const AchievementManager = require('../database/AchievementManager');
+            const achievementManager = new AchievementManager(database);
+            await achievementManager.recordEvent(userId, 'risky_deal', 1, {
+                outcome,
+                originalCardId: card.id,
+                replacementCardId: newCard.id
+            });
+
             // Show enhanced result with card image
             const newCardImage = newCard.image_large || newCard.image_small;
 

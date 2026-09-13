@@ -7,9 +7,19 @@ const path = require('node:path');
 const CommandLoader = require('../utils/CommandLoader');
 const InteractionRouter = require('../utils/InteractionRouter');
 const PokezamBot = require('../index');
+const settingsCommand = require('../commands/settings');
+const AchievementManager = require('../database/AchievementManager');
 
 test('loading the bot class does not start runtime services', () => {
     assert.equal(typeof PokezamBot, 'function');
+});
+
+test('settings command exposes privacy and display preferences', () => {
+    const options = settingsCommand.data.toJSON().options;
+    const optionNames = options.map(option => option.name);
+
+    assert.equal(settingsCommand.data.name, 'settings');
+    assert.deepEqual(optionNames, ['showcase', 'image', 'profile', 'stats']);
 });
 
 test('CommandLoader loads valid commands and skips disabled commands', () => {
@@ -63,4 +73,9 @@ test('InteractionRouter rejects Risky Deal interactions from another user', asyn
     assert.equal(handled, true);
     assert.equal(response.ephemeral, true);
     assert.match(response.content, /isn't your gamble/);
+});
+
+test('AchievementManager exposes historical event tracking', () => {
+    assert.equal(typeof AchievementManager.prototype.recordEvent, 'function');
+    assert.equal(typeof AchievementManager.prototype.getEventCount, 'function');
 });

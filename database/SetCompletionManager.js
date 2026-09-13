@@ -83,6 +83,11 @@ class SetCompletionManager {
             const completionPercentage = (ownedCount / totalCards.count) * 100;
             const isCompleted = ownedCount >= totalCards.count;
 
+            const previousCompletion = await this.database.get(`
+                SELECT is_completed FROM set_completion
+                WHERE user_id = ? AND set_id = ?
+            `, [userId, setId]);
+
             // Insert or update set completion record
             await this.database.run(`
                 INSERT OR REPLACE INTO set_completion 
@@ -95,6 +100,16 @@ class SetCompletionManager {
             // Check if this is a new completion and award rewards
             if (isCompleted) {
                 await this.checkAndAwardSetReward(userId, setId, setName);
+
+                if (!previousCompletion?.is_completed) {
+                    try {
+                        const AchievementManager = require('./AchievementManager');
+                        const achievementManager = new AchievementManager(this.database);
+                        await achievementManager.recordEvent(userId, 'set_completed', 1, { setId, setName });
+                    } catch (eventError) {
+                        console.error('Set completion achievement event error:', eventError.message);
+                    }
+                }
             }
 
             return {

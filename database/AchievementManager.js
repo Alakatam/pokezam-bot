@@ -47,6 +47,21 @@ class AchievementManager {
                 )
             `);
 
+            await this.db.run(`
+                CREATE TABLE IF NOT EXISTS achievement_events (
+                    user_id TEXT NOT NULL,
+                    event_type TEXT NOT NULL,
+                    event_value INTEGER DEFAULT 1,
+                    metadata TEXT,
+                    occurred_at INTEGER DEFAULT 0
+                )
+            `);
+
+            await this.db.run(`
+                CREATE INDEX IF NOT EXISTS idx_achievement_events_user_type
+                ON achievement_events(user_id, event_type)
+            `);
+
             // Initialize default achievements if none exist
             const existingAchievements = await this.db.get('SELECT COUNT(*) as count FROM achievements');
             if (existingAchievements.count === 0) {
@@ -320,6 +335,29 @@ class AchievementManager {
             LEFT JOIN user_achievements ua ON a.id = ua.achievement_id AND ua.user_id = ?
             ORDER BY a.unlock_order, a.name
         `, [userId]);
+    }
+
+    async recordEvent(userId, eventType, eventValue = 1, metadata = null) {
+        await this.initializeTables();
+        await this.db.run(`
+            INSERT INTO achievement_events (user_id, event_type, event_value, metadata, occurred_at)
+            VALUES (?, ?, ?, ?, ?)
+        `, [
+            userId,
+            eventType,
+            eventValue,
+            metadata ? JSON.stringify(metadata) : null,
+            Math.floor(Date.now() / 1000)
+        ]);
+    }
+
+    async getEventCount(userId, eventType) {
+        const result = await this.db.get(`
+            SELECT COALESCE(SUM(event_value), 0) AS count
+            FROM achievement_events
+            WHERE user_id = ? AND event_type = ?
+        `, [userId, eventType]);
+        return Number(result?.count || 0);
     }
 
     async getCompletedAchievements(userId) {

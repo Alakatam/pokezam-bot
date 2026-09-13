@@ -125,6 +125,13 @@ module.exports = {
                     DO UPDATE SET quantity = user_items.quantity + 1
                 `, [userId]);
                 foundStoreKey = true;
+                await require('../utils/recordAchievementEvent')(
+                    database,
+                    userId,
+                    'collector_unlocked',
+                    1,
+                    { rarity: drawnCard.rarity, cardId: drawnCard.id }
+                );
             }
             
             // Calculate rewards with rarity-based XP and variant bonuses
@@ -287,7 +294,8 @@ module.exports = {
                     ? `✨ **${variantInfo.displayName} Acquired!** Your collection just got deeper.`
                     : `🃏 **${detailedCard.rarity} Card Pulled.** Keep building your deck!`,
                 color: isSpecialVariant ? variantInfo.color : rarityDetails.color,
-                image: imageUrl,
+                image: user.draw_image_mode === 'small' ? null : imageUrl,
+                thumbnail: user.draw_image_mode === 'small' ? imageUrl : null,
                 footerText: `Collected by ${interaction.user.displayName} • Pokézam TCG`,
                 footerIcon: interaction.user.displayAvatarURL({ dynamic: true }),
                 fields: rewardSummary
@@ -402,6 +410,13 @@ module.exports = {
             // ASYNC PROCESSING: Run background tasks without blocking Discord response
             setImmediate(async () => {
                 try {
+                    const AchievementManager = require('../database/AchievementManager');
+                    const achievementManager = new AchievementManager(database);
+                    await achievementManager.recordEvent(userId, 'card_draw', 1, {
+                        rarity: detailedCard.rarity,
+                        cardId: detailedCard.id,
+                        setId: detailedCard.set_id
+                    });
                     // Post to Global showcase channel for rare cards (Holo Rare or above)
                     await this.checkAndPostToGlobalShowcase(interaction, detailedCard, variant, variantInfo, rarityInfo, database);
 
@@ -608,6 +623,14 @@ module.exports = {
 
     async checkAndPostToGlobalShowcase(interaction, detailedCard, variant, variantInfo, rarityInfo, database) {
         try {
+            const userSettings = await database.get(
+                'SELECT showcase_visibility FROM users WHERE id = ?',
+                [interaction.user.id]
+            );
+            if (userSettings?.showcase_visibility === 'private') {
+                return;
+            }
+
             // Global showcase channel ID
             const GLOBAL_SHOWCASE_CHANNEL_ID = '1434216182017167480';
             

@@ -40,6 +40,7 @@ Pokézam is a fan-made, non-commercial project and is not affiliated with Ninten
 | `/zam` | Draw one random card; has a five-second cooldown |
 | `/profile [user]` | View a trainer profile and progression summary |
 | `/stats [user]` | View draw totals, rarity history, Risky Deals, currencies, collection totals, and Collector production |
+| `/settings` | Choose global showcase privacy, /zam image style, profile visibility, and stats visibility |
 | `/binder` | Browse owned cards with filters and pagination |
 | `/carddex-reg` | Browse the regular Card Dex and ownership progress |
 | `/carddex-master` | Browse Master Set variant progress |
@@ -82,6 +83,8 @@ The dashboard provides buttons to collect generated resources, upgrade the globa
 `/stats` reports total card draws, rarity draw history, cards currently owned by rarity, unique and total card quantities, completed Risky Deals, current gold and coins, and Collector lifetime production.
 
 Historical rarity and Risky Deal totals from before these counters existed cannot be reconstructed reliably.
+
+Use `/settings` to control whether Holo+ pulls appear in the global showcase, choose a big card image or small thumbnail for `/zam`, and make your profile or stats public/private. These settings default to public showcase, big image, public profile, and public stats.
 
 ## Configuration
 

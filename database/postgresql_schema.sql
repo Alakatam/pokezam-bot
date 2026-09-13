@@ -15,6 +15,10 @@ CREATE TABLE IF NOT EXISTS users (
     total_draws INTEGER DEFAULT 0,
     last_draw BIGINT DEFAULT 0,
     risky_deals INTEGER DEFAULT 0,
+    showcase_visibility VARCHAR(10) DEFAULT 'public',
+    draw_image_mode VARCHAR(10) DEFAULT 'big',
+    profile_visibility VARCHAR(10) DEFAULT 'public',
+    stats_visibility VARCHAR(10) DEFAULT 'public',
     has_started BOOLEAN DEFAULT FALSE,
     created_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW()),
     last_daily_claim BIGINT DEFAULT 0,
@@ -210,6 +214,17 @@ CREATE TABLE IF NOT EXISTS user_achievements (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     UNIQUE(user_id, achievement_id)
 );
+
+CREATE TABLE IF NOT EXISTS achievement_events (
+    user_id VARCHAR(20) NOT NULL,
+    event_type VARCHAR(100) NOT NULL,
+    event_value INTEGER DEFAULT 1,
+    metadata JSONB,
+    occurred_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())
+);
+
+CREATE INDEX IF NOT EXISTS idx_achievement_events_user_type
+    ON achievement_events(user_id, event_type);
 
 -- Market/Trading system (if used)
 CREATE TABLE IF NOT EXISTS market_listings (

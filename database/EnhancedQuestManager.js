@@ -513,6 +513,19 @@ class EnhancedQuestManager {
                         reward_xp: quest.reward_xp || 0
                     };
 
+                    try {
+                        const AchievementManager = require('./AchievementManager');
+                        const achievementManager = new AchievementManager(this.db);
+                        await achievementManager.recordEvent(userId, 'quest_completed', 1, {
+                            questName: quest.name,
+                            questType: quest.quest_type,
+                            rewardGold: quest.reward_gold,
+                            rewardXp: quest.reward_xp || 0
+                        });
+                    } catch (eventError) {
+                        console.error('Quest achievement event error:', eventError.message);
+                    }
+
                     // Add XP and handle level ups
                     if (quest.reward_xp && quest.reward_xp > 0) {
                         const UserManager = require('./UserManager');

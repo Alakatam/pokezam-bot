@@ -163,6 +163,14 @@ module.exports = {
                     quantity = user_items.quantity + 1
             `, [userId, 'Daily Charm']);
 
+            await require('../utils/recordAchievementEvent')(
+                database,
+                userId,
+                'daily_claimed',
+                1,
+                { streak: streakCount, gold: totalGold, xp: totalXP, coins: rewards.coins }
+            );
+
             // Daily Charm is now a manual activation item - use /use daily-charm to activate!
 
             const rewardFields = [

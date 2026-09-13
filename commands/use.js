@@ -86,6 +86,14 @@ module.exports = {
             if (result.success) {
                 // Remove item from inventory
                 await this.removeItemFromInventory(database, userId, itemId);
+
+                await require('../utils/recordAchievementEvent')(
+                    database,
+                    userId,
+                    'item_used',
+                    1,
+                    { itemId }
+                );
                 
                 // Display success message
                 await interaction.editReply({

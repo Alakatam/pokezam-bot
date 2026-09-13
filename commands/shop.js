@@ -291,6 +291,14 @@ module.exports = {
             }
             await database.addUserItem(interaction.user.id, itemId, 1);
 
+            await require('../utils/recordAchievementEvent')(
+                database,
+                interaction.user.id,
+                'item_purchased',
+                1,
+                { itemId, price: item.price }
+            );
+
             const successEmbed = EmbedUtils.createBaseEmbed({
                 title: '✅ Purchase Successful',
                 description: `**${item.emoji} ${item.name}** has been added to your inventory.`,

@@ -118,6 +118,25 @@ module.exports = {
                 userStats = allUsers.find(u => u.id === interaction.user.id);
             }
 
+            if (userRank > 0 && userRank <= 3) {
+                const eventType = `leaderboard_top_${type}`;
+                const existingMilestone = await database.get(`
+                    SELECT COUNT(*) AS count
+                    FROM achievement_events
+                    WHERE user_id = ? AND event_type = ?
+                `, [interaction.user.id, eventType]);
+
+                if (!existingMilestone || Number(existingMilestone.count || 0) === 0) {
+                    await require('../utils/recordAchievementEvent')(
+                        database,
+                        interaction.user.id,
+                        eventType,
+                        1,
+                        { category: type, rank: userRank }
+                    );
+                }
+            }
+
             // Build modern clean leaderboard display
             const lines = leaderboardData.map((user, index) => {
                 const rank = index + 1;

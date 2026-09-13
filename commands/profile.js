@@ -73,6 +73,15 @@ module.exports = {
                 });
             }
 
+            if (targetUser.id !== interaction.user.id && user.profile_visibility === 'private') {
+                return await interaction.editReply({
+                    embeds: [EmbedUtils.createErrorEmbed(
+                        'Private Profile',
+                        `${targetUser.username} has chosen to keep their profile private.`
+                    )]
+                });
+            }
+
             const xpInfo = userManager.getXPForNextLevel(user.xp, user.level);
             const progressBar = EmbedUtils.createProgressBar(xpInfo.current, xpInfo.required);
             const trainerTier = getTrainerTier(user.level);

@@ -27,6 +27,15 @@ module.exports = {
                 });
             }
 
+            if (targetUser.id !== interaction.user.id && user.stats_visibility === 'private') {
+                return await interaction.editReply({
+                    embeds: [EmbedUtils.createErrorEmbed(
+                        'Private Stats',
+                        `${targetUser.username} has chosen to keep their stats private.`
+                    )]
+                });
+            }
+
             const [rarityDrawRows, collectionRarityRows, collectionTotals, collectorStats] = await Promise.all([
                 database.all(`
                     SELECT rarity, draw_count

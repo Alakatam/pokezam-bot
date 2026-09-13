@@ -46,6 +46,19 @@ class UserManager {
             'UPDATE users SET xp = xp + ?, level = ? WHERE id = ?',
             [xp, newLevel, userId]
         );
+
+        if (newLevel > user.level) {
+            try {
+                const AchievementManager = require('./AchievementManager');
+                const achievementManager = new AchievementManager(this.db);
+                await achievementManager.recordEvent(userId, 'level_up', newLevel - user.level, {
+                    oldLevel: user.level,
+                    newLevel
+                });
+            } catch (eventError) {
+                console.error('Level-up achievement event error:', eventError.message);
+            }
+        }
         
         return {
             oldLevel: user.level,

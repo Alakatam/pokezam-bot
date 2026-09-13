@@ -184,6 +184,10 @@ class Database {
                 { name: 'daily_streak', type: 'INTEGER DEFAULT 0' },
                 { name: 'coins', type: 'INTEGER DEFAULT 0' },
                 { name: 'risky_deals', type: 'INTEGER DEFAULT 0' },
+                { name: 'showcase_visibility', type: "TEXT DEFAULT 'public'" },
+                { name: 'draw_image_mode', type: "TEXT DEFAULT 'big'" },
+                { name: 'profile_visibility', type: "TEXT DEFAULT 'public'" },
+                { name: 'stats_visibility', type: "TEXT DEFAULT 'public'" },
                 { name: 'cooldown_bypass', type: this.dbType === 'postgresql' ? 'BOOLEAN DEFAULT FALSE' : 'BOOLEAN DEFAULT 0' },
                 { name: 'showcase_count', type: 'INTEGER DEFAULT 0' }
             ];
@@ -349,6 +353,10 @@ class Database {
                 scout_duration INTEGER DEFAULT NULL,
                 last_draw INTEGER DEFAULT 0,
                 risky_deals INTEGER DEFAULT 0,
+                showcase_visibility TEXT DEFAULT 'public',
+                draw_image_mode TEXT DEFAULT 'big',
+                profile_visibility TEXT DEFAULT 'public',
+                stats_visibility TEXT DEFAULT 'public',
                 has_started BOOLEAN DEFAULT FALSE,
                 last_daily_claim TEXT,
                 daily_streak INTEGER DEFAULT 0,
@@ -532,6 +540,17 @@ class Database {
                 FOREIGN KEY (user_id) REFERENCES users(id),
                 UNIQUE(user_id, item_id)
             )`,
+
+            `CREATE TABLE IF NOT EXISTS achievement_events (
+                user_id TEXT NOT NULL,
+                event_type TEXT NOT NULL,
+                event_value INTEGER DEFAULT 1,
+                metadata TEXT,
+                occurred_at INTEGER DEFAULT 0
+            )`,
+
+            `CREATE INDEX IF NOT EXISTS idx_achievement_events_user_type
+             ON achievement_events(user_id, event_type)`,
 
             // Active_effects table - track active item effects
             `CREATE TABLE IF NOT EXISTS active_effects (

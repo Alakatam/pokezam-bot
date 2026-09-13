@@ -249,6 +249,18 @@ module.exports = {
                 });
             }
 
+            await require('../utils/recordAchievementEvent')(
+                database,
+                interaction.user.id,
+                'collector_collected',
+                1,
+                {
+                    coins: result.results.coins || 0,
+                    cards: result.results.cards || 0,
+                    packs: result.results.packs || 0
+                }
+            );
+
             // Award collected resources to user
             if (result.results.coins > 0) {
                 await userManager.addGold(interaction.user.id, result.results.coins);

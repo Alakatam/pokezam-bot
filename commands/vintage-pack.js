@@ -84,6 +84,13 @@ module.exports = {
                 total_draws: user.total_draws + 7 
             });
 
+            await require('../utils/recordAchievementEvent')(database, userId, 'pack_opened', 1, {
+                packType: 'vintage',
+                cardsReceived: packResults.length,
+                bestRarity: packResults.map(result => result.card.rarity).filter(Boolean).sort().pop() || 'Unknown',
+                goldEarned: totalGold
+            });
+
             // Update quests
             const completedQuests = await questManager.updateQuestProgress(userId, 'draw_cards', 7);
 
