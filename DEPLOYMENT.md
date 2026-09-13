@@ -1,179 +1,118 @@
-# 🚀 Deploying Pokézam Bot to Render (Free Tier)
+# Deploying Pokézam to Render
 
-This guide will walk you through deploying your Pokézam bot to Render's free tier for 24/7 hosting.
+This guide describes the current Render deployment for the Pokézam Discord bot.
 
-## 📋 Prerequisites
+## Prerequisites
 
-- [GitHub Account](https://github.com) 
-- [Render Account](https://render.com) (sign up with GitHub)
-- Your Discord Bot Token
-- Your Discord User ID (for admin commands)
+- GitHub access to the repository
+- A Render account connected to GitHub
+- A Discord application and bot token
+- A Discord user ID for `ADMIN_USER_ID`
+- A PostgreSQL database for production persistence
 
-## 🔧 Step-by-Step Deployment
+Never commit `.env`, Discord tokens, database passwords, or API keys. Configure secrets in Render's Environment settings instead.
 
-### Step 1: Prepare Your Repository
+## Render Service
 
-1. **Create a GitHub Repository**
-   ```bash
-   # If you haven't already, initialize git in your project
-   git init
-   git add .
-   git commit -m "Initial commit - Pokézam TCG Bot"
-   
-   # Create a new repository on GitHub and push
-   git remote add origin https://github.com/yourusername/pokezam-bot.git
-   git branch -M main
-   git push -u origin main
-   ```
+Create a Render **Web Service** connected to:
 
-2. **Verify Required Files** (these should already exist):
-   - ✅ `package.json` - Dependencies and start script
-   - ✅ `index.js` - Main bot file
-   - ✅ All your bot code and database files
+```text
+Repository: Alakatam/pokezam-bot
+Branch: clean-main
+Environment: Node
+Build Command: npm install
+Start Command: npm run prod
+```
 
-### Step 2: Create Render Account and Service
+The bot starts an HTTP health server so Render can detect a live web service. The port comes from `PORT`, with `3000` as the local fallback.
 
-1. **Sign Up for Render**
-   - Go to [render.com](https://render.com)
-   - Click "Get Started For Free"
-   - Sign up using your GitHub account
+## Environment Variables
 
-2. **Create a New Web Service**
-   - In Render dashboard, click "New +"
-   - Select "Web Service"
-   - Connect your GitHub repository
-   - Select your Pokézam repository
+Configure these in Render. Do not paste real values into documentation or commit them to Git:
 
-3. **Configure Service Settings**
-   ```yaml
-   Name: pokezam-tcg-bot
-   Environment: Node
-   Region: Oregon (US West) # or closest to you
-   Branch: main
-   Build Command: npm install
-   Start Command: npm start
-   ```
-
-### Step 3: Configure Environment Variables
-
-In Render dashboard, go to your service → Environment tab:
-
-```bash
-# Required Variables
-DISCORD_TOKEN=your_discord_bot_token_here
-ADMIN_USER_ID=your_discord_user_id_here
-
-# Optional Variables  
+```dotenv
+DISCORD_TOKEN=your_discord_bot_token
+CLIENT_ID=your_discord_application_id
+ADMIN_USER_ID=your_discord_user_id
+DATABASE_URL=your_postgresql_connection_string
 NODE_ENV=production
-TZ=America/New_York
 ```
 
-**How to get your Discord User ID:**
-1. Enable Developer Mode in Discord: Settings → Advanced → Developer Mode
-2. Right-click your username anywhere → Copy User ID
+Recommended command registration settings:
 
-### Step 4: Deploy and Monitor
+```dotenv
+GUILD_ID=your_test_server_id
+USE_GLOBAL_COMMANDS=false
+```
 
-1. **Deploy**
-   - Click "Create Web Service" 
-   - Render will automatically build and deploy your bot
-   - First deployment takes 5-10 minutes
+Guild registration makes command changes available quickly. Global command registration can take longer to propagate.
 
-2. **Monitor Deployment**
-   - Watch the build logs for any errors
-   - Look for "Pokézam#XXXX is online!" message
-   - Check your Discord server - bot should appear online
+Optional variables include `POKEMON_TCG_API_KEY`, `PORT`, `RENDER_EXTERNAL_HOSTNAME`, `DATABASE_BACKUP_URL`, `LOG_LEVEL`, and `TEST_GUILD_ID`.
 
-3. **Test Your Bot**
-   - Try `/help` command in Discord
-   - Use `/admin system-monitor` to check resource usage
-   - Verify all commands work as expected
+## Database Behavior
 
-## 📊 Render Free Tier Limits
+The bot selects PostgreSQL when `NODE_ENV=production`, `DATABASE_URL` is present, or `USE_POSTGRESQL=true`. SQLite is used for local development when those conditions are false.
 
-- **RAM**: 512MB (perfect for your bot - uses only ~36MB)
-- **CPU**: 0.1 CPU units (sufficient)
-- **Build Minutes**: 500/month (you'll use ~5)
-- **Bandwidth**: 100GB/month (more than enough)
-- **Uptime**: Service sleeps after 15 minutes of inactivity
+On PostgreSQL startup, the bot applies idempotent schema repairs for known production migrations, including user statistics and rarity tracking. Card data may also load progressively after the Discord client becomes ready.
 
-### ⚠️ Free Tier Sleep Behavior
-Your bot will "sleep" after 15 minutes of no HTTP requests. For Discord bots:
-- **Workaround**: Use a service like [UptimeRobot](https://uptimerobot.com) to ping your service every 5 minutes
-- **Ping URL**: Your Render service URL (e.g., `https://pokezam-tcg-bot.onrender.com`)
-- **Alternative**: Upgrade to paid plan ($7/month) for always-on hosting
+Back up production data before migrations or admin reset commands.
 
-## 🔧 Troubleshooting
+## Health and Metrics
 
-### Build Failures
+The service exposes:
+
+```text
+/health
+/metrics
+```
+
+`/health` reports bot readiness, uptime, memory, Discord ping, loaded commands, startup warnings, and command metrics. `/metrics` includes the loaded command names.
+
+## Deploying Updates
+
+Push tested changes to `clean-main`:
+
 ```bash
-# Common issues:
-- Missing package.json → Ensure file is committed to git
-- Node version issues → Render uses Node 18 by default
-- Dependency errors → Check package.json dependencies
+npm test
+git add <files>
+git commit -m "describe the change"
+git push origin clean-main
 ```
 
-### Runtime Errors
-```bash
-# Check logs in Render dashboard:
-- Environment variables → Verify DISCORD_TOKEN is set
-- Database issues → SQLite works fine on Render
-- Permission errors → Check Discord bot permissions
-```
+Render should automatically deploy the new commit when automatic deploys are enabled. Check the Render Events and Logs tabs for build, migration, and startup results.
 
-### Bot Goes Offline
-```bash
-# Possible causes:
-- Service sleeping → Set up UptimeRobot monitoring
-- Memory limits → Use /admin system-monitor (you're well under limits)
-- Crashes → Check Render logs for error messages
-```
+## Troubleshooting
 
-## 📈 Monitoring Your Deployment
+### Commands do not appear
 
-### Using Built-in Commands
-```bash
-/admin system-monitor    # Real-time resource usage
-/admin stats            # Bot usage statistics  
-/admin hosting-analysis # Comprehensive hosting metrics
-```
+- Verify `CLIENT_ID` is set.
+- Set `GUILD_ID` to a test server for fast registration.
+- Confirm `USE_GLOBAL_COMMANDS=false` for guild registration.
+- Check deployment logs for Discord login or registration errors.
 
-### Render Dashboard
-- **Metrics tab**: CPU, Memory, Response time
-- **Logs tab**: Real-time application logs
-- **Events tab**: Deployment history
+### Database column or table errors
 
-## 💡 Pro Tips
+- Confirm `DATABASE_URL` points to the intended PostgreSQL database.
+- Restart the service so startup migrations can run.
+- Check logs for migration failures.
+- Do not manually delete production tables without a backup.
 
-1. **Keep Service Active**: Use UptimeRobot to ping every 5 minutes
-2. **Monitor Resources**: Your bot uses <40MB, well within 512MB limit
-3. **Database Backups**: Download `database.db` periodically from logs/file system
-4. **Updates**: Push to GitHub → Render auto-deploys
-5. **Scaling**: Current setup can handle 1000+ Discord servers
+### Bot is offline
 
-## 🎉 Success Checklist
+- Verify `DISCORD_TOKEN` was regenerated if it was ever exposed.
+- Confirm the Render service is running and the Discord application is enabled.
+- Check `/health` and the Render logs.
 
-- ✅ Repository pushed to GitHub
-- ✅ Render service created and deployed  
-- ✅ Environment variables configured
-- ✅ Bot appears online in Discord
-- ✅ Commands work properly
-- ✅ System monitor shows healthy metrics
-- ✅ UptimeRobot configured (optional but recommended)
+### Render sleeps or restarts
 
-## 🆘 Need Help?
+Use Render metrics and logs first. An external uptime monitor can request `/health` where appropriate, but it does not replace a reliable production hosting plan.
 
-Your bot is perfectly optimized for Render's free tier. If you encounter issues:
+## GitHub Pages Policies
 
-1. Check Render logs first
-2. Verify environment variables
-3. Test bot locally to isolate issues
-4. Use `/admin system-monitor` to check resource usage
+The public policy pages are stored in `docs/`:
 
-**Your bot's performance:**
-- ✅ 36MB RAM usage (93% under limit)
-- ✅ Handles 50+ concurrent users easily  
-- ✅ 3000+ user capacity on free tier
-- ✅ Excellent stability and efficiency
+- `docs/index.html`
+- `docs/tos.html`
+- `docs/privacy.html`
 
-You're all set for reliable 24/7 hosting! 🚀
+In GitHub, open **Settings → Pages**, select **Deploy from a branch**, choose `clean-main`, and select the `/docs` folder.
